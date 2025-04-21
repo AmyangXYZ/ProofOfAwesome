@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  server:
+    image: "amyangxyz111/awesome-connect:latest"
+    expose:
+      - "3000"
+    restart: unless-stopped
+    networks:
+      - awesome-network
+  
+
+volumes:
+  caddy_data:
+  caddy_config:
+
+
+networks:
+  awesome-network:
+    driver: bridge

@@ -1,0 +1,44 @@
+{
+  "name": "@proof-of-awesome/node",
+  "version": "0.1.0",
+  "description": "## Core Concept",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node dist/main.js",
+    "dev": "tsc && node dist/main.js",
+    "build": "tsc"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/AmyangXYZ/ProofOfAwesome/node"
+  },
+  "author": "AmyangXYZ",
+  "license": "ISC",
+  "devDependencies": {
+    "@eslint/js": "^9.22.0",
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.13.10",
+    "@typescript-eslint/eslint-plugin": "^8.26.1",
+    "@typescript-eslint/parser": "^8.26.1",
+    "eslint": "^9.22.0",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.2",
+    "typescript-eslint": "^8.26.1"
+  },
+  "dependencies": {
+    "bip32": "^5.0.0-rc.0",
+    "bip39": "^3.1.0",
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "js-sha256": "^0.11.0",
+    "js-sha3": "^0.9.3",
+    "mongoose": "^8.13.2",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "tiny-secp256k1": "^2.2.3"
+  }
+}
