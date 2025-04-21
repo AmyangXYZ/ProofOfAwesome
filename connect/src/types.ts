@@ -24,9 +24,8 @@ export interface Identity {
 export interface Message {
   from: string
   to: string | "*"
-  room: string
+  room?: string
   type: string
   payload: unknown
   timestamp: number
-  hash: string
 }

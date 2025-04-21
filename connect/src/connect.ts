@@ -49,7 +49,7 @@ export class AwesomeConnect {
           return
         }
 
-        if (message.to === "*" && message.room !== "") {
+        if (message.to === "*" && message.room) {
           this.io.to(message.room).emit("message.received", message)
           return
         }
