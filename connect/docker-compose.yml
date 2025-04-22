@@ -1,6 +1,6 @@
 version: '3.8'
 services:
-  server:
+  connect:
     image: "amyangxyz111/awesome-connect:latest"
     expose:
       - "3000"
@@ -18,7 +18,7 @@ services:
       - caddy_config:/config
     restart: unless-stopped
     depends_on:
-      - server
+      - connect
     networks:
       - awesome-network
 

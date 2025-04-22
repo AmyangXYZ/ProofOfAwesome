@@ -26,4 +26,4 @@ dev-dist
 
 .vercel
 
-pose_solver/target
+src/ai_api_keys.ts

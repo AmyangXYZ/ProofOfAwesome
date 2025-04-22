@@ -1,4 +1,4 @@
 import { AwesomeNode } from "./node"
 
-const node = new AwesomeNode("http://localhost:3000", "AwesomeNode-1", "full")
+const node = new AwesomeNode("https://connect.proof-of-awesome.app", "AwesomeNode-1", "full")
 node.start()

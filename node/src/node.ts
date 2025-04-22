@@ -162,20 +162,7 @@ export class AwesomeNode {
             console.log("First node in the chain, initializing the chain")
             this.chain.genesisTime = Date.now()
             this.startStatusUpdates()
-            const genesisBlock: Block = {
-              height: 0,
-              previousHash: "11",
-              transactions: [],
-              transactionsMerkleRoot: "22",
-              achievements: [],
-              achievementsMerkleRoot: "33",
-              reviews: [],
-              reviewsMerkleRoot: "44",
-              creatorAddress: this.identity.address,
-              timestamp: Date.now(),
-              hash: "55",
-            }
-            this.repository.addBlock(genesisBlock)
+            this.createBlock()
           }
         } else {
           this.socket.emit("message.send", {
@@ -188,6 +175,12 @@ export class AwesomeNode {
         }
       }
     })
+  }
+
+  getTheme(edition: number) {
+    const hash = sha256(edition.toString())
+    const themeIndex = parseInt(hash.substring(0, 8), 16) % this.chain.themes.length
+    return this.chain.themes[themeIndex]
   }
 
   private startStatusUpdates() {
@@ -206,9 +199,7 @@ export class AwesomeNode {
 
     if (edition == 0 || edition !== this.awesomeComStatus.edition) {
       this.awesomeComStatus.edition = edition
-      const hash = sha256(edition.toString())
-      const themeIndex = parseInt(hash.substring(0, 8), 16) % this.chain.themes.length
-      this.awesomeComStatus.theme = this.chain.themes[themeIndex]
+      this.awesomeComStatus.theme = this.getTheme(edition)
     }
 
     const elapsed = timeSinceGenesis % this.chain.awesomeComPeriod
@@ -276,23 +267,53 @@ export class AwesomeNode {
     } satisfies Message)
   }
 
-  private verifyBlock(block: Block) {
-    const transactionMerkleRoot = this.computeMerkleRoot(block.transactions.map((t) => t.signature))
-    const achievementMerkleRoot = this.computeMerkleRoot(block.achievements.map((a) => a.signature))
-    const reviewMerkleRoot = this.computeMerkleRoot(block.reviews.map((r) => r.signature))
+  private async createBlock() {
+    const edition = this.awesomeComStatus.edition
+    let previousHash = ""
+    let previousHeight = 0
+    const transactions = await this.repository.getPendingTransactions()
+    const achievements = await this.repository.getAchievementsByEdition(edition)
+    const reviews = await this.repository.getReviewsByEdition(edition)
+    const previousBlock = await this.repository.getLatestBlock()
+    if (previousBlock) {
+      previousHash = previousBlock.hash
+      previousHeight = previousBlock.height
+    }
 
+    const block: Block = {
+      height: previousHeight + 1,
+      previousHash,
+      transactions,
+      transactionsMerkleRoot: this.computeMerkleRoot(transactions.map((t) => t.signature)),
+      achievements,
+      achievementsMerkleRoot: this.computeMerkleRoot(achievements.map((a) => a.signature)),
+      reviews,
+      reviewsMerkleRoot: this.computeMerkleRoot(reviews.map((r) => r.signature)),
+      creatorAddress: this.identity.address,
+      timestamp: Date.now(),
+      hash: "",
+    }
+    block.hash = this.computeBlockHash(block)
+    this.repository.addBlock(block)
+    this.emit("block.added", block)
+  }
+
+  private computeBlockHash(block: Block) {
     const hash = sha256(
       [
         block.previousHash,
-        transactionMerkleRoot,
-        achievementMerkleRoot,
-        reviewMerkleRoot,
+        block.transactionsMerkleRoot,
+        block.achievementsMerkleRoot,
+        block.reviewsMerkleRoot,
         block.creatorAddress,
         block.timestamp,
       ].join("_")
     )
+    return hash
+  }
 
-    return hash === block.hash
+  private verifyBlock(block: Block) {
+    return this.computeBlockHash(block) === block.hash
   }
 
   private verifyTransaction(transaction: Transaction) {

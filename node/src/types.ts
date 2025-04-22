@@ -54,6 +54,7 @@ export interface Transaction {
 }
 
 export interface Achievement {
+  edition: number
   creatorName: string
   creatorAddress: string
   title: string
@@ -65,6 +66,7 @@ export interface Achievement {
 }
 
 export interface Review {
+  edition: number
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
@@ -89,17 +91,20 @@ export interface Repository {
   // getTransactionsBySender(sender: string): Promise<Transaction[]>
   // getTransactionsByRecipient(recipient: string): Promise<Transaction[]>
   // getTransactionsByBlock(blockHash: string): Promise<Transaction[]>
+  getPendingTransactions(): Promise<Transaction[]>
   // updateTransactionStatus(signature: string, status: string): Promise<void>
 
   // addAchievement(achievement: Achievement): Promise<void>
   // getAchievement(signature: string): Promise<Achievement | null>
   // getAchievementsByCreator(creator: string): Promise<Achievement[]>
   // getAchievementsByTheme(theme: string): Promise<Achievement[]>
+  getAchievementsByEdition(edition: number): Promise<Achievement[]>
 
   // addReview(review: Review): Promise<void>
   // getReviewBySignature(signature: string): Promise<Review | null>
   // getReviewsByAchievement(achievementSignature: string): Promise<Review[]>
   // getReviewsByReviewer(reviewer: string): Promise<Review[]>
+  getReviewsByEdition(edition: number): Promise<Review[]>
 }
 
 // Connect api types
