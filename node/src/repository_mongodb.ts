@@ -243,7 +243,7 @@ export class MongoDBRepository implements Repository {
       })
     )
 
-    const blockDoc = {
+    const blockDoc: BlockDocument = {
       height: block.height,
       previousHash: block.previousHash,
       transactions: transactionDocs.map((t) => t._id!),
@@ -255,7 +255,7 @@ export class MongoDBRepository implements Repository {
       creatorAddress: block.creatorAddress,
       timestamp: new Date(block.timestamp),
       hash: block.hash,
-    } satisfies BlockDocument
+    }
     await this.BlockModel.create(blockDoc)
   }
 

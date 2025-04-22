@@ -18,36 +18,30 @@ import {
   Transaction,
   Achievement,
   Review,
+  ChainHead,
+  EventMap,
+  AWESOME_COM_PHASE,
 } from "./types"
 import { MongoDBRepository } from "./repository_mongodb"
-
-interface EventMap {
-  "block.added": Block
-  "phase.changed": AwesomeComStatus
-  "achievement.added": Achievement
-  "review.added": Review
-  "transaction.added": Transaction
-}
 
 export class AwesomeNode {
   public readonly chain: Chain = {
     name: "AwesomeCom-0.0.1",
     genesisTime: 0,
     awesomeComPeriod: 15 * 60 * 1000,
-    achievementSubmissionWindow: [0, 8 * 60 * 1000],
-    achievementReviewWindow: [8 * 60 * 1000, 12 * 60 * 1000],
-    blockCreationWindow: [12 * 60 * 1000, 14 * 60 * 1000],
-    blockAnnouncementWindow: [14 * 60 * 1000, 15 * 60 * 1000],
+    achievementSubmissionPhase: [0, 8 * 60 * 1000],
+    achievementReviewPhase: [8 * 60 * 1000, 12 * 60 * 1000],
+    blockCreationPhase: [12 * 60 * 1000, 14 * 60 * 1000],
+    wrapUpPhase: [14 * 60 * 1000, 15 * 60 * 1000],
     themes: ["Life", "Gaming", "Fitness", "Home"],
   }
   public awesomeComStatus: AwesomeComStatus = {
     edition: 0,
     theme: "",
-    phase: "submission",
+    phase: AWESOME_COM_PHASE.WRAP_UP,
     phaseRemaining: 0,
     editionRemaining: 0,
   }
-  public blocks: Block[] = []
 
   private statusUpdateInterval: NodeJS.Timeout | null = null
   private socket: Socket<ClientEvents, ServerEvents>
@@ -55,6 +49,9 @@ export class AwesomeNode {
   private publicKey: string
   private identity: Identity
   private repository: Repository
+
+  // created or received in the block creation phase
+  private pendingBlock: Block | null = null
 
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
@@ -107,14 +104,34 @@ export class AwesomeNode {
 
     this.socket = io(connectAddress, { autoConnect: false })
     this.setupSocket()
-    // this.on("phase.changed", (status: AwesomeComStatus) => {
-    //   console.log("Phase changed:", status)
-    // })
+    // this.on("phase.changed", (status: AwesomeComStatus) => {})
   }
 
   async start() {
     await this.repository.init()
     this.socket.connect()
+
+    this.on("awesome_com.block_creation.started", async () => {
+      this.pendingBlock = null
+      if (this.identity.nodeType == "full") {
+        this.pendingBlock = await this.createBlock()
+        this.socket.emit("message.send", {
+          from: this.identity.address,
+          to: "*",
+          room: `${this.chain.name}:nodes`,
+          type: MESSAGE_TYPE.BLOCK,
+          payload: this.pendingBlock,
+          timestamp: Date.now(),
+        })
+      }
+    })
+    this.on("awesome_com.wrap_up.started", async () => {
+      if (this.pendingBlock) {
+        await this.repository.addBlock(this.pendingBlock)
+        this.emit("block.added", this.pendingBlock)
+        this.pendingBlock = null
+      }
+    })
   }
 
   public on<K extends keyof EventMap>(event: K, callback: (data: EventMap[K]) => void): () => void {
@@ -162,16 +179,16 @@ export class AwesomeNode {
             console.log("First node in the chain, initializing the chain")
             this.chain.genesisTime = Date.now()
             this.startStatusUpdates()
-            this.createBlock()
           }
         } else {
-          this.socket.emit("message.send", {
+          const msg: Message = {
             from: this.identity.address,
             to: members[0].address,
             type: MESSAGE_TYPE.GET_CHAIN_HEAD,
             payload: {},
             timestamp: Date.now(),
-          } satisfies Message)
+          }
+          this.socket.emit("message.send", msg)
         }
       }
     })
@@ -203,27 +220,40 @@ export class AwesomeNode {
     }
 
     const elapsed = timeSinceGenesis % this.chain.awesomeComPeriod
-    const windows = [
-      { name: "Achievement Submission", window: this.chain.achievementSubmissionWindow },
-      { name: "Achievement Review", window: this.chain.achievementReviewWindow },
-      { name: "Block Creation", window: this.chain.blockCreationWindow },
-      { name: "Block Announcement", window: this.chain.blockAnnouncementWindow },
+    const phases = [
+      { phase: AWESOME_COM_PHASE.ACHIEVEMENT_SUBMISSION, window: this.chain.achievementSubmissionPhase },
+      { phase: AWESOME_COM_PHASE.ACHIEVEMENT_REVIEW, window: this.chain.achievementReviewPhase },
+      { phase: AWESOME_COM_PHASE.BLOCK_CREATION, window: this.chain.blockCreationPhase },
+      { phase: AWESOME_COM_PHASE.WRAP_UP, window: this.chain.wrapUpPhase },
     ]
-
-    const currentPhase = windows.find(({ window: [start, end] }) => elapsed >= start && elapsed < end)
+    const currentPhase = phases.find(({ window: [start, end] }) => elapsed >= start && elapsed < end)
 
     if (currentPhase) {
-      if (this.awesomeComStatus.phase !== currentPhase.name) {
-        this.awesomeComStatus.phase = currentPhase.name
+      if (this.awesomeComStatus.phase !== currentPhase.phase) {
+        this.awesomeComStatus.phase = currentPhase.phase
+        console.log(`[${edition}th-AwesomeCom] Entering ${currentPhase.phase} phase `)
+        switch (currentPhase.phase) {
+          case AWESOME_COM_PHASE.ACHIEVEMENT_SUBMISSION:
+            this.emit("awesome_com.achievement_submission.started", undefined)
+            break
+          case AWESOME_COM_PHASE.ACHIEVEMENT_REVIEW:
+            this.emit("awesome_com.achievement_review.started", undefined)
+            break
+          case AWESOME_COM_PHASE.BLOCK_CREATION:
+            this.emit("awesome_com.block_creation.started", undefined)
+            break
+          case AWESOME_COM_PHASE.WRAP_UP:
+            this.emit("awesome_com.wrap_up.started", undefined)
+            break
+        }
       }
-
       const newRemaining = currentPhase.window[1] - elapsed
       if (Math.abs(this.awesomeComStatus.phaseRemaining - newRemaining) >= 1000) {
         this.awesomeComStatus.phaseRemaining = newRemaining
       }
     }
 
-    this.emit("phase.changed", { ...this.awesomeComStatus })
+    this.emit("awesome_com.status.updated", { ...this.awesomeComStatus })
   }
 
   private handleMessage(message: Message) {
@@ -256,18 +286,24 @@ export class AwesomeNode {
 
   private async handleGetChainHead(message: Message) {
     const block = await this.repository.getLatestBlock()
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: message.from,
-      type: MESSAGE_TYPE.CHAIN_HEAD,
-      payload: {
-        hash: block?.hash,
-      },
-      timestamp: Date.now(),
-    } satisfies Message)
+    if (block) {
+      const chainHead: ChainHead = {
+        name: this.chain.name,
+        latestBlockHeight: block.height,
+        latestBlockHash: block.hash,
+      }
+      const msg: Message = {
+        from: this.identity.address,
+        to: message.from,
+        type: MESSAGE_TYPE.CHAIN_HEAD,
+        payload: chainHead,
+        timestamp: Date.now(),
+      }
+      this.socket.emit("message.send", msg)
+    }
   }
 
-  private async createBlock() {
+  private async createBlock(): Promise<Block> {
     const edition = this.awesomeComStatus.edition
     let previousHash = ""
     let previousHeight = 0
@@ -294,8 +330,8 @@ export class AwesomeNode {
       hash: "",
     }
     block.hash = this.computeBlockHash(block)
-    this.repository.addBlock(block)
-    this.emit("block.added", block)
+
+    return block
   }
 
   private computeBlockHash(block: Block) {

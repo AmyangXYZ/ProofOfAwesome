@@ -11,21 +11,34 @@ export enum MESSAGE_TYPE {
   GET_REVIEW = "GET_REVIEW",
 }
 
+export enum AWESOME_COM_PHASE {
+  ACHIEVEMENT_SUBMISSION = "Achievement Submission",
+  ACHIEVEMENT_REVIEW = "Achievement Review",
+  BLOCK_CREATION = "Block Creation",
+  WRAP_UP = "Wrap Up",
+}
+
 export interface Chain {
   name: string
   genesisTime: number
   awesomeComPeriod: number
-  achievementSubmissionWindow: [number, number]
-  achievementReviewWindow: [number, number]
-  blockCreationWindow: [number, number]
-  blockAnnouncementWindow: [number, number]
+  achievementSubmissionPhase: [number, number]
+  achievementReviewPhase: [number, number]
+  blockCreationPhase: [number, number]
+  wrapUpPhase: [number, number]
   themes: string[]
+}
+
+export interface ChainHead {
+  name: string
+  latestBlockHeight: number
+  latestBlockHash: string
 }
 
 export interface AwesomeComStatus {
   edition: number
   theme: string
-  phase: string
+  phase: AWESOME_COM_PHASE
   editionRemaining: number
   phaseRemaining: number
 }
@@ -75,6 +88,18 @@ export interface Review {
   reviewerPublicKey: string
   timestamp: number
   signature: string
+}
+
+export interface EventMap {
+  "awesome_com.status.updated": AwesomeComStatus
+  "awesome_com.achievement_submission.started": void
+  "awesome_com.achievement_review.started": void
+  "awesome_com.block_creation.started": void
+  "awesome_com.wrap_up.started": void
+  "block.added": Block
+  "achievement.added": Achievement
+  "review.added": Review
+  "transaction.added": Transaction
 }
 
 export interface Repository {
