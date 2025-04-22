@@ -1,38 +1,81 @@
 import { io, Socket } from "socket.io-client"
-import { keccak256 } from "js-sha3"
-import { generateMnemonic, mnemonicToSeedSync } from "bip39"
-import { BIP32Factory, BIP32Interface } from "bip32"
-import * as ecc from "tiny-secp256k1"
-import { Buffer } from "buffer"
 import { sha256 } from "js-sha256"
+import { Repository } from "./repository"
+import { MongoDBRepository } from "./repository_mongodb"
+import { ClientEvents, ServerEvents, Identity, Message } from "./connect"
+import { Wallet } from "./wallet"
 import {
-  ClientEvents,
-  Identity,
-  Message,
-  ServerEvents,
-  AwesomeComStatus,
+  verifyBlock,
+  verifyTransaction,
+  verifyAchievement,
+  verifyReview,
+  computeMerkleRoot,
+  hashBlock,
   Block,
-  Chain,
-  MESSAGE_TYPE,
-  Repository,
-  Transaction,
   Achievement,
   Review,
+  Transaction,
+  ChainConfig,
   ChainHead,
-  EventMap,
-  AWESOME_COM_PHASE,
-} from "./types"
-import { MongoDBRepository } from "./repository_mongodb"
+  isBlock,
+  isTransaction,
+  isAchievement,
+  isReview,
+  isChainHead,
+  MIN_REVIEWERS_PER_ACHIEVEMENT,
+} from "./blockchain"
+
+enum MESSAGE_TYPE {
+  CHAIN_HEAD = "CHAIN_HEAD",
+  CANDIDATE_BLOCK = "CANDIDATE_BLOCK",
+  BLOCK = "BLOCK",
+  TRANSACTION = "TRANSACTION",
+  ACHIEVEMENT = "ACHIEVEMENT",
+  REVIEW = "REVIEW",
+  GET_CHAIN_HEAD = "GET_CHAIN_HEAD",
+  GET_BLOCK = "GET_BLOCK",
+  GET_TRANSACTION = "GET_TRANSACTION",
+  GET_ACHIEVEMENT = "GET_ACHIEVEMENT",
+  GET_REVIEW = "GET_REVIEW",
+}
+
+interface AwesomeComStatus {
+  edition: number
+  theme: string
+  phase: AWESOME_COM_PHASE
+  editionRemaining: number
+  phaseRemaining: number
+}
+
+enum AWESOME_COM_PHASE {
+  ACHIEVEMENT_SUBMISSION = "Achievement Submission",
+  ACHIEVEMENT_REVIEW = "Achievement Review",
+  BLOCK_CREATION = "Block Creation",
+  WRAP_UP = "Wrap Up",
+}
+
+interface EventMap {
+  "awesome_com.status.updated": AwesomeComStatus
+  "awesome_com.achievement_submission.started": void
+  "awesome_com.achievement_review.started": void
+  "awesome_com.block_creation.started": void
+  "awesome_com.wrap_up.started": void
+  "block.added": Block
+  "achievement.added": Achievement
+  "review.added": Review
+  "transaction.added": Transaction
+}
 
 export class AwesomeNode {
-  public readonly chain: Chain = {
-    name: "AwesomeCom-0.0.1",
+  public readonly chain: ChainConfig = {
+    name: "Proof-of-Awesome",
+    version: "0.0.1",
     genesisTime: 0,
-    awesomeComPeriod: 15 * 60 * 1000,
-    achievementSubmissionPhase: [0, 8 * 60 * 1000],
-    achievementReviewPhase: [8 * 60 * 1000, 12 * 60 * 1000],
-    blockCreationPhase: [12 * 60 * 1000, 14 * 60 * 1000],
-    wrapUpPhase: [14 * 60 * 1000, 15 * 60 * 1000],
+    awesomeComPeriod: 15 * 1000,
+    achievementSubmissionPhase: [0, 8 * 1000],
+    achievementReviewPhase: [8 * 1000, 12 * 1000],
+    blockCreationPhase: [12 * 1000, 14 * 1000],
+    wrapUpPhase: [14 * 1000, 15 * 1000],
     themes: ["Life", "Gaming", "Fitness", "Home"],
   }
   public awesomeComStatus: AwesomeComStatus = {
@@ -42,18 +85,29 @@ export class AwesomeNode {
     phaseRemaining: 0,
     editionRemaining: 0,
   }
-
-  private statusUpdateInterval: NodeJS.Timeout | null = null
   private socket: Socket<ClientEvents, ServerEvents>
-  private wallet: BIP32Interface
-  private publicKey: string
+  private wallet: Wallet
   private identity: Identity
   private repository: Repository
-
-  // created or received in the block creation phase
-  private pendingBlock: Block | null = null
-
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
+
+  private chainHead: ChainHead | null = null
+  // created or received in the block creation phase in current edition
+  private candidateBlock: Block | null = null
+  // created or received in the achievement submission phase in current edition
+  private pendingAchievements: Achievement[] = []
+  // created or received in the achievement review phase in current edition
+  private pendingReviews: Review[] = []
+
+  // discard blocks that have been received
+  private receivedBlocks: Map<string, boolean> = new Map()
+
+  private chainHeadBroadcastPeriod: number = 1 * 60 * 1000
+  private candidateBlockBroadcastPeriod: number = 30 * 1000
+
+  private statusUpdateInterval: NodeJS.Timeout | null = null
+  private chainHeadBroadcastInterval: NodeJS.Timeout | null = null
+  private candidateBlockBroadcastInterval: NodeJS.Timeout | null = null
 
   constructor(
     connectAddress: string,
@@ -62,41 +116,27 @@ export class AwesomeNode {
     mnemonic?: string,
     passphrase?: string
   ) {
-    if (!mnemonic) {
-      mnemonic = generateMnemonic()
-    }
-    if (!passphrase) {
-      passphrase = ""
-    }
-    const seed = mnemonicToSeedSync(mnemonic, passphrase)
-    this.wallet = BIP32Factory(ecc).fromSeed(seed)
-    this.publicKey = Buffer.from(this.wallet.publicKey).toString("hex")
+    this.wallet = new Wallet(mnemonic, passphrase)
 
     this.identity = {
-      chain: this.chain.name,
+      chain: `${this.chain.name}_${this.chain.version}`,
       name,
-      address: this.generateAddress(),
+      address: this.wallet.derieveAddress(),
       nodeType,
-      publicKey: this.publicKey,
+      publicKey: this.wallet.publicKey,
       signature: "",
     }
-
-    this.identity.signature = Buffer.from(
-      this.wallet.sign(
-        Buffer.from(
-          sha256(
-            [
-              this.identity.chain,
-              this.identity.name,
-              this.identity.address,
-              this.identity.nodeType,
-              this.identity.publicKey,
-            ].join("_")
-          ),
-          "hex"
-        )
+    this.identity.signature = this.wallet.sign(
+      sha256(
+        [
+          this.identity.chain,
+          this.identity.name,
+          this.identity.address,
+          this.identity.nodeType,
+          this.identity.publicKey,
+        ].join("_")
       )
-    ).toString("hex")
+    )
 
     console.log("Created identity:", this.identity)
 
@@ -104,34 +144,60 @@ export class AwesomeNode {
 
     this.socket = io(connectAddress, { autoConnect: false })
     this.setupSocket()
-    // this.on("phase.changed", (status: AwesomeComStatus) => {})
   }
 
-  async start() {
+  public async start() {
     await this.repository.init()
     this.socket.connect()
 
+    this.on("awesome_com.achievement_submission.started", async () => {
+      this.pendingAchievements = []
+    })
+
+    this.on("awesome_com.achievement_review.started", async () => {
+      this.pendingReviews = []
+    })
+
     this.on("awesome_com.block_creation.started", async () => {
-      this.pendingBlock = null
+      this.receivedBlocks.clear()
+      this.candidateBlock = null
       if (this.identity.nodeType == "full") {
-        this.pendingBlock = await this.createBlock()
-        this.socket.emit("message.send", {
-          from: this.identity.address,
-          to: "*",
-          room: `${this.chain.name}:nodes`,
-          type: MESSAGE_TYPE.BLOCK,
-          payload: this.pendingBlock,
-          timestamp: Date.now(),
-        })
+        this.candidateBlock = await this.createBlock()
+        if (this.candidateBlock) {
+          this.startCandidateBlockBroadcast()
+        } else {
+          console.log("failed to create block")
+        }
       }
     })
+
     this.on("awesome_com.wrap_up.started", async () => {
-      if (this.pendingBlock) {
-        await this.repository.addBlock(this.pendingBlock)
-        this.emit("block.added", this.pendingBlock)
-        this.pendingBlock = null
+      if (this.identity.nodeType == "full") {
+        this.stopCandidateBlockBroadcast()
       }
+      if (this.candidateBlock) {
+        await this.repository.addBlock(this.candidateBlock)
+        this.emit("block.added", this.candidateBlock)
+      }
+      this.candidateBlock = null
+      this.pendingAchievements = []
+      this.pendingReviews = []
     })
+
+    this.on("block.added", async () => {
+      const latestBlock = await this.repository.getLatestBlock()
+      this.chainHead = {
+        name: this.chain.name,
+        latestBlockHeight: latestBlock ? latestBlock.height : 0,
+        latestBlockHash: latestBlock ? latestBlock.hash : "",
+      }
+      this.broadcastChainHead()
+    })
+
+    this.startStatusUpdates()
+    if (this.identity.nodeType == "full") {
+      this.startChainHeadBroadcast()
+    }
   }
 
   public on<K extends keyof EventMap>(event: K, callback: (data: EventMap[K]) => void): () => void {
@@ -164,23 +230,25 @@ export class AwesomeNode {
 
     this.socket.on("node.connected", () => {
       console.log("Connected to AwesomeConnect")
-      this.socket.emit("room.get_members", `${this.chain.name}:fullnodes`)
+      this.socket.emit("room.get_members", `${this.chain.name}_${this.chain.version}:nodes`)
     })
 
     this.socket.on("message.received", (message: Message) => {
+      // if (message.from == this.identity.address) {
+      //   return
+      // }
       this.handleMessage(message)
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
       console.log(`Room [${room}] members: ${members.length}`)
-      if (room === `${this.chain.name}:fullnodes`) {
+      if (room === `${this.chain.name}_${this.chain.version}:nodes`) {
         if (members.length == 1 && members[0].address === this.identity.address) {
           if (this.identity.nodeType === "full") {
             console.log("First node in the chain, initializing the chain")
             this.chain.genesisTime = Date.now()
-            this.startStatusUpdates()
           }
-        } else {
+        } else if (members.length > 0) {
           const msg: Message = {
             from: this.identity.address,
             to: members[0].address,
@@ -194,7 +262,7 @@ export class AwesomeNode {
     })
   }
 
-  getTheme(edition: number) {
+  private getTheme(edition: number) {
     const hash = sha256(edition.toString())
     const themeIndex = parseInt(hash.substring(0, 8), 16) % this.chain.themes.length
     return this.chain.themes[themeIndex]
@@ -208,6 +276,9 @@ export class AwesomeNode {
   }
 
   private updateAwesomeComStatus() {
+    if (this.chain.genesisTime == 0) {
+      return
+    }
     const now = Date.now()
     const timeSinceGenesis = now - this.chain.genesisTime
     const edition = Math.floor(timeSinceGenesis / this.chain.awesomeComPeriod)
@@ -259,19 +330,22 @@ export class AwesomeNode {
   private handleMessage(message: Message) {
     switch (message.type) {
       case MESSAGE_TYPE.CHAIN_HEAD:
-        console.log("Chain head:", message.payload)
+        this.handleChainHead(message)
         break
       case MESSAGE_TYPE.TRANSACTION:
-        console.log("New transaction:", message.payload)
+        this.handleTransaction(message)
+        break
+      case MESSAGE_TYPE.CANDIDATE_BLOCK:
+        this.handleCandidateBlock(message)
         break
       case MESSAGE_TYPE.BLOCK:
-        console.log("New block:", message.payload)
+        this.handleBlock(message)
         break
       case MESSAGE_TYPE.ACHIEVEMENT:
-        console.log("New achievement:", message.payload)
+        this.handleAchievement(message)
         break
       case MESSAGE_TYPE.REVIEW:
-        console.log("New review:", message.payload)
+        this.handleReview(message)
         break
       case MESSAGE_TYPE.GET_CHAIN_HEAD:
         if (this.identity.nodeType == "full") {
@@ -303,7 +377,78 @@ export class AwesomeNode {
     }
   }
 
-  private async createBlock(): Promise<Block> {
+  private async handleChainHead(message: Message) {
+    const chainHead = message.payload
+    if (!isChainHead(chainHead)) {
+      return
+    }
+    console.log("Chain head:", chainHead)
+    if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
+      console.log("Updating chain head:", chainHead)
+      this.chainHead = chainHead
+    }
+  }
+
+  private async handleBlock(message: Message) {
+    const block = message.payload
+    if (!isBlock(block)) {
+      return
+    }
+    console.log("New block:", block)
+  }
+
+  private async handleCandidateBlock(message: Message) {
+    if (this.awesomeComStatus.phase != AWESOME_COM_PHASE.BLOCK_CREATION) {
+      return
+    }
+    const block = message.payload
+    if (!isBlock(block)) {
+      return
+    }
+    if (this.receivedBlocks.has(block.hash)) {
+      return
+    }
+    if (!verifyBlock(block)) {
+      return
+    }
+    this.receivedBlocks.set(block.hash, true)
+
+    if (
+      !this.candidateBlock ||
+      block.transactions.length + block.achievements.length + block.reviews.length >
+        this.candidateBlock.transactions.length +
+          this.candidateBlock.achievements.length +
+          this.candidateBlock.reviews.length
+    ) {
+      this.candidateBlock = block
+    }
+  }
+
+  private async handleTransaction(message: Message) {
+    const transaction = message.payload
+    if (!isTransaction(transaction) || !verifyTransaction(transaction)) {
+      return
+    }
+    console.log("New transaction:", transaction)
+  }
+
+  private async handleAchievement(message: Message) {
+    const achievement = message.payload
+    if (!isAchievement(achievement) || !verifyAchievement(achievement)) {
+      return
+    }
+    console.log("New achievement:", achievement)
+  }
+
+  private async handleReview(message: Message) {
+    const review = message.payload
+    if (!isReview(review) || !verifyReview(review)) {
+      return
+    }
+    console.log("New review:", review)
+  }
+
+  private async createBlock(): Promise<Block | null> {
     const edition = this.awesomeComStatus.edition
     let previousHash = ""
     let previousHeight = 0
@@ -316,154 +461,121 @@ export class AwesomeNode {
       previousHeight = previousBlock.height
     }
 
+    const reviewsByAchievement = new Map<string, Review[]>()
+    for (const review of reviews) {
+      const reviewList = reviewsByAchievement.get(review.achievementSignature) || []
+      reviewList.push(review)
+      reviewsByAchievement.set(review.achievementSignature, reviewList)
+    }
+
+    const acceptedAchievements: Achievement[] = []
+    const reviewsForAcceptedAchievements: Review[] = []
+
+    for (const achievement of achievements) {
+      const achievementReviews = reviewsByAchievement.get(achievement.signature) || []
+
+      const latestReviews = achievementReviews
+        .sort((a, b) => b.timestamp - a.timestamp)
+        .filter((review, index, self) => index === self.findIndex((r) => r.reviewerAddress === review.reviewerAddress))
+
+      if (latestReviews.length >= MIN_REVIEWERS_PER_ACHIEVEMENT) {
+        const scores = latestReviews.map((r) => r.score).sort((a, b) => a - b)
+        const medianScore = scores[Math.floor(scores.length / 2)]
+
+        // weak accept score
+        if (medianScore >= 3) {
+          acceptedAchievements.push(achievement)
+          reviewsForAcceptedAchievements.push(...latestReviews)
+        }
+      }
+    }
+
+    transactions.sort((a, b) => b.timestamp - a.timestamp)
+    acceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
+    reviewsForAcceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
+
     const block: Block = {
       height: previousHeight + 1,
       previousHash,
       transactions,
-      transactionsMerkleRoot: this.computeMerkleRoot(transactions.map((t) => t.signature)),
-      achievements,
-      achievementsMerkleRoot: this.computeMerkleRoot(achievements.map((a) => a.signature)),
-      reviews,
-      reviewsMerkleRoot: this.computeMerkleRoot(reviews.map((r) => r.signature)),
-      creatorAddress: this.identity.address,
+      transactionsMerkleRoot: computeMerkleRoot(transactions.map((t) => t.signature)),
+      achievements: acceptedAchievements,
+      achievementsMerkleRoot: computeMerkleRoot(acceptedAchievements.map((a) => a.signature)),
+      reviews: reviewsForAcceptedAchievements,
+      reviewsMerkleRoot: computeMerkleRoot(reviewsForAcceptedAchievements.map((r) => r.signature)),
       timestamp: Date.now(),
       hash: "",
     }
-    block.hash = this.computeBlockHash(block)
+    block.hash = hashBlock(block)
 
     return block
   }
 
-  private computeBlockHash(block: Block) {
-    const hash = sha256(
-      [
-        block.previousHash,
-        block.transactionsMerkleRoot,
-        block.achievementsMerkleRoot,
-        block.reviewsMerkleRoot,
-        block.creatorAddress,
-        block.timestamp,
-      ].join("_")
-    )
-    return hash
-  }
-
-  private verifyBlock(block: Block) {
-    return this.computeBlockHash(block) === block.hash
-  }
-
-  private verifyTransaction(transaction: Transaction) {
-    const hash = sha256(
-      [
-        transaction.senderAddress,
-        transaction.recipientAddress,
-        transaction.amount,
-        transaction.timestamp,
-        transaction.senderPublicKey,
-      ].join("_")
-    )
-
-    return ecc.verify(
-      Buffer.from(hash, "hex"),
-      Buffer.from(transaction.senderPublicKey, "hex"),
-      Buffer.from(transaction.signature, "hex")
-    )
-  }
-
-  private verifyAchievement(achievement: Achievement) {
-    const hash = sha256(
-      [
-        achievement.creatorName,
-        achievement.creatorAddress,
-        achievement.title,
-        achievement.description,
-        achievement.attachments.join(","),
-        achievement.timestamp,
-        achievement.creatorPublicKey,
-      ].join("_")
-    )
-
-    return ecc.verify(
-      Buffer.from(hash, "hex"),
-      Buffer.from(achievement.creatorPublicKey, "hex"),
-      Buffer.from(achievement.signature, "hex")
-    )
-  }
-
-  private verifyReview(review: Review) {
-    const hash = sha256(
-      [
-        review.achievementSignature,
-        review.reviewerName,
-        review.reviewerAddress,
-        review.score,
-        review.comment,
-        review.timestamp,
-        review.reviewerPublicKey,
-      ].join("_")
-    )
-
-    return ecc.verify(
-      Buffer.from(hash, "hex"),
-      Buffer.from(review.reviewerPublicKey, "hex"),
-      Buffer.from(review.signature, "hex")
-    )
-  }
-
-  private computeMerkleRoot(items: string[]): string {
-    if (items.length === 0) {
-      return sha256("")
+  private async broadcastChainHead() {
+    if (this.chainHead) {
+      console.log("Broadcasting chain head:", this.chainHead)
+      this.socket.emit("message.send", {
+        from: this.identity.address,
+        to: "*",
+        room: `${this.chain.name}_${this.chain.version}:nodes`,
+        type: MESSAGE_TYPE.CHAIN_HEAD,
+        payload: this.chainHead,
+        timestamp: Date.now(),
+      })
     }
-
-    let hashes = items.map((item) => sha256(item))
-
-    while (hashes.length > 1) {
-      const newLevel: string[] = []
-
-      for (let i = 0; i < hashes.length; i += 2) {
-        if (i + 1 < hashes.length) {
-          const combined = hashes[i] + hashes[i + 1]
-          const hash = sha256(combined)
-          newLevel.push(hash)
-        } else {
-          newLevel.push(hashes[i])
-        }
-      }
-
-      hashes = newLevel
-    }
-
-    return hashes[0]
   }
 
-  // Ethereum style address generation with custom derivation path
-  // same as this swift code
-  // let key = wallet.getKey(coin: .ethereum, derivationPath: "m/44\'/777\'/0\'/0/0")
-  // let address = CoinType.ethereum.deriveAddress(privateKey: key)
-  private generateAddress() {
-    const derivationPath = `m/44'/777'/0'/0/0`
-    const chainKey = this.wallet.derivePath(derivationPath)
+  private async startChainHeadBroadcast() {
+    this.broadcastChainHead()
 
-    const privateKey = chainKey.privateKey
-    if (!privateKey) throw new Error("Could not generate private key for chain")
-    const publicKeyFromPrivate = ecc.pointFromScalar(privateKey, false)
-    if (!publicKeyFromPrivate) throw new Error("Could not generate public key from private key")
+    this.chainHeadBroadcastInterval = setInterval(() => {
+      this.broadcastChainHead()
+    }, this.chainHeadBroadcastPeriod)
+  }
 
-    const pubKeyWithoutPrefix = Buffer.from(publicKeyFromPrivate).subarray(1)
-
-    const address = keccak256(pubKeyWithoutPrefix).slice(-40)
-    const hash = keccak256(address)
-    let checksumAddress = "0x"
-
-    for (let i = 0; i < address.length; i++) {
-      checksumAddress += parseInt(hash[i], 16) >= 8 ? address[i].toUpperCase() : address[i]
+  private async stopChainHeadBroadcast() {
+    if (this.chainHeadBroadcastInterval) {
+      clearInterval(this.chainHeadBroadcastInterval)
     }
-    return checksumAddress
+  }
+
+  private async broadcastCandidateBlock() {
+    if (this.candidateBlock) {
+      this.socket.emit("message.send", {
+        from: this.identity.address,
+        to: "*",
+        room: `${this.chain.name}_${this.chain.version}:nodes`,
+        type: MESSAGE_TYPE.CANDIDATE_BLOCK,
+        payload: this.candidateBlock,
+        timestamp: Date.now(),
+      })
+    }
+  }
+
+  private async startCandidateBlockBroadcast() {
+    this.broadcastCandidateBlock()
+
+    this.candidateBlockBroadcastInterval = setInterval(() => {
+      this.broadcastCandidateBlock()
+    }, this.candidateBlockBroadcastPeriod)
+  }
+
+  private stopCandidateBlockBroadcast() {
+    if (this.candidateBlockBroadcastInterval) {
+      clearInterval(this.candidateBlockBroadcastInterval)
+    }
   }
 
   private cleanup() {
     if (this.statusUpdateInterval) {
       clearInterval(this.statusUpdateInterval)
     }
+    if (this.candidateBlockBroadcastInterval) {
+      clearInterval(this.candidateBlockBroadcastInterval)
+    }
+    this.candidateBlock = null
+    this.receivedBlocks.clear()
+    this.pendingAchievements = []
+    this.pendingReviews = []
   }
 }

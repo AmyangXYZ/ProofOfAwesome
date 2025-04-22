@@ -1,5 +1,6 @@
 import mongoose from "mongoose"
-import { Achievement, Block, Repository, Review, Transaction } from "./types"
+import { Achievement, Block, Review, Transaction } from "./blockchain"
+import { Repository } from "./repository"
 
 interface BlockDocument {
   _id?: mongoose.Types.ObjectId
@@ -11,7 +12,6 @@ interface BlockDocument {
   achievementsMerkleRoot: string
   reviews: mongoose.Types.ObjectId[] | ReviewDocument[]
   reviewsMerkleRoot: string
-  creatorAddress: string
   timestamp: Date
   hash: string
 }
@@ -81,7 +81,6 @@ export class MongoDBRepository implements Repository {
         achievementsMerkleRoot: String,
         reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: "Review" }],
         reviewsMerkleRoot: String,
-        creatorAddress: String,
         timestamp: Date,
         hash: String,
       })
@@ -152,7 +151,6 @@ export class MongoDBRepository implements Repository {
       achievementsMerkleRoot: blockDoc.achievementsMerkleRoot,
       reviews: blockDoc.reviews.map((r) => this.reviewDocToReview(r as ReviewDocument)),
       reviewsMerkleRoot: blockDoc.reviewsMerkleRoot,
-      creatorAddress: blockDoc.creatorAddress,
       timestamp: blockDoc.timestamp.getTime(),
       hash: blockDoc.hash,
     }
@@ -252,7 +250,6 @@ export class MongoDBRepository implements Repository {
       achievementsMerkleRoot: block.achievementsMerkleRoot,
       reviews: reviewDocs.map((r) => r._id!),
       reviewsMerkleRoot: block.reviewsMerkleRoot,
-      creatorAddress: block.creatorAddress,
       timestamp: new Date(block.timestamp),
       hash: block.hash,
     }
