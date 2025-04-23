@@ -130,7 +130,7 @@ export function isChainHead(payload: unknown): payload is ChainHead {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    "name" in payload &&
+    "chainId" in payload &&
     "latestBlockHeight" in payload &&
     "latestBlockHash" in payload
   )
