@@ -1,19 +1,21 @@
 import mongoose from "mongoose"
-import { Achievement, Block, Review, Transaction } from "./awesome"
+import { Achievement, AchievementDigest, Block, Review, Transaction } from "./awesome"
 import { Repository } from "./repository"
 
 interface BlockDocument {
   _id?: mongoose.Types.ObjectId
-  height: number
-  previousHash: string
+  header: {
+    height: number
+    previousHash: string
+    transactionsRoot: string
+    achievementsRoot: string
+    reviewsRoot: string
+    timestamp: Date
+    hash: string
+  }
   transactions: mongoose.Types.ObjectId[] | TransactionDocument[]
-  transactionsMerkleRoot: string
   achievements: mongoose.Types.ObjectId[] | AchievementDocument[]
-  achievementsMerkleRoot: string
   reviews: mongoose.Types.ObjectId[] | ReviewDocument[]
-  reviewsMerkleRoot: string
-  timestamp: Date
-  hash: string
 }
 
 interface TransactionDocument {
@@ -73,16 +75,18 @@ export class MongoDBRepository implements Repository {
     this.BlockModel = mongoose.model<BlockDocument>(
       "Block",
       new mongoose.Schema<BlockDocument>({
-        height: { type: Number, index: true },
-        previousHash: String,
+        header: {
+          height: { type: Number, index: true },
+          previousHash: String,
+          transactionsRoot: String,
+          achievementsRoot: String,
+          reviewsRoot: String,
+          timestamp: Date,
+          hash: String,
+        },
         transactions: [{ type: mongoose.Schema.Types.ObjectId, ref: "Transaction" }],
-        transactionsMerkleRoot: String,
         achievements: [{ type: mongoose.Schema.Types.ObjectId, ref: "Achievement" }],
-        achievementsMerkleRoot: String,
         reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: "Review" }],
-        reviewsMerkleRoot: String,
-        timestamp: Date,
-        hash: String,
       })
     )
 
@@ -137,22 +141,27 @@ export class MongoDBRepository implements Repository {
   }
 
   async init(): Promise<void> {
-    await mongoose.connect(this.address)
-    // connection.connection.db?.dropDatabase()
+    const connection = await mongoose.connect(this.address)
+    connection.connection.db?.dropDatabase()
   }
 
   private blockDocToBlock(blockDoc: BlockDocument): Block {
     return {
-      height: blockDoc.height,
-      previousHash: blockDoc.previousHash,
+      header: {
+        height: blockDoc.header.height,
+        previousHash: blockDoc.header.previousHash,
+        transactionsRoot: blockDoc.header.transactionsRoot,
+        achievementsRoot: blockDoc.header.achievementsRoot,
+        reviewsRoot: blockDoc.header.reviewsRoot,
+        timestamp: blockDoc.header.timestamp.getTime(),
+        achievementDigests: blockDoc.achievements.map((a) =>
+          this.achievementDocToAchievementDigest(a as AchievementDocument)
+        ),
+        hash: blockDoc.header.hash,
+      },
       transactions: blockDoc.transactions.map((t) => this.transactionDocToTransaction(t as TransactionDocument)),
-      transactionsMerkleRoot: blockDoc.transactionsMerkleRoot,
       achievements: blockDoc.achievements.map((a) => this.achievementDocToAchievement(a as AchievementDocument)),
-      achievementsMerkleRoot: blockDoc.achievementsMerkleRoot,
       reviews: blockDoc.reviews.map((r) => this.reviewDocToReview(r as ReviewDocument)),
-      reviewsMerkleRoot: blockDoc.reviewsMerkleRoot,
-      timestamp: blockDoc.timestamp.getTime(),
-      hash: blockDoc.hash,
     }
   }
 
@@ -164,6 +173,15 @@ export class MongoDBRepository implements Repository {
       amount: transactionDoc.amount,
       timestamp: transactionDoc.timestamp.getTime(),
       signature: transactionDoc.signature,
+    }
+  }
+
+  private achievementDocToAchievementDigest(achievementDoc: AchievementDocument): AchievementDigest {
+    return {
+      title: achievementDoc.title,
+      creatorName: achievementDoc.creatorName,
+      creatorAddress: achievementDoc.creatorAddress,
+      signature: achievementDoc.signature,
     }
   }
 
@@ -240,18 +258,19 @@ export class MongoDBRepository implements Repository {
         })
       })
     )
-
     const blockDoc: BlockDocument = {
-      height: block.height,
-      previousHash: block.previousHash,
+      header: {
+        height: block.header.height,
+        previousHash: block.header.previousHash,
+        transactionsRoot: block.header.transactionsRoot,
+        achievementsRoot: block.header.achievementsRoot,
+        reviewsRoot: block.header.reviewsRoot,
+        timestamp: new Date(block.header.timestamp),
+        hash: block.header.hash,
+      },
       transactions: transactionDocs.map((t) => t._id!),
-      transactionsMerkleRoot: block.transactionsMerkleRoot,
       achievements: achievementDocs.map((a) => a._id!),
-      achievementsMerkleRoot: block.achievementsMerkleRoot,
       reviews: reviewDocs.map((r) => r._id!),
-      reviewsMerkleRoot: block.reviewsMerkleRoot,
-      timestamp: new Date(block.timestamp),
-      hash: block.hash,
     }
     await this.BlockModel.create(blockDoc)
   }
@@ -268,8 +287,8 @@ export class MongoDBRepository implements Repository {
   }
 
   async getLatestBlock(): Promise<Block | null> {
-    const blockDoc = await this.BlockModel.findOne()
-      .sort({ height: -1 })
+    const blockDoc = await this.BlockModel.findOne({})
+      .sort({ "header.height": -1 })
       .populate("transactions")
       .populate("achievements")
       .populate("reviews")
@@ -279,8 +298,8 @@ export class MongoDBRepository implements Repository {
   }
 
   async getBlocks(fromHeight: number, toHeight: number): Promise<Block[]> {
-    const blocks = await this.BlockModel.find({ height: { $gte: fromHeight, $lte: toHeight } })
-      .sort({ height: 1 })
+    const blocks = await this.BlockModel.find({ "header.height": { $gte: fromHeight, $lte: toHeight } })
+      .sort({ "header.height": 1 })
       .populate("transactions")
       .populate("achievements")
       .populate("reviews")
@@ -291,7 +310,7 @@ export class MongoDBRepository implements Repository {
   }
 
   async getBlockByHeight(height: number): Promise<Block | null> {
-    const blockDoc = await this.BlockModel.findOne({ height })
+    const blockDoc = await this.BlockModel.findOne({ "header.height": height })
       .populate("transactions")
       .populate("achievements")
       .populate("reviews")

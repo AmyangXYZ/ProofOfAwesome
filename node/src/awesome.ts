@@ -2,6 +2,7 @@ import { sha256 } from "js-sha256"
 import * as ecc from "tiny-secp256k1"
 import { Buffer } from "buffer"
 import { Wallet } from "./wallet"
+import { calculateMerkleRoot } from "./merkle"
 
 export const chainConfig = {
   chainId: "proof-of-awesome-0.1.0",
@@ -80,17 +81,22 @@ export interface ChainHead {
   latestBlockHash: string
 }
 
-export interface Block {
+export interface BlockHeader {
   height: number
   previousHash: string
-  transactions: Transaction[]
-  transactionsMerkleRoot: string
-  achievements: Achievement[]
-  achievementsMerkleRoot: string
-  reviews: Review[]
-  reviewsMerkleRoot: string
+  transactionsRoot: string
+  achievementsRoot: string
+  reviewsRoot: string
+  achievementDigests: AchievementDigest[]
   timestamp: number
   hash: string
+}
+
+export interface Block {
+  header: BlockHeader
+  transactions: Transaction[]
+  achievements: Achievement[]
+  reviews: Review[]
 }
 
 export interface Transaction {
@@ -99,6 +105,13 @@ export interface Transaction {
   amount: number
   timestamp: number
   senderPublicKey: string
+  signature: string
+}
+
+export interface AchievementDigest {
+  title: string
+  creatorName: string
+  creatorAddress: string
   signature: string
 }
 
@@ -136,20 +149,28 @@ export function isChainHead(payload: unknown): payload is ChainHead {
   )
 }
 
-export function isBlock(payload: unknown): payload is Block {
+export function isBlockHeader(payload: unknown): payload is BlockHeader {
   return (
     typeof payload === "object" &&
     payload !== null &&
     "height" in payload &&
     "previousHash" in payload &&
-    "transactions" in payload &&
     "transactionsMerkleRoot" in payload &&
-    "achievements" in payload &&
     "achievementsMerkleRoot" in payload &&
-    "reviews" in payload &&
     "reviewsMerkleRoot" in payload &&
     "timestamp" in payload &&
     "hash" in payload
+  )
+}
+
+export function isBlock(payload: unknown): payload is Block {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "header" in payload &&
+    "transactions" in payload &&
+    "achievements" in payload &&
+    "reviews" in payload
   )
 }
 
@@ -198,34 +219,49 @@ export function isReview(payload: unknown): payload is Review {
   )
 }
 
-export function hashBlock(block: Block) {
+export function hashBlockHeader(blockHeader: BlockHeader) {
   const hash = sha256(
     [
-      block.previousHash,
-      block.transactionsMerkleRoot,
-      block.achievementsMerkleRoot,
-      block.reviewsMerkleRoot,
-      block.timestamp,
+      blockHeader.previousHash,
+      blockHeader.transactionsRoot,
+      blockHeader.achievementsRoot,
+      blockHeader.reviewsRoot,
+      blockHeader.timestamp,
     ].join("_")
   )
   return hash
 }
 
+export function verifyBlockHeader(blockHeader: BlockHeader): boolean {
+  if (hashBlockHeader(blockHeader) !== blockHeader.hash) {
+    return false
+  }
+
+  const calculatedRoot = calculateMerkleRoot(blockHeader.achievementDigests.map((digest) => digest.signature))
+  if (calculatedRoot !== blockHeader.achievementsRoot) {
+    return false
+  }
+
+  return true
+}
+
 export function verifyBlock(block: Block): boolean {
-  if (hashBlock(block) !== block.hash) {
+  if (!verifyBlockHeader(block.header)) {
     return false
   }
   if (
-    computeMerkleRoot(block.transactions.map((transaction) => transaction.signature)) !== block.transactionsMerkleRoot
+    calculateMerkleRoot(block.transactions.map((transaction) => transaction.signature)) !==
+    block.header.transactionsRoot
   ) {
     return false
   }
   if (
-    computeMerkleRoot(block.achievements.map((achievement) => achievement.signature)) !== block.achievementsMerkleRoot
+    calculateMerkleRoot(block.achievements.map((achievement) => achievement.signature)) !==
+    block.header.achievementsRoot
   ) {
     return false
   }
-  if (computeMerkleRoot(block.reviews.map((review) => review.signature)) !== block.reviewsMerkleRoot) {
+  if (calculateMerkleRoot(block.reviews.map((review) => review.signature)) !== block.header.reviewsRoot) {
     return false
   }
 
@@ -374,30 +410,4 @@ export function verifyReview(review: Review): boolean {
     Buffer.from(review.reviewerPublicKey, "hex"),
     Buffer.from(review.signature, "hex")
   )
-}
-
-export function computeMerkleRoot(items: string[]): string {
-  if (items.length === 0) {
-    return sha256("")
-  }
-
-  let hashes = items.map((item) => sha256(item))
-
-  while (hashes.length > 1) {
-    const newLevel: string[] = []
-
-    for (let i = 0; i < hashes.length; i += 2) {
-      if (i + 1 < hashes.length) {
-        const combined = hashes[i] + hashes[i + 1]
-        const hash = sha256(combined)
-        newLevel.push(hash)
-      } else {
-        newLevel.push(hashes[i])
-      }
-    }
-
-    hashes = newLevel
-  }
-
-  return hashes[0]
 }

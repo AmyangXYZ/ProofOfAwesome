@@ -9,8 +9,6 @@ import {
   verifyTransaction,
   verifyAchievement,
   verifyReview,
-  computeMerkleRoot,
-  hashBlock,
   Block,
   Achievement,
   Review,
@@ -24,21 +22,11 @@ import {
   AwesomeComStatus,
   getAwesomeComStatus,
   chainConfig,
+  hashBlockHeader,
+  BlockHeader,
 } from "./awesome"
-
-enum MESSAGE_TYPE {
-  CHAIN_HEAD = "CHAIN_HEAD",
-  CANDIDATE_BLOCK = "CANDIDATE_BLOCK",
-  BLOCK = "BLOCK",
-  TRANSACTION = "TRANSACTION",
-  ACHIEVEMENT = "ACHIEVEMENT",
-  REVIEW = "REVIEW",
-  GET_CHAIN_HEAD = "GET_CHAIN_HEAD",
-  GET_BLOCK = "GET_BLOCK",
-  GET_TRANSACTION = "GET_TRANSACTION",
-  GET_ACHIEVEMENT = "GET_ACHIEVEMENT",
-  GET_REVIEW = "GET_REVIEW",
-}
+import { calculateMerkleRoot } from "./merkle"
+import { MESSAGE_TYPE } from "./message"
 
 interface EventMap {
   "awesome_com.status.updated": AwesomeComStatus
@@ -163,10 +151,10 @@ export class AwesomeNode {
       const latestBlock = await this.repository.getLatestBlock()
       this.chainHead = {
         chainId: chainConfig.chainId,
-        latestBlockHeight: latestBlock ? latestBlock.height : 0,
-        latestBlockHash: latestBlock ? latestBlock.hash : "",
+        latestBlockHeight: latestBlock ? latestBlock.header.height : 0,
+        latestBlockHash: latestBlock ? latestBlock.header.hash : "",
       }
-      this.broadcastChainHead()
+      console.log(this.chainHead)
     })
 
     this.startAwesomeComStatusUpdate()
@@ -226,7 +214,7 @@ export class AwesomeNode {
           const msg: Message = {
             from: this.identity.address,
             to: members[0].address,
-            type: MESSAGE_TYPE.GET_CHAIN_HEAD,
+            type: MESSAGE_TYPE.CHAIN_HEAD_REQUEST,
             payload: {},
             timestamp: Date.now(),
           }
@@ -292,7 +280,7 @@ export class AwesomeNode {
       case MESSAGE_TYPE.REVIEW:
         this.handleReview(message)
         break
-      case MESSAGE_TYPE.GET_CHAIN_HEAD:
+      case MESSAGE_TYPE.CHAIN_HEAD_REQUEST:
         if (this.identity.nodeType == "full") {
           this.handleGetChainHead(message)
         }
@@ -308,8 +296,8 @@ export class AwesomeNode {
     if (block) {
       const chainHead: ChainHead = {
         chainId: chainConfig.chainId,
-        latestBlockHeight: block.height,
-        latestBlockHash: block.hash,
+        latestBlockHeight: block.header.height,
+        latestBlockHash: block.header.hash,
       }
       const msg: Message = {
         from: this.identity.address,
@@ -350,13 +338,13 @@ export class AwesomeNode {
     if (!isBlock(block)) {
       return
     }
-    if (this.receivedBlocks.has(block.hash)) {
+    if (this.receivedBlocks.has(block.header.hash)) {
       return
     }
     if (!verifyBlock(block)) {
       return
     }
-    this.receivedBlocks.set(block.hash, true)
+    this.receivedBlocks.set(block.header.hash, true)
 
     if (
       !this.candidateBlock ||
@@ -396,14 +384,15 @@ export class AwesomeNode {
   private async createBlock(): Promise<Block | null> {
     const edition = this.awesomeComStatus.edition
     let previousHash = ""
-    let previousHeight = 0
+    let previousHeight = -1
     const transactions = await this.repository.getPendingTransactions()
     const achievements = await this.repository.getAchievementsByEdition(edition)
     const reviews = await this.repository.getReviewsByEdition(edition)
     const previousBlock = await this.repository.getLatestBlock()
+
     if (previousBlock) {
-      previousHash = previousBlock.hash
-      previousHeight = previousBlock.height
+      previousHash = previousBlock.header.hash
+      previousHeight = previousBlock.header.height
     }
 
     const reviewsByAchievement = new Map<string, Review[]>()
@@ -427,7 +416,6 @@ export class AwesomeNode {
         const scores = latestReviews.map((r) => r.score).sort((a, b) => a - b)
         const medianScore = scores[Math.floor(scores.length / 2)]
 
-        // weak accept score
         if (medianScore >= chainConfig.reviewRules.acceptThreshold) {
           acceptedAchievements.push(achievement)
           reviewsForAcceptedAchievements.push(...latestReviews)
@@ -439,20 +427,28 @@ export class AwesomeNode {
     acceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
     reviewsForAcceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
 
-    const block: Block = {
+    const blockHeader: BlockHeader = {
       height: previousHeight + 1,
       previousHash,
-      transactions,
-      transactionsMerkleRoot: computeMerkleRoot(transactions.map((t) => t.signature)),
-      achievements: acceptedAchievements,
-      achievementsMerkleRoot: computeMerkleRoot(acceptedAchievements.map((a) => a.signature)),
-      reviews: reviewsForAcceptedAchievements,
-      reviewsMerkleRoot: computeMerkleRoot(reviewsForAcceptedAchievements.map((r) => r.signature)),
+      transactionsRoot: calculateMerkleRoot(transactions.map((t) => t.signature)),
+      achievementsRoot: calculateMerkleRoot(acceptedAchievements.map((a) => a.signature)),
+      reviewsRoot: calculateMerkleRoot(reviewsForAcceptedAchievements.map((r) => r.signature)),
       timestamp: Date.now(),
       hash: "",
+      achievementDigests: acceptedAchievements.map((a) => ({
+        title: a.title,
+        signature: a.signature,
+        creatorName: a.creatorName,
+        creatorAddress: a.creatorAddress,
+      })),
     }
-    block.hash = hashBlock(block)
-
+    const block: Block = {
+      header: blockHeader,
+      transactions,
+      achievements: acceptedAchievements,
+      reviews: reviewsForAcceptedAchievements,
+    }
+    block.header.hash = hashBlockHeader(block.header)
     return block
   }
 
