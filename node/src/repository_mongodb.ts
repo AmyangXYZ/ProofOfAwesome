@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import { Achievement, Block, Review, Transaction } from "./blockchain"
+import { Achievement, Block, Review, Transaction } from "./awesome"
 import { Repository } from "./repository"
 
 interface BlockDocument {

@@ -37,9 +37,9 @@ export class AwesomeConnect {
           console.log(`New ${identity.nodeType} node ${identity.address} connected`)
           socket.emit("node.connected")
 
-          socket.join(`${identity.chain}:nodes`)
+          socket.join(`${identity.chainId}:nodes`)
           if (identity.nodeType === "full") {
-            socket.join(`${identity.chain}:fullnodes`)
+            socket.join(`${identity.chainId}:fullnodes`)
           }
         }
       })
@@ -99,7 +99,7 @@ export class AwesomeConnect {
       }
 
       const messageHash = sha256(
-        [identity.chain, identity.name, identity.address, identity.nodeType, identity.publicKey].join("_")
+        [identity.chainId, identity.name, identity.address, identity.nodeType, identity.publicKey].join("_")
       )
 
       return ecc.verify(
@@ -108,6 +108,7 @@ export class AwesomeConnect {
         Buffer.from(identity.signature, "hex")
       )
     } catch {
+      console.error("Failed to verify identity", identity)
       return false
     }
   }

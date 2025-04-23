@@ -25,5 +25,3 @@ dev-dist
 *.sw?
 
 .vercel
-
-pose_solver/target

@@ -1,6 +1,6 @@
-import { Achievement, Review, Transaction } from "./blockchain"
+import { Achievement, Review, Transaction } from "./awesome"
 
-import { Block } from "./blockchain"
+import { Block } from "./awesome"
 
 export interface Repository {
   init(): Promise<void>

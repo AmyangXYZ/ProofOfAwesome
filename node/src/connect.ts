@@ -13,7 +13,7 @@ export interface ClientEvents {
 }
 
 export interface Identity {
-  chain: string
+  chainId: string
   name: string
   address: string
   nodeType: "light" | "full"

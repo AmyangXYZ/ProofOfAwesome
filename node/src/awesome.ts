@@ -3,22 +3,79 @@ import * as ecc from "tiny-secp256k1"
 import { Buffer } from "buffer"
 import { Wallet } from "./wallet"
 
-export const MIN_REVIEWERS_PER_ACHIEVEMENT = 3
+export const chainConfig = {
+  chainId: "proof-of-awesome-0.1.0",
+  genesisTime: new Date("2025-01-01").getTime(),
 
-export interface ChainConfig {
-  name: string
-  version: string
-  genesisTime: number
-  awesomeComPeriod: number
-  achievementSubmissionPhase: [number, number]
-  achievementReviewPhase: [number, number]
-  blockCreationPhase: [number, number]
-  wrapUpPhase: [number, number]
-  themes: string[]
+  awesomeCom: {
+    period: 15 * 1000,
+    themes: ["life", "tech", "fitness", "art", "home"],
+    submissionPhase: [0, 8 * 1000],
+    reviewPhase: [8 * 1000, 12 * 1000],
+    blockCreationPhase: [12 * 1000, 14 * 1000],
+    wrapUpPhase: [14 * 1000, 15 * 1000],
+  },
+  reviewRules: {
+    minReviewPerAchievement: 3,
+    scores: {
+      1: "reject",
+      2: "weak reject",
+      3: "weak accept",
+      4: "accept",
+      5: "strong accept",
+    } as const,
+    acceptThreshold: 3,
+  },
+} as const
+
+export interface AwesomeComStatus {
+  edition: number
+  theme: string
+  phase: "Achievement Submission" | "Achievement Review" | "Block Creation" | "Wrap Up"
+  editionRemaining: number
+  phaseRemaining: number
+}
+
+export function getAwesomeComStatus(): AwesomeComStatus {
+  const now = Date.now()
+  const timeSinceGenesis = now - chainConfig.genesisTime
+  const edition = Math.floor(timeSinceGenesis / chainConfig.awesomeCom.period)
+  const editionElapsedTime = timeSinceGenesis % chainConfig.awesomeCom.period
+
+  const status: AwesomeComStatus = {
+    edition,
+    theme: getTheme(edition),
+    phase: "Wrap Up",
+    editionRemaining: chainConfig.awesomeCom.period - editionElapsedTime,
+    phaseRemaining: 0,
+  }
+
+  const phases = [
+    { name: "Achievement Submission", window: chainConfig.awesomeCom.submissionPhase },
+    { name: "Achievement Review", window: chainConfig.awesomeCom.reviewPhase },
+    { name: "Block Creation", window: chainConfig.awesomeCom.blockCreationPhase },
+    { name: "Wrap Up", window: chainConfig.awesomeCom.wrapUpPhase },
+  ] as const
+
+  for (const { name, window } of phases) {
+    if (editionElapsedTime < window[1]) {
+      status.phase = name
+      status.phaseRemaining = window[1] - editionElapsedTime
+      break
+    }
+  }
+
+  return status
+}
+
+export function getTheme(edition: number) {
+  const hash = sha256(edition.toString())
+  const themeIndex = parseInt(hash.substring(0, 8), 16) % chainConfig.awesomeCom.themes.length
+  return chainConfig.awesomeCom.themes[themeIndex]
 }
 
 export interface ChainHead {
-  name: string
+  chainId: string
   latestBlockHeight: number
   latestBlockHash: string
 }
@@ -201,13 +258,13 @@ export function verifyBlock(block: Block): boolean {
     const latestReviews = reviews
       .sort((a, b) => b.timestamp - a.timestamp)
       .filter((review, index, self) => index === self.findIndex((r) => r.reviewerAddress === review.reviewerAddress))
-    if (latestReviews.length < MIN_REVIEWERS_PER_ACHIEVEMENT) {
+    if (latestReviews.length < chainConfig.reviewRules.minReviewPerAchievement) {
       return false
     }
 
     const scores = latestReviews.map((review) => review.score).sort((a, b) => a - b)
     const medianScore = scores[Math.floor(scores.length / 2)]
-    if (medianScore < 3) {
+    if (medianScore < chainConfig.reviewRules.acceptThreshold) {
       return false
     }
   }
