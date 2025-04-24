@@ -6,7 +6,7 @@ import { calculateMerkleRoot } from "./merkle"
 
 export const chainConfig = {
   chainId: "proof-of-awesome-0.1.0",
-  genesisTime: new Date("2025-01-01").getTime(),
+  genesisTime: new Date("2025-04-24T16:00:00Z").getTime(),
 
   awesomeCom: {
     period: 15 * 1000,
@@ -37,9 +37,23 @@ export interface AwesomeComStatus {
   phaseRemaining: number
 }
 
+export async function waitForGenesis() {
+  while (true) {
+    const timeSinceGenesis = Date.now() - chainConfig.genesisTime
+    if (timeSinceGenesis >= 0) {
+      return
+    }
+    const remaining = -timeSinceGenesis
+    const waitTime = Math.min(60 * 1000, remaining)
+    console.log(`Waiting for genesis: ${Math.round(remaining / 1000)}s remaining`)
+    await new Promise((resolve) => setTimeout(resolve, waitTime))
+  }
+}
+
 export function getAwesomeComStatus(): AwesomeComStatus {
   const now = Date.now()
   const timeSinceGenesis = now - chainConfig.genesisTime
+
   const edition = Math.floor(timeSinceGenesis / chainConfig.awesomeCom.period)
   const editionElapsedTime = timeSinceGenesis % chainConfig.awesomeCom.period
 
@@ -79,6 +93,9 @@ export interface ChainHead {
   chainId: string
   latestBlockHeight: number
   latestBlockHash: string
+  timestamp: number
+  nodePublicKey: string
+  signature: string
 }
 
 export interface BlockHeader {
@@ -110,20 +127,20 @@ export interface Transaction {
 
 export interface AchievementDigest {
   title: string
-  creatorName: string
-  creatorAddress: string
+  authorName: string
+  authorAddress: string
   signature: string
 }
 
 export interface Achievement {
   edition: number
-  creatorName: string
-  creatorAddress: string
+  authorName: string
+  authorAddress: string
   title: string
   description: string
   attachments: string[]
   timestamp: number
-  creatorPublicKey: string
+  authorPublicKey: string
   signature: string
 }
 
@@ -132,7 +149,14 @@ export interface Review {
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
-  score: number
+  scores: {
+    overall: number
+    originality: number
+    creativity: number
+    difficulty: number
+    relevance: number
+    presentation: number
+  }
   comment: string
   reviewerPublicKey: string
   timestamp: number
@@ -219,6 +243,36 @@ export function isReview(payload: unknown): payload is Review {
   )
 }
 
+export function signChainHead(chainHead: ChainHead, wallet: Wallet): string {
+  const hash = sha256(
+    [
+      chainHead.chainId,
+      chainHead.latestBlockHeight,
+      chainHead.latestBlockHash,
+      chainHead.timestamp,
+      chainHead.nodePublicKey,
+    ].join("_")
+  )
+  return wallet.sign(hash)
+}
+
+export function verifyChainHead(chainHead: ChainHead): boolean {
+  const hash = sha256(
+    [
+      chainHead.chainId,
+      chainHead.latestBlockHeight,
+      chainHead.latestBlockHash,
+      chainHead.timestamp,
+      chainHead.nodePublicKey,
+    ].join("_")
+  )
+  return ecc.verify(
+    Buffer.from(hash, "hex"),
+    Buffer.from(chainHead.nodePublicKey, "hex"),
+    Buffer.from(chainHead.signature, "hex")
+  )
+}
+
 export function hashBlockHeader(blockHeader: BlockHeader) {
   const hash = sha256(
     [
@@ -298,8 +352,8 @@ export function verifyBlock(block: Block): boolean {
       return false
     }
 
-    const scores = latestReviews.map((review) => review.score).sort((a, b) => a - b)
-    const medianScore = scores[Math.floor(scores.length / 2)]
+    const overallScores = latestReviews.map((review) => review.scores.overall).sort((a, b) => a - b)
+    const medianScore = overallScores[Math.floor(overallScores.length / 2)]
     if (medianScore < chainConfig.reviewRules.acceptThreshold) {
       return false
     }
@@ -342,13 +396,13 @@ export function verifyTransaction(transaction: Transaction): boolean {
 export function signAchievement(achievement: Achievement, wallet: Wallet): string {
   const hash = sha256(
     [
-      achievement.creatorName,
-      achievement.creatorAddress,
+      achievement.authorName,
+      achievement.authorAddress,
       achievement.title,
       achievement.description,
       achievement.attachments.join(","),
       achievement.timestamp,
-      achievement.creatorPublicKey,
+      achievement.authorPublicKey,
     ].join("_")
   )
   return wallet.sign(hash)
@@ -357,19 +411,19 @@ export function signAchievement(achievement: Achievement, wallet: Wallet): strin
 export function verifyAchievement(achievement: Achievement): boolean {
   const hash = sha256(
     [
-      achievement.creatorName,
-      achievement.creatorAddress,
+      achievement.authorName,
+      achievement.authorAddress,
       achievement.title,
       achievement.description,
       achievement.attachments.join(","),
       achievement.timestamp,
-      achievement.creatorPublicKey,
+      achievement.authorPublicKey,
     ].join("_")
   )
 
   return ecc.verify(
     Buffer.from(hash, "hex"),
-    Buffer.from(achievement.creatorPublicKey, "hex"),
+    Buffer.from(achievement.authorPublicKey, "hex"),
     Buffer.from(achievement.signature, "hex")
   )
 }
@@ -380,7 +434,12 @@ export function signReview(review: Review, wallet: Wallet): string {
       review.achievementSignature,
       review.reviewerName,
       review.reviewerAddress,
-      review.score,
+      review.scores.overall,
+      review.scores.originality,
+      review.scores.creativity,
+      review.scores.difficulty,
+      review.scores.relevance,
+      review.scores.presentation,
       review.comment,
       review.timestamp,
       review.reviewerPublicKey,
@@ -390,7 +449,20 @@ export function signReview(review: Review, wallet: Wallet): string {
 }
 
 export function verifyReview(review: Review): boolean {
-  if (review.score < 0 || review.score > 5) {
+  if (
+    review.scores.overall < 0 ||
+    review.scores.overall > 5 ||
+    review.scores.originality < 0 ||
+    review.scores.originality > 5 ||
+    review.scores.creativity < 0 ||
+    review.scores.creativity > 5 ||
+    review.scores.difficulty < 0 ||
+    review.scores.difficulty > 5 ||
+    review.scores.relevance < 0 ||
+    review.scores.relevance > 5 ||
+    review.scores.presentation < 0 ||
+    review.scores.presentation > 5
+  ) {
     return false
   }
   const hash = sha256(
@@ -398,7 +470,12 @@ export function verifyReview(review: Review): boolean {
       review.achievementSignature,
       review.reviewerName,
       review.reviewerAddress,
-      review.score,
+      review.scores.overall,
+      review.scores.originality,
+      review.scores.creativity,
+      review.scores.difficulty,
+      review.scores.relevance,
+      review.scores.presentation,
       review.comment,
       review.timestamp,
       review.reviewerPublicKey,

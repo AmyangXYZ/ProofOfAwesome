@@ -1,3 +1,5 @@
 import { AwesomeConnect } from "./connect"
 
-new AwesomeConnect().start()
+if (require.main === module) {
+  new AwesomeConnect().start()
+}

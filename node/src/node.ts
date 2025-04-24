@@ -24,10 +24,15 @@ import {
   chainConfig,
   hashBlockHeader,
   BlockHeader,
+  signChainHead,
+  verifyChainHead,
+  signReview,
+  waitForGenesis,
 } from "./awesome"
 import { calculateMerkleRoot } from "./merkle"
 import { MESSAGE_TYPE } from "./message"
-
+import { Reviewer } from "./reviewer"
+import { AIReviewer } from "./reviewer_ai"
 interface EventMap {
   "awesome_com.status.updated": AwesomeComStatus
   "awesome_com.achievement_submission.started": void
@@ -52,6 +57,7 @@ export class AwesomeNode {
   private wallet: Wallet
   private identity: Identity
   private repository: Repository
+  private reviewer: Reviewer
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
   private chainHead: ChainHead | null = null
@@ -101,17 +107,37 @@ export class AwesomeNode {
       )
     )
 
-    console.log("Created identity:", this.identity)
+    console.log("Node identity:", this.identity)
 
     this.repository = new MongoDBRepository("mongodb://localhost:27017/awesome")
+
+    this.reviewer = new AIReviewer()
 
     this.socket = io(connectAddress, { autoConnect: false })
     this.setupSocket()
   }
 
   public async start() {
+    await waitForGenesis()
     await this.repository.init()
     this.socket.connect()
+
+    this.reviewer.onReviewSubmitted((reviewResult) => {
+      console.log("Review result:", reviewResult)
+      const review: Review = {
+        edition: this.awesomeComStatus.edition,
+        achievementSignature: reviewResult.achievementSignature,
+        reviewerName: this.identity.name,
+        reviewerAddress: this.identity.address,
+        scores: reviewResult.scores,
+        comment: reviewResult.comment,
+        timestamp: Date.now(),
+        reviewerPublicKey: this.identity.publicKey,
+        signature: "",
+      }
+      review.signature = signReview(review, this.wallet)
+      this.pendingReviews.push(review)
+    })
 
     this.on("awesome_com.achievement_submission.started", async () => {
       this.pendingAchievements = []
@@ -153,7 +179,11 @@ export class AwesomeNode {
         chainId: chainConfig.chainId,
         latestBlockHeight: latestBlock ? latestBlock.header.height : 0,
         latestBlockHash: latestBlock ? latestBlock.header.hash : "",
+        timestamp: Date.now(),
+        nodePublicKey: this.identity.publicKey,
+        signature: "",
       }
+      this.chainHead.signature = signChainHead(this.chainHead, this.wallet)
       console.log(this.chainHead)
     })
 
@@ -292,18 +322,12 @@ export class AwesomeNode {
   }
 
   private async handleGetChainHead(message: Message) {
-    const block = await this.repository.getLatestBlock()
-    if (block) {
-      const chainHead: ChainHead = {
-        chainId: chainConfig.chainId,
-        latestBlockHeight: block.header.height,
-        latestBlockHash: block.header.hash,
-      }
+    if (this.chainHead) {
       const msg: Message = {
         from: this.identity.address,
         to: message.from,
         type: MESSAGE_TYPE.CHAIN_HEAD,
-        payload: chainHead,
+        payload: this.chainHead,
         timestamp: Date.now(),
       }
       this.socket.emit("message.send", msg)
@@ -313,6 +337,9 @@ export class AwesomeNode {
   private async handleChainHead(message: Message) {
     const chainHead = message.payload
     if (!isChainHead(chainHead)) {
+      return
+    }
+    if (!verifyChainHead(chainHead)) {
       return
     }
     console.log("Chain head:", chainHead)
@@ -413,8 +440,8 @@ export class AwesomeNode {
         .filter((review, index, self) => index === self.findIndex((r) => r.reviewerAddress === review.reviewerAddress))
 
       if (latestReviews.length >= chainConfig.reviewRules.minReviewPerAchievement) {
-        const scores = latestReviews.map((r) => r.score).sort((a, b) => a - b)
-        const medianScore = scores[Math.floor(scores.length / 2)]
+        const overallScores = latestReviews.map((r) => r.scores.overall).sort((a, b) => a - b)
+        const medianScore = overallScores[Math.floor(overallScores.length / 2)]
 
         if (medianScore >= chainConfig.reviewRules.acceptThreshold) {
           acceptedAchievements.push(achievement)
@@ -438,8 +465,8 @@ export class AwesomeNode {
       achievementDigests: acceptedAchievements.map((a) => ({
         title: a.title,
         signature: a.signature,
-        creatorName: a.creatorName,
-        creatorAddress: a.creatorAddress,
+        authorName: a.authorName,
+        authorAddress: a.authorAddress,
       })),
     }
     const block: Block = {

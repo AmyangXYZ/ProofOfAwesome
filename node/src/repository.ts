@@ -1,6 +1,4 @@
-import { Achievement, Review, Transaction } from "./awesome"
-
-import { Block } from "./awesome"
+import { Achievement, Review, Transaction, Block } from "./awesome"
 
 export interface Repository {
   init(): Promise<void>
@@ -20,10 +18,10 @@ export interface Repository {
   // updateTransactionStatus(signature: string, status: string): Promise<void>
 
   // addAchievement(achievement: Achievement): Promise<void>
-  // getAchievement(signature: string): Promise<Achievement | null>
-  // getAchievementsByCreator(creator: string): Promise<Achievement[]>
-  // getAchievementsByTheme(theme: string): Promise<Achievement[]>
   getAchievementsByEdition(edition: number): Promise<Achievement[]>
+  // getAchievement(signature: string): Promise<Achievement | null>
+  // getAchievementsByAuthor(author: string): Promise<Achievement[]>
+  // getAchievementsByTheme(theme: string): Promise<Achievement[]>
 
   // addReview(review: Review): Promise<void>
   // getReviewBySignature(signature: string): Promise<Review | null>

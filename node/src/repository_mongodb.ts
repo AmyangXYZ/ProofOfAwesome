@@ -38,13 +38,13 @@ interface BalanceDocument {
 interface AchievementDocument {
   _id?: mongoose.Types.ObjectId
   edition: number
-  creatorName: string
-  creatorAddress: string
+  authorName: string
+  authorAddress: string
   title: string
   description: string
   attachments: string[]
   timestamp: Date
-  creatorPublicKey: string
+  authorPublicKey: string
   signature: string
   reviews: mongoose.Types.ObjectId[] | ReviewDocument[]
 }
@@ -55,7 +55,14 @@ interface ReviewDocument {
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
-  score: number
+  scores: {
+    overall: number
+    originality: number
+    creativity: number
+    difficulty: number
+    relevance: number
+    presentation: number
+  }
   comment: string
   timestamp: Date
   reviewerPublicKey: string
@@ -114,12 +121,12 @@ export class MongoDBRepository implements Repository {
     this.AchievementModel = mongoose.model<AchievementDocument>(
       "Achievement",
       new mongoose.Schema<AchievementDocument>({
-        creatorName: String,
-        creatorAddress: String,
+        authorName: String,
+        authorAddress: String,
         description: String,
         attachments: [String],
         timestamp: Date,
-        creatorPublicKey: String,
+        authorPublicKey: String,
         signature: { type: String, index: true },
         reviews: [{ type: mongoose.Schema.Types.ObjectId, ref: "Review" }],
       })
@@ -130,8 +137,14 @@ export class MongoDBRepository implements Repository {
       new mongoose.Schema<ReviewDocument>({
         reviewerName: String,
         reviewerAddress: String,
-        score: Number,
-        achievementSignature: String,
+        scores: {
+          overall: Number,
+          originality: Number,
+          creativity: Number,
+          difficulty: Number,
+          relevance: Number,
+          presentation: Number,
+        },
         comment: String,
         timestamp: Date,
         reviewerPublicKey: String,
@@ -179,8 +192,8 @@ export class MongoDBRepository implements Repository {
   private achievementDocToAchievementDigest(achievementDoc: AchievementDocument): AchievementDigest {
     return {
       title: achievementDoc.title,
-      creatorName: achievementDoc.creatorName,
-      creatorAddress: achievementDoc.creatorAddress,
+      authorName: achievementDoc.authorName,
+      authorAddress: achievementDoc.authorAddress,
       signature: achievementDoc.signature,
     }
   }
@@ -188,13 +201,13 @@ export class MongoDBRepository implements Repository {
   private achievementDocToAchievement(achievementDoc: AchievementDocument): Achievement {
     return {
       edition: achievementDoc.edition,
-      creatorName: achievementDoc.creatorName,
-      creatorAddress: achievementDoc.creatorAddress,
+      authorName: achievementDoc.authorName,
+      authorAddress: achievementDoc.authorAddress,
       title: achievementDoc.title,
       description: achievementDoc.description,
       attachments: achievementDoc.attachments,
       timestamp: achievementDoc.timestamp.getTime(),
-      creatorPublicKey: achievementDoc.creatorPublicKey,
+      authorPublicKey: achievementDoc.authorPublicKey,
       signature: achievementDoc.signature,
     }
   }
@@ -205,7 +218,7 @@ export class MongoDBRepository implements Repository {
       achievementSignature: reviewDoc.achievementSignature,
       reviewerName: reviewDoc.reviewerName,
       reviewerAddress: reviewDoc.reviewerAddress,
-      score: reviewDoc.score,
+      scores: reviewDoc.scores,
       comment: reviewDoc.comment,
       timestamp: reviewDoc.timestamp.getTime(),
       reviewerPublicKey: reviewDoc.reviewerPublicKey,
@@ -231,13 +244,13 @@ export class MongoDBRepository implements Repository {
       block.achievements.map(async (a): Promise<AchievementDocument> => {
         return await this.AchievementModel.create({
           edition: a.edition,
-          creatorName: a.creatorName,
-          creatorAddress: a.creatorAddress,
+          authorName: a.authorName,
+          authorAddress: a.authorAddress,
           title: a.title,
           description: a.description,
           attachments: a.attachments,
           timestamp: new Date(a.timestamp),
-          creatorPublicKey: a.creatorPublicKey,
+          authorPublicKey: a.authorPublicKey,
           signature: a.signature,
           reviews: [],
         })
@@ -249,7 +262,7 @@ export class MongoDBRepository implements Repository {
           edition: r.edition,
           reviewerName: r.reviewerName,
           reviewerAddress: r.reviewerAddress,
-          score: r.score,
+          scores: r.scores,
           comment: r.comment,
           timestamp: new Date(r.timestamp),
           reviewerPublicKey: r.reviewerPublicKey,
