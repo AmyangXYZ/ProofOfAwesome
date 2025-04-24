@@ -30,7 +30,7 @@ import {
   waitForGenesis,
 } from "./awesome"
 import { calculateMerkleRoot } from "./merkle"
-import { MESSAGE_TYPE } from "./message"
+import { ChainHeadResponse, isChainHeadRequest, isChainHeadResponse, MESSAGE_TYPE } from "./message"
 import { Reviewer } from "./reviewer"
 import { AIReviewer } from "./reviewer_ai"
 interface EventMap {
@@ -68,8 +68,10 @@ export class AwesomeNode {
   // created or received in the achievement review phase in current edition
   private pendingReviews: Review[] = []
 
-  // discard blocks that have been received
-  private receivedBlocks: Map<string, boolean> = new Map()
+  // hash or signature
+  private hasReceived: Map<string, boolean> = new Map()
+  // requestId
+  private sentRequests: Map<string, boolean> = new Map()
 
   private chainHeadBroadcastPeriod: number = 1 * 60 * 1000
   private candidateBlockBroadcastPeriod: number = 30 * 1000
@@ -148,7 +150,6 @@ export class AwesomeNode {
     })
 
     this.on("awesome_com.block_creation.started", async () => {
-      this.receivedBlocks.clear()
       this.candidateBlock = null
       if (this.identity.nodeType == "full") {
         this.candidateBlock = await this.createBlock()
@@ -241,14 +242,18 @@ export class AwesomeNode {
             console.log("First node in the chain, initializing the chain")
           }
         } else if (members.length > 0) {
+          const requestId = crypto.randomUUID()
           const msg: Message = {
             from: this.identity.address,
             to: members[0].address,
             type: MESSAGE_TYPE.CHAIN_HEAD_REQUEST,
-            payload: {},
+            payload: {
+              requestId,
+            },
             timestamp: Date.now(),
           }
           this.socket.emit("message.send", msg)
+          this.sentRequests.set(requestId, true)
         }
       }
     })
@@ -295,25 +300,28 @@ export class AwesomeNode {
       case MESSAGE_TYPE.CHAIN_HEAD:
         this.handleChainHead(message)
         break
-      case MESSAGE_TYPE.TRANSACTION:
+      case MESSAGE_TYPE.NEW_TRANSACTION:
         this.handleTransaction(message)
         break
       case MESSAGE_TYPE.CANDIDATE_BLOCK:
         this.handleCandidateBlock(message)
         break
-      case MESSAGE_TYPE.BLOCK:
-        this.handleBlock(message)
+      case MESSAGE_TYPE.NEW_BLOCK:
+        this.handleNewBlock(message)
         break
-      case MESSAGE_TYPE.ACHIEVEMENT:
-        this.handleAchievement(message)
+      case MESSAGE_TYPE.NEW_ACHIEVEMENT:
+        this.handleNewAchievement(message)
         break
-      case MESSAGE_TYPE.REVIEW:
-        this.handleReview(message)
+      case MESSAGE_TYPE.NEW_REVIEW:
+        this.handleNewReview(message)
         break
       case MESSAGE_TYPE.CHAIN_HEAD_REQUEST:
         if (this.identity.nodeType == "full") {
-          this.handleGetChainHead(message)
+          this.handleChainHeadRequest(message)
         }
+        break
+      case MESSAGE_TYPE.CHAIN_HEAD_RESPONSE:
+        this.handleChainHeadResponse(message)
         break
       default:
         console.log("Unknown message type:", message.type)
@@ -321,17 +329,27 @@ export class AwesomeNode {
     }
   }
 
-  private async handleGetChainHead(message: Message) {
-    if (this.chainHead) {
-      const msg: Message = {
-        from: this.identity.address,
-        to: message.from,
-        type: MESSAGE_TYPE.CHAIN_HEAD,
-        payload: this.chainHead,
-        timestamp: Date.now(),
-      }
-      this.socket.emit("message.send", msg)
+  private async handleChainHeadRequest(message: Message) {
+    const request = message.payload
+    if (!isChainHeadRequest(request)) {
+      return
     }
+    if (!this.chainHead) {
+      return
+    }
+
+    const response: ChainHeadResponse = {
+      requestId: request.requestId,
+      chainHead: this.chainHead,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.CHAIN_HEAD,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleChainHead(message: Message) {
@@ -339,9 +357,14 @@ export class AwesomeNode {
     if (!isChainHead(chainHead)) {
       return
     }
+    if (this.hasReceived.has(chainHead.signature)) {
+      return
+    }
     if (!verifyChainHead(chainHead)) {
       return
     }
+    this.hasReceived.set(chainHead.signature, true)
+
     console.log("Chain head:", chainHead)
     if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
       console.log("Updating chain head:", chainHead)
@@ -349,12 +372,33 @@ export class AwesomeNode {
     }
   }
 
-  private async handleBlock(message: Message) {
-    const block = message.payload
-    if (!isBlock(block)) {
+  private async handleChainHeadResponse(message: Message) {
+    const response = message.payload
+    if (!isChainHeadResponse(response)) {
       return
     }
-    console.log("New block:", block)
+    if (this.sentRequests.has(response.requestId)) {
+      this.sentRequests.delete(response.requestId)
+    } else {
+      return
+    }
+    const chainHead = response.chainHead
+    if (!isChainHead(chainHead)) {
+      return
+    }
+    if (this.hasReceived.has(chainHead.signature)) {
+      return
+    }
+    if (!verifyChainHead(chainHead)) {
+      return
+    }
+    this.hasReceived.set(chainHead.signature, true)
+
+    console.log("Chain head:", chainHead)
+    if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
+      console.log("Updating chain head:", chainHead)
+      this.chainHead = chainHead
+    }
   }
 
   private async handleCandidateBlock(message: Message) {
@@ -365,13 +409,13 @@ export class AwesomeNode {
     if (!isBlock(block)) {
       return
     }
-    if (this.receivedBlocks.has(block.header.hash)) {
+    if (this.hasReceived.has(block.header.hash)) {
       return
     }
     if (!verifyBlock(block)) {
       return
     }
-    this.receivedBlocks.set(block.header.hash, true)
+    this.hasReceived.set(block.header.hash, true)
 
     if (
       !this.candidateBlock ||
@@ -384,27 +428,67 @@ export class AwesomeNode {
     }
   }
 
-  private async handleTransaction(message: Message) {
-    const transaction = message.payload
-    if (!isTransaction(transaction) || !verifyTransaction(transaction)) {
+  private async handleNewBlock(message: Message) {
+    const block = message.payload
+    if (!isBlock(block)) {
       return
     }
+    if (this.hasReceived.has(block.header.hash)) {
+      return
+    }
+    if (!verifyBlock(block)) {
+      return
+    }
+    this.hasReceived.set(block.header.hash, true)
+
+    console.log("New block:", block)
+  }
+
+  private async handleTransaction(message: Message) {
+    const transaction = message.payload
+    if (!isTransaction(transaction)) {
+      return
+    }
+    if (this.hasReceived.has(transaction.signature)) {
+      return
+    }
+    if (!verifyTransaction(transaction)) {
+      return
+    }
+    this.hasReceived.set(transaction.signature, true)
+
     console.log("New transaction:", transaction)
   }
 
-  private async handleAchievement(message: Message) {
+  private async handleNewAchievement(message: Message) {
     const achievement = message.payload
-    if (!isAchievement(achievement) || !verifyAchievement(achievement)) {
+    if (!isAchievement(achievement)) {
       return
     }
+    if (this.hasReceived.has(achievement.signature)) {
+      return
+    }
+    if (!verifyAchievement(achievement)) {
+      return
+    }
+    this.hasReceived.set(achievement.signature, true)
+
     console.log("New achievement:", achievement)
   }
 
-  private async handleReview(message: Message) {
+  private async handleNewReview(message: Message) {
     const review = message.payload
     if (!isReview(review) || !verifyReview(review)) {
       return
     }
+    if (this.hasReceived.has(review.signature)) {
+      return
+    }
+    if (!verifyReview(review)) {
+      return
+    }
+    this.hasReceived.set(review.signature, true)
+
     console.log("New review:", review)
   }
 
@@ -539,7 +623,7 @@ export class AwesomeNode {
     this.stopChainHeadBroadcast()
     this.stopCandidateBlockBroadcast()
     this.candidateBlock = null
-    this.receivedBlocks.clear()
+    this.hasReceived.clear()
     this.pendingAchievements = []
     this.pendingReviews = []
   }

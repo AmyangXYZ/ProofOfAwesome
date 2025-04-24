@@ -1,12 +1,15 @@
-import { Transaction, Block, Achievement, Review, ChainHead } from "./awesome"
+import { Transaction, Block, Achievement, Review, ChainHead, isChainHead } from "./awesome"
 
 export enum MESSAGE_TYPE {
+  // periodically broadcasted by full nodes
   CHAIN_HEAD = "CHAIN_HEAD",
+  // exchanged between full nodes in block creation (tpc meeting) phase
   CANDIDATE_BLOCK = "CANDIDATE_BLOCK",
-  BLOCK = "BLOCK",
-  TRANSACTION = "TRANSACTION",
-  ACHIEVEMENT = "ACHIEVEMENT",
-  REVIEW = "REVIEW",
+  // broadcasted by full nodes in wrap up (announcement) phase
+  NEW_BLOCK = "NEW_BLOCK",
+  NEW_TRANSACTION = "NEW_TRANSACTION",
+  NEW_ACHIEVEMENT = "NEW_ACHIEVEMENT",
+  NEW_REVIEW = "NEW_REVIEW",
   CHAIN_HEAD_REQUEST = "CHAIN_HEAD_REQUEST",
   CHAIN_HEAD_RESPONSE = "CHAIN_HEAD_RESPONSE",
   BLOCK_REQUEST = "BLOCK_REQUEST",
@@ -125,4 +128,18 @@ export interface ReviewsRequest {
 export interface ReviewsResponse {
   requestId: string
   reviews: Review[]
+}
+
+export function isChainHeadRequest(payload: unknown): payload is ChainHeadRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload
+}
+
+export function isChainHeadResponse(payload: unknown): payload is ChainHeadResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "chainHead" in payload &&
+    isChainHead(payload.chainHead)
+  )
 }
