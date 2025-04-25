@@ -1,4 +1,5 @@
 import { sha256 } from "js-sha256"
+import { keccak256 } from "js-sha3"
 
 export interface MerkleProof {
   index: number
@@ -91,7 +92,27 @@ export function verifyMerkleProof(root: string, item: string, proof: MerkleProof
   return hash === root
 }
 
-export class MerklePatriciaTrie {}
+export class MerklePatriciaTrie {
+  private root = keccak256("")
+
+  public getRoot(): string {
+    return this.root
+  }
+
+  public setBalance(address: string, balance: number): void {
+    this.root = ""
+  }
+  public getBalance(address: string): number {
+    return 0
+  }
+  public getProof(address: string): string[] {
+    return []
+  }
+
+  public static verifyProof(root: string, address: string, balance: number, proof: string[]): boolean {
+    return false
+  }
+}
 
 if (require.main === module) {
   const items = ["a", "b", "c", "d", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]

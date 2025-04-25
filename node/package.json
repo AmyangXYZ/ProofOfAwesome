@@ -40,6 +40,7 @@
     "openai": "^4.95.1",
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
-    "tiny-secp256k1": "^2.2.3"
+    "tiny-secp256k1": "^2.2.3",
+    "@proof-of-awesome/connect": "../connect"
   }
 }

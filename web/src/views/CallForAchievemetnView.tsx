@@ -4,7 +4,7 @@ export default function CallForAchievementsView() {
   const [awesomeComStatus, setAwesomeComStatus] = useState({
     edition: 42,
     theme: "Computational Fitness",
-    phase: "Achievement Submission",
+    phase: "Submission",
     phaseRemaining: 285000,
     editionRemaining: 485000,
   })
@@ -142,11 +142,11 @@ export default function CallForAchievementsView() {
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-100 px-2 rounded mr-2">2min</span>
-                  <span>TPC meeting and block creation</span>
+                  <span>TPC meeting and reach consensus</span>
                 </li>
                 <li className="flex items-start">
                   <span className="bg-blue-100 px-2 rounded mr-2">1min</span>
-                  <span>Concluding remarks</span>
+                  <span>Announcement of the new block</span>
                 </li>
               </ul>
             </div>

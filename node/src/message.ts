@@ -1,19 +1,34 @@
-import { Transaction, Block, Achievement, Review, ChainHead, isChainHead } from "./awesome"
+import {
+  Transaction,
+  Block,
+  Achievement,
+  Review,
+  ChainHead,
+  isChainHead,
+  isBlock,
+  isTransaction,
+  isAchievement,
+  isReview,
+} from "./awesome"
+import { MerkleProof } from "./merkle"
 
 export enum MESSAGE_TYPE {
   // periodically broadcasted by full nodes
   CHAIN_HEAD = "CHAIN_HEAD",
-  // exchanged between full nodes in block creation (tpc meeting) phase
+  // exchanged among full nodes in block creation (tpc meeting) phase
   CANDIDATE_BLOCK = "CANDIDATE_BLOCK",
-  // broadcasted by full nodes in wrap up (announcement) phase
+  // actively broadcasted by creators
   NEW_BLOCK = "NEW_BLOCK",
   NEW_TRANSACTION = "NEW_TRANSACTION",
   NEW_ACHIEVEMENT = "NEW_ACHIEVEMENT",
   NEW_REVIEW = "NEW_REVIEW",
+  // light nodes request from full nodes
   CHAIN_HEAD_REQUEST = "CHAIN_HEAD_REQUEST",
   CHAIN_HEAD_RESPONSE = "CHAIN_HEAD_RESPONSE",
   BLOCK_REQUEST = "BLOCK_REQUEST",
   BLOCK_RESPONSE = "BLOCK_RESPONSE",
+  BLOCKS_REQUEST = "BLOCKS_REQUEST",
+  BLOCKS_RESPONSE = "BLOCKS_RESPONSE",
   TRANSACTION_REQUEST = "TRANSACTION_REQUEST",
   TRANSACTION_RESPONSE = "TRANSACTION_RESPONSE",
   TRANSACTIONS_REQUEST = "TRANSACTIONS_REQUEST",
@@ -114,6 +129,7 @@ export interface ReviewRequest {
 export interface ReviewResponse {
   requestId: string
   review: Review
+  proof: MerkleProof
 }
 
 export interface ReviewsRequest {
@@ -141,5 +157,155 @@ export function isChainHeadResponse(payload: unknown): payload is ChainHeadRespo
     "requestId" in payload &&
     "chainHead" in payload &&
     isChainHead(payload.chainHead)
+  )
+}
+
+export function isBlockRequest(payload: unknown): payload is BlockRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    ("hash" in payload || "height" in payload)
+  )
+}
+
+export function isBlockResponse(payload: unknown): payload is BlockResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "block" in payload &&
+    isBlock(payload.block)
+  )
+}
+
+export function isBlocksRequest(payload: unknown): payload is BlocksRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "fromHeight" in payload &&
+    "toHeight" in payload
+  )
+}
+
+export function isBlocksResponse(payload: unknown): payload is BlocksResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "blocks" in payload &&
+    Array.isArray(payload.blocks) &&
+    payload.blocks.every((block) => isBlock(block))
+  )
+}
+
+export function isTransactionRequest(payload: unknown): payload is TransactionRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload && "signature" in payload
+}
+
+export function isTransactionResponse(payload: unknown): payload is TransactionResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "transaction" in payload &&
+    isTransaction(payload.transaction)
+  )
+}
+
+export function isTransactionsRequest(payload: unknown): payload is TransactionsRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    ("senderAddress" in payload || "recipientAddress" in payload || "signatures" in payload || "limit" in payload)
+  )
+}
+
+export function isTransactionsResponse(payload: unknown): payload is TransactionsResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "transactions" in payload &&
+    Array.isArray(payload.transactions) &&
+    payload.transactions.every((transaction) => isTransaction(transaction))
+  )
+}
+
+export function isAchievementRequest(payload: unknown): payload is AchievementRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload && "signature" in payload
+}
+
+export function isAchievementResponse(payload: unknown): payload is AchievementResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "achievement" in payload &&
+    isAchievement(payload.achievement)
+  )
+}
+
+export function isAchievementsRequest(payload: unknown): payload is AchievementsRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    ("edition" in payload ||
+      "creatorAddress" in payload ||
+      "theme" in payload ||
+      "signatures" in payload ||
+      "limit" in payload)
+  )
+}
+
+export function isAchievementsResponse(payload: unknown): payload is AchievementsResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "achievements" in payload &&
+    Array.isArray(payload.achievements) &&
+    payload.achievements.every((achievement) => isAchievement(achievement))
+  )
+}
+
+export function isReviewRequest(payload: unknown): payload is ReviewRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload && "signature" in payload
+}
+
+export function isReviewResponse(payload: unknown): payload is ReviewResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "review" in payload &&
+    isReview(payload.review)
+  )
+}
+
+export function isReviewsRequest(payload: unknown): payload is ReviewsRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    ("achievementSignature" in payload ||
+      "edition" in payload ||
+      "reviewerAddress" in payload ||
+      "signatures" in payload ||
+      "limit" in payload)
+  )
+}
+
+export function isReviewsResponse(payload: unknown): payload is ReviewsResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "reviews" in payload &&
+    Array.isArray(payload.reviews) &&
+    payload.reviews.every((review) => isReview(review))
   )
 }

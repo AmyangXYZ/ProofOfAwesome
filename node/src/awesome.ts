@@ -13,8 +13,8 @@ export const chainConfig = {
     themes: ["life", "tech", "fitness", "art", "home"],
     submissionPhase: [0, 8 * 1000],
     reviewPhase: [8 * 1000, 12 * 1000],
-    blockCreationPhase: [12 * 1000, 14 * 1000],
-    wrapUpPhase: [14 * 1000, 15 * 1000],
+    consensusPhase: [12 * 1000, 14 * 1000],
+    announcementPhase: [14 * 1000, 15 * 1000],
   },
   reviewRules: {
     minReviewPerAchievement: 3,
@@ -32,7 +32,7 @@ export const chainConfig = {
 export interface AwesomeComStatus {
   edition: number
   theme: string
-  phase: "Achievement Submission" | "Achievement Review" | "Block Creation" | "Wrap Up"
+  phase: "Submission" | "Review" | "Consensus" | "Announcement"
   editionRemaining: number
   phaseRemaining: number
 }
@@ -60,16 +60,16 @@ export function getAwesomeComStatus(): AwesomeComStatus {
   const status: AwesomeComStatus = {
     edition,
     theme: getTheme(edition),
-    phase: "Wrap Up",
+    phase: "Announcement",
     editionRemaining: chainConfig.awesomeCom.period - editionElapsedTime,
     phaseRemaining: 0,
   }
 
   const phases = [
-    { name: "Achievement Submission", window: chainConfig.awesomeCom.submissionPhase },
-    { name: "Achievement Review", window: chainConfig.awesomeCom.reviewPhase },
-    { name: "Block Creation", window: chainConfig.awesomeCom.blockCreationPhase },
-    { name: "Wrap Up", window: chainConfig.awesomeCom.wrapUpPhase },
+    { name: "Submission", window: chainConfig.awesomeCom.submissionPhase },
+    { name: "Review", window: chainConfig.awesomeCom.reviewPhase },
+    { name: "Consensus", window: chainConfig.awesomeCom.consensusPhase },
+    { name: "Announcement", window: chainConfig.awesomeCom.announcementPhase },
   ] as const
 
   for (const { name, window } of phases) {
@@ -87,6 +87,12 @@ export function getTheme(edition: number) {
   const hash = sha256(edition.toString())
   const themeIndex = parseInt(hash.substring(0, 8), 16) % chainConfig.awesomeCom.themes.length
   return chainConfig.awesomeCom.themes[themeIndex]
+}
+
+export interface Account {
+  address: string
+  balance: number
+  nonce: number
 }
 
 export interface ChainHead {
@@ -120,6 +126,7 @@ export interface Transaction {
   senderAddress: string
   recipientAddress: string
   amount: number
+  nonce: number
   timestamp: number
   senderPublicKey: string
   signature: string
@@ -205,6 +212,7 @@ export function isTransaction(payload: unknown): payload is Transaction {
     "senderAddress" in payload &&
     "recipientAddress" in payload &&
     "amount" in payload &&
+    "nonce" in payload &&
     "timestamp" in payload &&
     "senderPublicKey" in payload &&
     "signature" in payload

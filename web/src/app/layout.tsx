@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Proof of Awesome | Blockchain Achievement Platform with AI Verification",
+  title: "Proof of Awesome",
   description:
     "Transform real-world achievements into blockchain-verified assets through AwesomeCom events. Join our innovative consensus mechanism that replaces computational mining with meaningful accomplishments.",
   keywords: [
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
     "digital accomplishment tracking",
   ],
   openGraph: {
-    title: "Proof of Awesome | Blockchain Achievement Platform",
+    title: "Proof of Awesome | Transform Achievements into Blockchain Assets",
     description:
       "Join AwesomeCom events to transform your real-world accomplishments into blockchain-verified assets. Our innovative consensus mechanism combines AI verification with peer review for meaningful achievement mining.",
     type: "website",

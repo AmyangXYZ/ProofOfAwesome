@@ -24,6 +24,7 @@ interface TransactionDocument {
   senderAddress: string
   recipientAddress: string
   amount: number
+  nonce: number
   timestamp: Date
   signature: string
   pending: boolean
@@ -184,6 +185,7 @@ export class MongoDBRepository implements Repository {
       senderAddress: transactionDoc.senderAddress,
       recipientAddress: transactionDoc.recipientAddress,
       amount: transactionDoc.amount,
+      nonce: transactionDoc.nonce,
       timestamp: transactionDoc.timestamp.getTime(),
       signature: transactionDoc.signature,
     }

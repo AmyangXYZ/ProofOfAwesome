@@ -1,5 +1,5 @@
 import { keccak256 } from "js-sha3"
-import { generateMnemonic, mnemonicToSeedSync } from "bip39"
+import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from "bip39"
 import { BIP32Factory, BIP32Interface } from "bip32"
 import * as ecc from "tiny-secp256k1"
 import { Buffer } from "buffer"
@@ -8,11 +8,13 @@ export class Wallet {
   private keychain: BIP32Interface
   public publicKey: string
 
-  constructor(mnemonic?: string, passphrase?: string) {
-    if (!mnemonic) {
+  constructor(mnemonic: string, passphrase: string) {
+    if (mnemonic == "") {
       mnemonic = generateMnemonic()
+    } else if (!validateMnemonic(mnemonic)) {
+      throw new Error("Invalid mnemonic")
     }
-    if (!passphrase) {
+    if (passphrase == "") {
       passphrase = ""
     }
     const seed = mnemonicToSeedSync(mnemonic, passphrase)
