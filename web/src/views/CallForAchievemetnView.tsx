@@ -24,60 +24,41 @@ export default function CallForAchievementsView() {
 
   return (
     <div className="max-w-5xl mx-auto p-8">
-      <header className="mb-4 text-center">
-        <h1 className="text-3xl font-bold mb-1">Call for Achievements</h1>
-        {/* <p className="font-medium text-blue-800 mb-1">
-          The {awesomeComStatus.edition}th edition of AwesomeCom is in the {awesomeComStatus.phase} phase
-        </p> */}
-        {/* <p className="text-blue-800 font-medium">
-          Edition #{awesomeComStatus.edition} • {awesomeComStatus.theme}
-        </p>
-        <div className="mt-2 text-sm text-slate-500 font-sans">April 23, 2025</div> */}
-      </header>
+      <header className="mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-2 text-blue-900">AwesomeCom • Call for Achievements</h1>
+        <div className="flex justify-center items-center space-x-3 mb-4">
+          <span className="bg-blue-50 px-3 py-1 rounded text-blue-800 font-medium">
+            Edition #{awesomeComStatus.edition}
+          </span>
+          <span className="bg-blue-50 px-3 py-1 rounded text-blue-800 font-medium">{awesomeComStatus.theme}</span>
+        </div>
 
-      <div className="mb-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start font-sans">
-          <div className="flex-shrink-0 text-blue-500 mr-3 mt-1">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
-          </div>
-          <div>
-            <h3 className="text-lg text-blue-800 mb-1 font-serif">
-              The {awesomeComStatus.edition}th edition of AwesomeCom is in the progress
-            </h3>
-            <p className="text-sm mb-1">
-              Theme: <span className="font-mono text-blue-800">{awesomeComStatus.theme}</span> • Phase:{" "}
-              <span className="font-mono text-blue-800">{awesomeComStatus.phase}</span> • Remaining:{" "}
-              <span className="font-mono text-blue-800">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-2 pb-3 max-w-xl mx-auto">
+          <h3 className="text-lg font-medium text-blue-900 mb-2">Current Phase: {awesomeComStatus.phase}</h3>
+          <div className="flex justify-center gap-8 mb-3">
+            <div className="text-center">
+              <div className="text-xl font-semibold text-blue-800">
+                {Math.floor(awesomeComStatus.phaseRemaining / 60000)}m{" "}
+                {Math.floor((awesomeComStatus.phaseRemaining % 60000) / 1000)}s
+              </div>
+              <div className="text-xs text-blue-600">Phase Remaining</div>
+            </div>
+            <div className="text-center">
+              <div className="text-xl font-semibold text-blue-800">
                 {Math.floor(awesomeComStatus.editionRemaining / 60000)}m{" "}
                 {Math.floor((awesomeComStatus.editionRemaining % 60000) / 1000)}s
-              </span>
-            </p>
-            <p className="text-sm mb-1">
-              <span
-                className="underline cursor-pointer hover:text-blue-600 transition-colors duration-200"
-                onClick={() => console.log("Connect wallet clicked")}
-              >
-                Connect your wallet
-              </span>{" "}
-              to participate now!
-            </p>
+              </div>
+              <div className="text-xs text-blue-600">Edition Remaining</div>
+            </div>
           </div>
+          <button
+            onClick={() => {}}
+            className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors duration-200 text-sm cursor-pointer"
+          >
+            Connect Wallet to Participate
+          </button>
         </div>
-      </div>
+      </header>
 
       <div className="mt-2 mb-4">
         <div className="flex items-center justify-between cursor-pointer p-2">
@@ -100,10 +81,10 @@ export default function CallForAchievementsView() {
 
         <div className="bg-white px-6 py-4 border border-slate-200 rounded-lg shadow-sm mt-2 font-sans">
           <p className="leading-relaxed text-slate-700">
-            Traditional blockchain mining systems, while technically impressive and mathematically elegant, remain
-            abstract for most individuals. Mining through real-world achievements offers a complementary approach that
-            brings blockchain into everyday life. Each validated achievement not only contributes to network security
-            but also creates lasting value by documenting human accomplishment.
+            Traditional blockchain mining systems, while technically impressive, remain abstract for most individuals.
+            Mining through real-world achievements offers a complementary approach that brings blockchain into everyday
+            life. Each validated achievement becomes a permanent record of human accomplishment, creating value through
+            both network security and meaningful social recognition.
           </p>
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -142,7 +123,7 @@ export default function CallForAchievementsView() {
               integration upon receiving at least three independent reviews with a median score exceeding [Weak-Accept].
             </p>
 
-            <p className="mt-4 leading-relaxed text-slate-700 font-sans">
+            <p className="mt-2 leading-relaxed text-slate-700 font-sans">
               Achievement submission and validation occur in AwesomeCom, a periodic blockchain event with a precisely
               timed protocol and rotating themes. Accepted achievements are permanently recorded in the blockchain and
               awarded with AwesomeCoin, and bonus goes to the best achievement and quality reviews.
@@ -182,9 +163,9 @@ export default function CallForAchievementsView() {
           <p className="leading-relaxed text-slate-700">
             Peer-to-peer communication is achieved through a Socket.IO-based relay system, AwesomeConnect, connecting
             full nodes that maintain blockchain history with light nodes that need verified data. Full nodes serve this
-            data through Merkle Patricia Trees and participate in the Technical Program Committee (TPC) to reach
-            consensus, with some providing automated reviews through AI models. Light nodes focus on achievement
-            submission and review, fetching verified data as needed.
+            data through Merkle Patricia Trees and participate in the TPC to reach consensus, with some providing
+            automated reviews through AI models. Light nodes focus on achievement submission and review, fetching
+            verified chain data as needed.
           </p>
 
           <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -213,6 +194,20 @@ export default function CallForAchievementsView() {
               </ul>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="mt-2 mb-4">
+        <div className="flex items-center justify-between cursor-pointer p-2">
+          <h2 className="text-xl font-bold text-slate-800">Scope</h2>
+        </div>
+
+        <div className="bg-white px-6 py-4 border border-slate-200 rounded-lg shadow-sm font-sans">
+          <p className="leading-relaxed text-slate-700">
+            Proof of Awesome is a self-contained blockchain system that operates independently. It does not involve any
+            cryptocurrency, and is not connected to or integrated with other blockchain networks. The system is designed
+            specifically for tracking and verifying real-world achievements through its own unique consensus mechanism.
+          </p>
         </div>
       </div>
     </div>
