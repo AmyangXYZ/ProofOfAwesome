@@ -33,6 +33,9 @@ import { calculateMerkleRoot } from "./merkle"
 import { ChainHeadResponse, isChainHeadRequest, isChainHeadResponse, MESSAGE_TYPE } from "./message"
 import { Reviewer } from "./reviewer"
 import { AIReviewer } from "./reviewer_ai"
+import { AI_API_KEYS } from "./ai_api_keys"
+import OpenAI from "openai"
+
 interface EventMap {
   "awesome_com.status.updated": AwesomeComStatus
   "awesome_com.achievement_submission.started": void
@@ -113,7 +116,22 @@ export class AwesomeNode {
 
     this.repository = new MongoDBRepository("mongodb://localhost:27017/awesome")
 
-    this.reviewer = new AIReviewer()
+    // const xai = new OpenAI({
+    //   apiKey: AI_API_KEYS.XAI,
+    //   baseURL: "https://api.x.ai/v1",
+    // })
+
+    // const anthropic = new OpenAI({
+    //   apiKey: AI_API_KEYS.ANTHROPIC,
+    //   baseURL: "https://api.anthropic.com/v1/",
+    // })
+    this.reviewer = new AIReviewer(
+      new OpenAI({
+        apiKey: AI_API_KEYS.OPENAI,
+      }),
+      "gpt-4o-mini",
+      true
+    )
 
     this.socket = io(connectAddress, { autoConnect: false })
     this.setupSocket()
