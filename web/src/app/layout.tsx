@@ -14,27 +14,34 @@ const geistMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "Proof of Awesome | AI-Verified Blockchain Achievement Platform",
-  description: "Transform your real-world achievements into blockchain-verified digital assets with AI validation.",
+  title: "Proof of Awesome | Blockchain Achievement Platform with AI Verification",
+  description:
+    "Transform real-world achievements into blockchain-verified assets through AwesomeCom events. Join our innovative consensus mechanism that replaces computational mining with meaningful accomplishments.",
   keywords: [
     "blockchain achievement",
     "AI verification",
-    "digital achievement tracking",
+    "AwesomeCom",
+    "achievement mining",
     "proof of work alternative",
     "blockchain social platform",
+    "computational fitness",
+    "achievement validation",
+    "peer review blockchain",
+    "digital accomplishment tracking",
   ],
   openGraph: {
-    title: "Proof of Awesome | Transform Achievements into Blockchain Assets",
+    title: "Proof of Awesome | Blockchain Achievement Platform",
     description:
-      "Record your real-world accomplishments on a blockchain with AI verification. Join public chains or create private ones for your community.",
+      "Join AwesomeCom events to transform your real-world accomplishments into blockchain-verified assets. Our innovative consensus mechanism combines AI verification with peer review for meaningful achievement mining.",
     type: "website",
     locale: "en_US",
     siteName: "Proof of Awesome",
   },
   twitter: {
-    card: "summary",
-    title: "Proof of Awesome | Blockchain Achievement Platform",
-    description: "Your real-world achievements, verified by AI and recorded on blockchain.",
+    card: "summary_large_image",
+    title: "Proof of Awesome | Transform Achievements into Blockchain Assets",
+    description:
+      "Join AwesomeCom events to mine achievements instead of computational puzzles. Your real-world accomplishments, verified by AI and peer review, become permanent blockchain assets.",
   },
   robots: {
     index: true,
