@@ -2,7 +2,7 @@ import { sha256 } from "js-sha256"
 import * as ecc from "tiny-secp256k1"
 import { Buffer } from "buffer"
 import { Wallet } from "./wallet"
-import { calculateMerkleRoot } from "./merkle"
+import { MerkleTree } from "./merkle"
 
 export const chainConfig = {
   chainId: "proof-of-awesome-0.1.0",
@@ -26,6 +26,11 @@ export const chainConfig = {
       5: "strong accept",
     } as const,
     acceptThreshold: 3,
+  },
+  rewardRules: {
+    acceptedAchievements: 10,
+    bestAchievementBonus: 5,
+    review: 1,
   },
 } as const
 
@@ -93,6 +98,11 @@ export interface Account {
   address: string
   balance: number
   nonce: number
+  participatedEditions: number
+  acceptedAchievements: number
+  submittedReviews: number
+  lastActiveEdition: number
+  firstActiveEdition: number
 }
 
 export interface ChainHead {
@@ -107,10 +117,10 @@ export interface ChainHead {
 export interface BlockHeader {
   height: number
   previousHash: string
+  accountsRoot: string
   transactionsRoot: string
   achievementsRoot: string
   reviewsRoot: string
-  achievementDigests: AchievementDigest[]
   timestamp: number
   hash: string
 }
@@ -129,13 +139,6 @@ export interface Transaction {
   nonce: number
   timestamp: number
   senderPublicKey: string
-  signature: string
-}
-
-export interface AchievementDigest {
-  title: string
-  authorName: string
-  authorAddress: string
   signature: string
 }
 
@@ -170,6 +173,21 @@ export interface Review {
   signature: string
 }
 
+export function isAccount(payload: unknown): payload is Account {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "address" in payload &&
+    "balance" in payload &&
+    "nonce" in payload &&
+    "participatedEditions" in payload &&
+    "acceptedAchievements" in payload &&
+    "submittedReviews" in payload &&
+    "firstActiveEdition" in payload &&
+    "lastActiveEdition" in payload
+  )
+}
+
 export function isChainHead(payload: unknown): payload is ChainHead {
   return (
     typeof payload === "object" &&
@@ -186,9 +204,10 @@ export function isBlockHeader(payload: unknown): payload is BlockHeader {
     payload !== null &&
     "height" in payload &&
     "previousHash" in payload &&
-    "transactionsMerkleRoot" in payload &&
-    "achievementsMerkleRoot" in payload &&
-    "reviewsMerkleRoot" in payload &&
+    "accountsRoot" in payload &&
+    "transactionsRoot" in payload &&
+    "achievementsRoot" in payload &&
+    "reviewsRoot" in payload &&
     "timestamp" in payload &&
     "hash" in payload
   )
@@ -285,6 +304,7 @@ export function hashBlockHeader(blockHeader: BlockHeader) {
   const hash = sha256(
     [
       blockHeader.previousHash,
+      blockHeader.accountsRoot,
       blockHeader.transactionsRoot,
       blockHeader.achievementsRoot,
       blockHeader.reviewsRoot,
@@ -298,12 +318,6 @@ export function verifyBlockHeader(blockHeader: BlockHeader): boolean {
   if (hashBlockHeader(blockHeader) !== blockHeader.hash) {
     return false
   }
-
-  const calculatedRoot = calculateMerkleRoot(blockHeader.achievementDigests.map((digest) => digest.signature))
-  if (calculatedRoot !== blockHeader.achievementsRoot) {
-    return false
-  }
-
   return true
 }
 
@@ -312,18 +326,18 @@ export function verifyBlock(block: Block): boolean {
     return false
   }
   if (
-    calculateMerkleRoot(block.transactions.map((transaction) => transaction.signature)) !==
+    MerkleTree.calculateRoot(block.transactions.map((transaction) => transaction.signature)) !==
     block.header.transactionsRoot
   ) {
     return false
   }
   if (
-    calculateMerkleRoot(block.achievements.map((achievement) => achievement.signature)) !==
+    MerkleTree.calculateRoot(block.achievements.map((achievement) => achievement.signature)) !==
     block.header.achievementsRoot
   ) {
     return false
   }
-  if (calculateMerkleRoot(block.reviews.map((review) => review.signature)) !== block.header.reviewsRoot) {
+  if (MerkleTree.calculateRoot(block.reviews.map((review) => review.signature)) !== block.header.reviewsRoot) {
     return false
   }
 

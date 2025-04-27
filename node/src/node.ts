@@ -27,8 +27,9 @@ import {
   verifyChainHead,
   signReview,
   waitForGenesis,
+  Account,
 } from "./awesome"
-import { calculateMerkleRoot } from "./merkle"
+import { MerkleTree, SparseMerkleTree } from "./merkle"
 import {
   ChainHeadResponse,
   isChainHeadRequest,
@@ -78,7 +79,11 @@ export class AwesomeNode {
   private identity: Identity
   private repository: Repository
   private reviewer: Reviewer
+  private account: Account
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
+
+  // only full nodes maintain the account state
+  private accounts: SparseMerkleTree | null = null
 
   private chainHead: ChainHead | null = null
   // created or received in the block creation phase in current edition
@@ -132,9 +137,23 @@ export class AwesomeNode {
         ].join("_")
       )
     )
-    this.inTPC = this.identity.nodeType == "full"
-
     console.log("Node identity:", this.identity)
+
+    this.account = {
+      address: this.identity.address,
+      balance: 0,
+      nonce: 0,
+      participatedEditions: 0,
+      acceptedAchievements: 0,
+      submittedReviews: 0,
+      lastActiveEdition: 0,
+      firstActiveEdition: 0,
+    }
+    if (this.identity.nodeType == "full") {
+      this.accounts = new SparseMerkleTree()
+    }
+
+    this.inTPC = this.identity.nodeType == "full"
 
     this.repository = repository
 
@@ -193,6 +212,22 @@ export class AwesomeNode {
       if (this.candidateBlock) {
         await this.repository.addBlock(this.candidateBlock)
         this.emit("block.added", this.candidateBlock)
+
+        // assign achievement rewards
+        if (this.identity.nodeType == "full" && this.accounts) {
+          for (const achievement of this.candidateBlock.achievements) {
+            const { account } = this.accounts.get(achievement.authorAddress)
+            if (account) {
+              account.balance += chainConfig.rewardRules.acceptedAchievements
+              account.acceptedAchievements += 1
+              if (account.lastActiveEdition != this.awesomeComStatus.edition) {
+                account.participatedEditions += 1
+                account.lastActiveEdition = this.awesomeComStatus.edition
+              }
+              this.accounts.insert(account)
+            }
+          }
+        }
       }
       this.candidateBlock = null
       this.pendingAchievements = []
@@ -317,6 +352,10 @@ export class AwesomeNode {
       }
     }
     this.awesomeComStatus = status
+    this.account.lastActiveEdition = status.edition
+    if (this.account.firstActiveEdition == 0) {
+      this.account.firstActiveEdition = status.edition
+    }
     this.emit("awesomecom.status.updated", status)
   }
 
@@ -470,6 +509,27 @@ export class AwesomeNode {
     this.hasReceived.set(transaction.signature, true)
 
     console.log("New transaction:", transaction)
+
+    if (this.identity.nodeType == "full" && this.accounts) {
+      const { account: sender } = this.accounts.get(transaction.senderAddress)
+      const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+
+      if (sender && recipient && sender.balance >= transaction.amount) {
+        sender.balance -= transaction.amount
+        recipient.balance += transaction.amount
+        sender.nonce += 1
+        if (sender.lastActiveEdition != this.awesomeComStatus.edition) {
+          sender.participatedEditions += 1
+          sender.lastActiveEdition = this.awesomeComStatus.edition
+        }
+        if (recipient.lastActiveEdition != this.awesomeComStatus.edition) {
+          recipient.participatedEditions += 1
+          recipient.lastActiveEdition = this.awesomeComStatus.edition
+        }
+        this.accounts.insert(sender)
+        this.accounts.insert(recipient)
+      }
+    }
   }
 
   private async handleNewAchievement(message: Message) {
@@ -481,6 +541,29 @@ export class AwesomeNode {
       return
     }
     this.hasReceived.set(achievement.signature, true)
+
+    if (this.identity.nodeType == "full" && this.accounts) {
+      const { account } = this.accounts.get(achievement.authorAddress)
+      if (account) {
+        if (account.lastActiveEdition != this.awesomeComStatus.edition) {
+          account.participatedEditions += 1
+          account.lastActiveEdition = this.awesomeComStatus.edition
+        }
+        this.accounts.insert(account)
+      } else {
+        const newAccount: Account = {
+          address: achievement.authorAddress,
+          balance: chainConfig.rewardRules.acceptedAchievements,
+          nonce: 0,
+          participatedEditions: 1,
+          acceptedAchievements: 0,
+          submittedReviews: 0,
+          lastActiveEdition: this.awesomeComStatus.edition,
+          firstActiveEdition: this.awesomeComStatus.edition,
+        }
+        this.accounts.insert(newAccount)
+      }
+    }
 
     console.log("New achievement:", achievement)
   }
@@ -495,6 +578,30 @@ export class AwesomeNode {
     }
     this.hasReceived.set(review.signature, true)
 
+    if (this.identity.nodeType == "full" && this.accounts) {
+      const { account } = this.accounts.get(review.reviewerAddress)
+      if (account) {
+        account.balance += chainConfig.rewardRules.review
+        account.submittedReviews += 1
+        if (account.lastActiveEdition != this.awesomeComStatus.edition) {
+          account.participatedEditions += 1
+          account.lastActiveEdition = this.awesomeComStatus.edition
+        }
+        this.accounts.insert(account)
+      } else {
+        const newAccount: Account = {
+          address: review.reviewerAddress,
+          balance: chainConfig.rewardRules.review,
+          nonce: 0,
+          participatedEditions: 1,
+          acceptedAchievements: 0,
+          submittedReviews: 1,
+          lastActiveEdition: this.awesomeComStatus.edition,
+          firstActiveEdition: this.awesomeComStatus.edition,
+        }
+        this.accounts.insert(newAccount)
+      }
+    }
     console.log("New review:", review)
   }
 
@@ -755,17 +862,12 @@ export class AwesomeNode {
     const blockHeader: BlockHeader = {
       height: previousHeight + 1,
       previousHash,
-      transactionsRoot: calculateMerkleRoot(transactions.map((t) => t.signature)),
-      achievementsRoot: calculateMerkleRoot(acceptedAchievements.map((a) => a.signature)),
-      reviewsRoot: calculateMerkleRoot(reviewsForAcceptedAchievements.map((r) => r.signature)),
+      accountsRoot: "",
+      transactionsRoot: MerkleTree.calculateRoot(transactions.map((t) => t.signature)),
+      achievementsRoot: MerkleTree.calculateRoot(acceptedAchievements.map((a) => a.signature)),
+      reviewsRoot: MerkleTree.calculateRoot(reviewsForAcceptedAchievements.map((r) => r.signature)),
       timestamp: Date.now(),
       hash: "",
-      achievementDigests: acceptedAchievements.map((a) => ({
-        title: a.title,
-        signature: a.signature,
-        authorName: a.authorName,
-        authorAddress: a.authorAddress,
-      })),
     }
     const block: Block = {
       header: blockHeader,

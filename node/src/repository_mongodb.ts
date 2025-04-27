@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import { Achievement, AchievementDigest, Block, Review, Transaction } from "./awesome"
+import { Achievement, Block, Review, Transaction } from "./awesome"
 import { Repository } from "./repository"
 
 interface BlockDocument {
@@ -7,6 +7,7 @@ interface BlockDocument {
   header: {
     height: number
     previousHash: string
+    accountsRoot: string
     transactionsRoot: string
     achievementsRoot: string
     reviewsRoot: string
@@ -164,13 +165,11 @@ export class MongoDBRepository implements Repository {
       header: {
         height: blockDoc.header.height,
         previousHash: blockDoc.header.previousHash,
+        accountsRoot: blockDoc.header.accountsRoot,
         transactionsRoot: blockDoc.header.transactionsRoot,
         achievementsRoot: blockDoc.header.achievementsRoot,
         reviewsRoot: blockDoc.header.reviewsRoot,
         timestamp: blockDoc.header.timestamp.getTime(),
-        achievementDigests: blockDoc.achievements.map((a) =>
-          this.achievementDocToAchievementDigest(a as AchievementDocument)
-        ),
         hash: blockDoc.header.hash,
       },
       transactions: blockDoc.transactions.map((t) => this.transactionDocToTransaction(t as TransactionDocument)),
@@ -188,15 +187,6 @@ export class MongoDBRepository implements Repository {
       nonce: transactionDoc.nonce,
       timestamp: transactionDoc.timestamp.getTime(),
       signature: transactionDoc.signature,
-    }
-  }
-
-  private achievementDocToAchievementDigest(achievementDoc: AchievementDocument): AchievementDigest {
-    return {
-      title: achievementDoc.title,
-      authorName: achievementDoc.authorName,
-      authorAddress: achievementDoc.authorAddress,
-      signature: achievementDoc.signature,
     }
   }
 
@@ -277,6 +267,7 @@ export class MongoDBRepository implements Repository {
       header: {
         height: block.header.height,
         previousHash: block.header.previousHash,
+        accountsRoot: block.header.accountsRoot,
         transactionsRoot: block.header.transactionsRoot,
         achievementsRoot: block.header.achievementsRoot,
         reviewsRoot: block.header.reviewsRoot,
