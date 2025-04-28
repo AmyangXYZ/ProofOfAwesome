@@ -147,7 +147,6 @@ export class SparseMerkleTree {
         node.account.balance.toString(),
         node.account.nonce.toString(),
         node.account.acceptedAchievements.toString(),
-        node.account.submittedReviews.toString(),
       ].join("_")
     )
 
@@ -209,7 +208,6 @@ export class SparseMerkleTree {
         account.balance.toString(),
         account.nonce.toString(),
         account.acceptedAchievements.toString(),
-        account.submittedReviews.toString(),
       ].join("_")
     )
     for (let i = proof.length - 1; i >= 0; i--) {
@@ -256,7 +254,6 @@ if (require.main === module) {
     balance: 100,
     nonce: 0,
     acceptedAchievements: 0,
-    submittedReviews: 0,
   })
   console.log(smt.merkleRoot)
   smt.insert({
@@ -264,7 +261,6 @@ if (require.main === module) {
     balance: 110,
     nonce: 0,
     acceptedAchievements: 0,
-    submittedReviews: 0,
   })
   console.log(smt.merkleRoot)
   const { account, proof } = smt.get("0x756eE1DA69C1c9316e22c383040c2D063F032A43")

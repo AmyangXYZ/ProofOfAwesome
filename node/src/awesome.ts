@@ -10,7 +10,7 @@ export const chainConfig = {
 
   awesomeCom: {
     period: 15 * 1000,
-    themes: ["life", "tech", "fitness", "art", "home"],
+    themes: ["life", "gaming", "fitness", "art", "meme", "home"],
     submissionPhase: [0, 8 * 1000],
     reviewPhase: [8 * 1000, 12 * 1000],
     consensusPhase: [12 * 1000, 14 * 1000],
@@ -29,8 +29,6 @@ export const chainConfig = {
   },
   rewardRules: {
     acceptedAchievements: 10,
-    bestAchievementBonus: 5,
-    review: 1,
   },
 } as const
 
@@ -99,7 +97,6 @@ export interface Account {
   balance: number
   nonce: number
   acceptedAchievements: number
-  submittedReviews: number
 }
 
 export interface ChainHead {
@@ -177,8 +174,7 @@ export function isAccount(payload: unknown): payload is Account {
     "address" in payload &&
     "balance" in payload &&
     "nonce" in payload &&
-    "acceptedAchievements" in payload &&
-    "submittedReviews" in payload
+    "acceptedAchievements" in payload
   )
 }
 

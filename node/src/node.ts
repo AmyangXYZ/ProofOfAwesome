@@ -150,7 +150,6 @@ export class AwesomeNode {
       balance: 0,
       nonce: 0,
       acceptedAchievements: 0,
-      submittedReviews: 0,
     }
     if (this.identity.nodeType == "full") {
       this.accounts = new SparseMerkleTree()
@@ -537,7 +536,7 @@ export class AwesomeNode {
       const { account: sender } = this.accounts.get(transaction.senderAddress)
       const { account: recipient } = this.accounts.get(transaction.recipientAddress)
 
-      if (sender && recipient && sender.balance >= transaction.amount) {
+      if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
         sender.balance -= transaction.amount
         recipient.balance += transaction.amount
         sender.nonce += 1
@@ -557,23 +556,6 @@ export class AwesomeNode {
     }
     this.hasReceived.set(achievement.signature, true)
 
-    if (this.identity.nodeType == "full" && this.accounts) {
-      const { account } = this.accounts.get(achievement.authorAddress)
-      if (account) {
-        this.accounts.insert(account)
-      } else {
-        const newAccount: Account = {
-          address: achievement.authorAddress,
-          balance: 0,
-          nonce: 0,
-          acceptedAchievements: 0,
-          submittedReviews: 0,
-        }
-
-        this.accounts.insert(newAccount)
-      }
-    }
-
     console.log("New achievement:", achievement)
   }
 
@@ -587,24 +569,6 @@ export class AwesomeNode {
     }
     this.hasReceived.set(review.signature, true)
 
-    if (this.identity.nodeType == "full" && this.accounts) {
-      const { account } = this.accounts.get(review.reviewerAddress)
-      if (account) {
-        account.balance += chainConfig.rewardRules.review
-        account.submittedReviews += 1
-
-        this.accounts.insert(account)
-      } else {
-        const newAccount: Account = {
-          address: review.reviewerAddress,
-          balance: chainConfig.rewardRules.review,
-          nonce: 0,
-          acceptedAchievements: 0,
-          submittedReviews: 1,
-        }
-        this.accounts.insert(newAccount)
-      }
-    }
     console.log("New review:", review)
   }
 
