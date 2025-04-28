@@ -10,7 +10,7 @@ export const chainConfig = {
 
   awesomeCom: {
     period: 15 * 1000,
-    themes: ["life", "gaming", "fitness", "art", "meme", "home"],
+    themes: ["Pro Player", "Fitness King", "Art Master", "Meme Lord", "Home Hero"],
     submissionPhase: [0, 8 * 1000],
     reviewPhase: [8 * 1000, 12 * 1000],
     consensusPhase: [12 * 1000, 14 * 1000],
@@ -140,7 +140,6 @@ export interface Achievement {
   edition: number
   authorName: string
   authorAddress: string
-  title: string
   description: string
   attachments: string[]
   timestamp: number
@@ -172,9 +171,13 @@ export function isAccount(payload: unknown): payload is Account {
     typeof payload === "object" &&
     payload !== null &&
     "address" in payload &&
+    typeof payload.address === "string" &&
     "balance" in payload &&
+    typeof payload.balance === "number" &&
     "nonce" in payload &&
-    "acceptedAchievements" in payload
+    typeof payload.nonce === "number" &&
+    "acceptedAchievements" in payload &&
+    typeof payload.acceptedAchievements === "number"
   )
 }
 
@@ -183,8 +186,17 @@ export function isChainHead(payload: unknown): payload is ChainHead {
     typeof payload === "object" &&
     payload !== null &&
     "chainId" in payload &&
+    typeof payload.chainId === "string" &&
     "latestBlockHeight" in payload &&
-    "latestBlockHash" in payload
+    typeof payload.latestBlockHeight === "number" &&
+    "latestBlockHash" in payload &&
+    typeof payload.latestBlockHash === "string" &&
+    "timestamp" in payload &&
+    typeof payload.timestamp === "number" &&
+    "nodePublicKey" in payload &&
+    typeof payload.nodePublicKey === "string" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
   )
 }
 
@@ -193,13 +205,21 @@ export function isBlockHeader(payload: unknown): payload is BlockHeader {
     typeof payload === "object" &&
     payload !== null &&
     "height" in payload &&
+    typeof payload.height === "number" &&
     "previousHash" in payload &&
+    typeof payload.previousHash === "string" &&
     "accountsRoot" in payload &&
+    typeof payload.accountsRoot === "string" &&
     "transactionsRoot" in payload &&
+    typeof payload.transactionsRoot === "string" &&
     "achievementsRoot" in payload &&
+    typeof payload.achievementsRoot === "string" &&
     "reviewsRoot" in payload &&
+    typeof payload.reviewsRoot === "string" &&
     "timestamp" in payload &&
-    "hash" in payload
+    typeof payload.timestamp === "number" &&
+    "hash" in payload &&
+    typeof payload.hash === "string"
   )
 }
 
@@ -208,9 +228,16 @@ export function isBlock(payload: unknown): payload is Block {
     typeof payload === "object" &&
     payload !== null &&
     "header" in payload &&
+    isBlockHeader(payload.header) &&
     "transactions" in payload &&
+    Array.isArray(payload.transactions) &&
+    payload.transactions.every((transaction) => isTransaction(transaction)) &&
     "achievements" in payload &&
-    "reviews" in payload
+    Array.isArray(payload.achievements) &&
+    payload.achievements.every((achievement) => isAchievement(achievement)) &&
+    "reviews" in payload &&
+    Array.isArray(payload.reviews) &&
+    payload.reviews.every((review) => isReview(review))
   )
 }
 
@@ -219,12 +246,19 @@ export function isTransaction(payload: unknown): payload is Transaction {
     typeof payload === "object" &&
     payload !== null &&
     "senderAddress" in payload &&
+    typeof payload.senderAddress === "string" &&
     "recipientAddress" in payload &&
+    typeof payload.recipientAddress === "string" &&
     "amount" in payload &&
+    typeof payload.amount === "number" &&
     "nonce" in payload &&
+    typeof payload.nonce === "number" &&
     "timestamp" in payload &&
+    typeof payload.timestamp === "number" &&
     "senderPublicKey" in payload &&
-    "signature" in payload
+    typeof payload.senderPublicKey === "string" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
   )
 }
 
@@ -233,14 +267,22 @@ export function isAchievement(payload: unknown): payload is Achievement {
     typeof payload === "object" &&
     payload !== null &&
     "edition" in payload &&
-    "creatorName" in payload &&
-    "creatorAddress" in payload &&
-    "title" in payload &&
+    typeof payload.edition === "number" &&
+    "authorName" in payload &&
+    typeof payload.authorName === "string" &&
+    "authorAddress" in payload &&
+    typeof payload.authorAddress === "string" &&
     "description" in payload &&
+    typeof payload.description === "string" &&
     "attachments" in payload &&
+    Array.isArray(payload.attachments) &&
+    payload.attachments.every((attachment) => typeof attachment === "string") &&
     "timestamp" in payload &&
-    "creatorPublicKey" in payload &&
-    "signature" in payload
+    typeof payload.timestamp === "number" &&
+    "authorPublicKey" in payload &&
+    typeof payload.authorPublicKey === "string" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
   )
 }
 
@@ -249,14 +291,23 @@ export function isReview(payload: unknown): payload is Review {
     typeof payload === "object" &&
     payload !== null &&
     "edition" in payload &&
+    typeof payload.edition === "number" &&
     "achievementSignature" in payload &&
+    typeof payload.achievementSignature === "string" &&
     "reviewerName" in payload &&
+    typeof payload.reviewerName === "string" &&
     "reviewerAddress" in payload &&
-    "score" in payload &&
+    typeof payload.reviewerAddress === "string" &&
+    "scores" in payload &&
+    typeof payload.scores === "object" &&
     "comment" in payload &&
+    typeof payload.comment === "string" &&
     "reviewerPublicKey" in payload &&
+    typeof payload.reviewerPublicKey === "string" &&
     "timestamp" in payload &&
-    "signature" in payload
+    typeof payload.timestamp === "number" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
   )
 }
 
@@ -410,7 +461,6 @@ export function signAchievement(achievement: Achievement, wallet: Wallet): strin
     [
       achievement.authorName,
       achievement.authorAddress,
-      achievement.title,
       achievement.description,
       achievement.attachments.join(","),
       achievement.timestamp,
@@ -425,7 +475,6 @@ export function verifyAchievement(achievement: Achievement): boolean {
     [
       achievement.authorName,
       achievement.authorAddress,
-      achievement.title,
       achievement.description,
       achievement.attachments.join(","),
       achievement.timestamp,

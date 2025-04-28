@@ -196,7 +196,7 @@ export class SparseMerkleTree {
     return accounts
   }
 
-  public static verifyProof(account: Account, root: string, proof: SparseMerkleProof): boolean {
+  public static verifyProof(account: Account, proof: SparseMerkleProof, root: string): boolean {
     if (!account.address.startsWith("0x") || account.address.length !== 42 || proof.length !== 160) {
       return false
     }
@@ -235,38 +235,4 @@ export class SparseMerkleTree {
 
 export function isSparseMerkleProof(proof: unknown): proof is SparseMerkleProof {
   return Array.isArray(proof) && proof.every((item) => typeof item === "string")
-}
-
-if (require.main === module) {
-  // const items = ["a", "b", "c", "d", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
-  // const root = calculateMerkleRoot(items)
-
-  // const item = "a"
-  // const proof = generateMerkleProof(items, item)
-  // if (proof) {
-  //   const verified = verifyMerkleProof(root, item, proof)
-  //   console.log("Verified:", verified)
-  // }
-
-  const smt = new SparseMerkleTree()
-  smt.insert({
-    address: "0x756eE1DA69C1c9316e22c383040c2D063F032A43",
-    balance: 100,
-    nonce: 0,
-    acceptedAchievements: 0,
-  })
-  console.log(smt.merkleRoot)
-  smt.insert({
-    address: "0x756eE1DA69C1c9316e22c383040c2D063F032A43",
-    balance: 110,
-    nonce: 0,
-    acceptedAchievements: 0,
-  })
-  console.log(smt.merkleRoot)
-  const { account, proof } = smt.get("0x756eE1DA69C1c9316e22c383040c2D063F032A43")
-  if (account) {
-    console.log(account)
-    console.log(proof)
-    console.log(SparseMerkleTree.verifyProof(account, smt.merkleRoot, proof))
-  }
 }

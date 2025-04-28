@@ -2,7 +2,7 @@ process.removeAllListeners("warning")
 
 import OpenAI from "openai"
 import { Achievement } from "./awesome"
-import { Reviewer, ReviewerRequest, ReviewerResult } from "./reviewer"
+import { Reviewer, ReviewResult } from "./reviewer"
 import { ChatCompletion, ChatCompletionMessageParam } from "openai/resources/chat/completions"
 
 const systemPrompt = `
@@ -242,7 +242,6 @@ IMPORTANT:
 
 const TEXT_WITH_IMAGE_PROMPT = `
   CHAIN THEME: "{chainTheme}"
-  CLAIM TITLE: "{title}"
   CLAIM DESCRIPTION: "{description}"
 
   AN IMAGE HAS BEEN ATTACHED AS EVIDENCE.
@@ -261,7 +260,6 @@ const TEXT_WITH_IMAGE_PROMPT = `
 
 const TEXT_ONLY_PROMPT = `
   CHAIN THEME: "{chainTheme}"
-  CLAIM TITLE: "{title}"
   CLAIM DESCRIPTION: "{description}"
 
   NO IMAGE HAS BEEN PROVIDED AS EVIDENCE.
@@ -277,7 +275,6 @@ const TEXT_ONLY_PROMPT = `
 
 const TEXT_WITH_UNVERIFIABLE_IMAGE_PROMPT = `
   CHAIN THEME: "{chainTheme}"
-  CLAIM TITLE: "{title}"
   CLAIM DESCRIPTION: "{description}"
 
   NOTE: While an image was provided as evidence, please focus on evaluating the text description.
@@ -300,7 +297,7 @@ export class AIReviewer implements Reviewer {
   private provider: OpenAI
   private model: string
   private supportsImage: boolean
-  private listeners: ((review: ReviewerResult) => void)[] = []
+  private listeners: ((review: ReviewResult) => void)[] = []
 
   constructor(provider: OpenAI, model: string, supportsImage: boolean) {
     this.provider = provider
@@ -308,17 +305,17 @@ export class AIReviewer implements Reviewer {
     this.supportsImage = supportsImage
   }
 
-  assignAchievement(request: ReviewerRequest): void {
-    this.review(request.achievement, request.theme).then((result) => {
+  assignAchievement(achievement: Achievement, theme: string): void {
+    this.review(achievement, theme).then((result) => {
       this.listeners.forEach((listener) => listener(result))
     })
   }
 
-  onReviewSubmitted(listener: (reviewResult: ReviewerResult) => void): void {
+  onReviewSubmitted(listener: (reviewResult: ReviewResult) => void): void {
     this.listeners.push(listener)
   }
 
-  private async review(achievement: Achievement, theme: string): Promise<ReviewerResult> {
+  private async review(achievement: Achievement, theme: string): Promise<ReviewResult> {
     if (!systemPrompt) {
       throw new Error("System prompt not set")
     }
@@ -331,10 +328,7 @@ export class AIReviewer implements Reviewer {
       }
     }
 
-    const userPrompt = promptTemplate
-      .replace("{chainTheme}", theme)
-      .replace("{title}", achievement.title)
-      .replace("{description}", achievement.description)
+    const userPrompt = promptTemplate.replace("{chainTheme}", theme).replace("{description}", achievement.description)
 
     try {
       const messages: ChatCompletionMessageParam[] = [

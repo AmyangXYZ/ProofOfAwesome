@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useState } from "react"
 import SubmissionView from "./SubmissionView"
+// import { AwesomeNode } from "@proof-of-awesome/node"
 
 export default function ContentView({ children }: { children: ReactNode }) {
   const [currentView, setCurrentView] = useState("")
@@ -18,5 +19,5 @@ export default function ContentView({ children }: { children: ReactNode }) {
 
   if (!currentView) return children
 
-  return <div className="absolute inset-0 bg-white">{currentView === "submission" && <SubmissionView />}</div>
+  return <div className="inset-0">{currentView === "submission" && <SubmissionView />}</div>
 }

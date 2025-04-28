@@ -28,6 +28,7 @@ import {
   signReview,
   waitForGenesis,
   Account,
+  signAchievement,
 } from "./awesome"
 import { MerkleTree, SparseMerkleTree } from "./merkle"
 import {
@@ -54,10 +55,25 @@ import {
   isAccountRequest,
   AccountResponse,
   isAccountResponse,
+  AccountRequest,
+  isBlockHeaderResponse,
+  isBlockHeaderRequest,
+  isBlockHeadersRequest,
+  isBlockHeadersResponse,
+  BlockHeaderResponse,
+  BlockHeadersResponse,
+  BlocksRequest,
+  BlockHeadersRequest,
+  ChainHeadRequest,
+  BlockHeaderRequest,
+  BlockRequest,
 } from "./message"
-import { Reviewer, ReviewerRequest, ReviewerResult } from "./reviewer"
+import { Reviewer, ReviewResult } from "./reviewer"
 
 interface EventMap {
+  "node.connected": void
+  "node.disconnected": void
+  "peer.discovered": Identity[]
   "awesomecom.status.updated": AwesomeComStatus
   "awesomecom.submission.started": void
   "awesomecom.review.started": void
@@ -86,7 +102,10 @@ export class AwesomeNode {
   private account: Account
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
-  // only full nodes maintain the account state
+  // address of the full node that this node is syncing with
+  private syncPeer: string | null = null
+
+  // only full nodes maintain the account states
   private accounts: SparseMerkleTree | null = null
 
   private chainHead: ChainHead | null = null
@@ -172,10 +191,21 @@ export class AwesomeNode {
 
   public async start() {
     await waitForGenesis()
-    await this.repository.init()
+    if (this.identity.nodeType == "full") {
+      await this.repository.init()
+    }
     this.socket.connect()
 
-    this.reviewer.onReviewSubmitted((result: ReviewerResult) => {
+    this.on("peer.discovered", (peers: Identity[]) => {
+      if (peers.length > 0) {
+        this.selectSyncPeer(peers)
+        if (this.syncPeer) {
+          this.syncWith(this.syncPeer)
+        }
+      }
+    })
+
+    this.reviewer.onReviewSubmitted((result: ReviewResult) => {
       console.log("Review result:", result)
       const review: Review = {
         edition: this.awesomeComStatus.edition,
@@ -273,6 +303,153 @@ export class AwesomeNode {
     this.socket.emit("room.leave", this.currentTPCRoom())
   }
 
+  public requestAccount(address: string) {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: AccountRequest = {
+      requestId,
+      address,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.ACCOUNT_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public requestChainHead() {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: ChainHeadRequest = {
+      requestId,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.CHAIN_HEAD_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public submitAchievement(description: string) {
+    const achievement: Achievement = {
+      edition: this.awesomeComStatus.edition,
+      description,
+      authorAddress: this.identity.address,
+      attachments: [],
+      timestamp: Date.now(),
+      authorName: this.identity.name,
+      authorPublicKey: this.identity.publicKey,
+      signature: "",
+    }
+    achievement.signature = signAchievement(achievement, this.wallet)
+
+    if (this.inTPC) {
+      this.pendingAchievements.push(achievement)
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: "*",
+      room: this.currentTPCRoom(),
+      type: MESSAGE_TYPE.NEW_ACHIEVEMENT,
+      payload: achievement,
+      timestamp: Date.now(),
+    })
+  }
+
+  public requestBlockHeader(height: number) {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: BlockHeaderRequest = {
+      requestId,
+      height,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.BLOCK_HEADER_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public requestBlockHeaders(fromHeight: number, toHeight: number) {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: BlockHeadersRequest = {
+      requestId,
+      fromHeight,
+      toHeight,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.BLOCK_HEADERS_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public requestBlock(height: number) {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: BlockRequest = {
+      requestId,
+      height,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.BLOCK_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public requestBlocks(fromHeight: number, toHeight: number) {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: BlocksRequest = {
+      requestId,
+      fromHeight,
+      toHeight,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.BLOCKS_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
   public on<K extends keyof EventMap>(event: K, callback: (data: EventMap[K]) => void): () => void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
@@ -307,7 +484,7 @@ export class AwesomeNode {
 
     this.socket.on("node.connected", () => {
       console.log("Connected to AwesomeConnect")
-      this.socket.emit("room.get_members", `${chainConfig.chainId}:nodes`)
+      this.socket.emit("room.get_members", `${chainConfig.chainId}:fullnodes`)
     })
 
     this.socket.on("message.received", (message: Message) => {
@@ -318,31 +495,31 @@ export class AwesomeNode {
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
-      console.log(`Room [${room}] members: ${members.length}`)
-      if (room === `${chainConfig.chainId}:nodes`) {
-        if (members.length > 0) {
-          const requestId = crypto.randomUUID()
-          const msg: Message = {
-            from: this.identity.address,
-            to: members[0].address,
-            type: MESSAGE_TYPE.CHAIN_HEAD_REQUEST,
-            payload: {
-              requestId,
-            },
-            timestamp: Date.now(),
-          }
-          this.socket.emit("message.send", msg)
-          this.sentRequests.set(requestId, true)
-        }
+      if (room === `${chainConfig.chainId}:fullnodes`) {
+        this.emit("peer.discovered", members)
       }
     })
+  }
+
+  private selectSyncPeer(peers: Identity[]) {
+    if (peers.length == 0) {
+      return
+    }
+    if (peers.length == 1 && peers[0].address == this.identity.address) {
+      return
+    }
+    this.syncPeer = peers[0].address
+  }
+
+  private syncWith(peer: string) {
+    this.requestAccount(peer)
   }
 
   private startAwesomeComStatusUpdate() {
     this.updateAwesomeComStatus()
     this.statusUpdateInterval = setInterval(() => {
       this.updateAwesomeComStatus()
-    }, 1000)
+    }, 500)
   }
 
   private stopAwesomeComStatusUpdate() {
@@ -407,6 +584,18 @@ export class AwesomeNode {
         break
       case MESSAGE_TYPE.CHAIN_HEAD_RESPONSE:
         this.handleChainHeadResponse(message)
+        break
+      case MESSAGE_TYPE.BLOCK_HEADER_REQUEST:
+        this.handleBlockHeaderRequest(message)
+        break
+      case MESSAGE_TYPE.BLOCK_HEADER_RESPONSE:
+        this.handleBlockHeaderResponse(message)
+        break
+      case MESSAGE_TYPE.BLOCK_HEADERS_REQUEST:
+        this.handleBlockHeadersRequest(message)
+        break
+      case MESSAGE_TYPE.BLOCK_HEADERS_RESPONSE:
+        this.handleBlockHeadersResponse(message)
         break
       case MESSAGE_TYPE.BLOCK_REQUEST:
         this.handleBlockRequest(message)
@@ -564,11 +753,7 @@ export class AwesomeNode {
 
     console.log("New achievement:", achievement)
     this.pendingAchievements.push(achievement)
-    const reviewerRequest: ReviewerRequest = {
-      theme: this.awesomeComStatus.theme,
-      achievement,
-    }
-    this.reviewer.assignAchievement(reviewerRequest)
+    this.reviewer.assignAchievement(achievement, this.awesomeComStatus.theme)
   }
 
   private async handleNewReview(message: Message) {
@@ -621,6 +806,15 @@ export class AwesomeNode {
     this.sentRequests.delete(response.requestId)
 
     console.log("Account:", response.account)
+    const latestBlock = await this.repository.getLatestBlock()
+    if (!latestBlock) {
+      return
+    }
+    const verified = SparseMerkleTree.verifyProof(response.account, response.proof, latestBlock.header.accountsRoot)
+    if (verified) {
+      this.account = response.account
+      this.emit("account.updated", this.account)
+    }
   }
 
   private async handleChainHeadRequest(message: Message) {
@@ -669,6 +863,75 @@ export class AwesomeNode {
       console.log("Updating chain head:", chainHead)
       this.chainHead = chainHead
     }
+  }
+
+  private async handleBlockHeaderRequest(message: Message) {
+    if (this.identity.nodeType != "full") {
+      return
+    }
+    const request = message.payload
+    if (!isBlockHeaderRequest(request)) {
+      return
+    }
+    const block = await this.repository.getBlock(request.height)
+    if (!block) {
+      return
+    }
+    const response: BlockHeaderResponse = {
+      requestId: request.requestId,
+      blockHeader: block.header,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.BLOCK_HEADER_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
+  }
+
+  private async handleBlockHeaderResponse(message: Message) {
+    const response = message.payload
+    if (!isBlockHeaderResponse(response) || !this.sentRequests.has(response.requestId)) {
+      return
+    }
+    this.sentRequests.delete(response.requestId)
+
+    console.log("New block header:", response.blockHeader)
+  }
+
+  private async handleBlockHeadersRequest(message: Message) {
+    if (this.identity.nodeType != "full") {
+      return
+    }
+    const request = message.payload
+    if (!isBlockHeadersRequest(request)) {
+      return
+    }
+    const blocks = await this.repository.getBlocks(request.fromHeight, request.toHeight)
+    const response: BlockHeadersResponse = {
+      requestId: request.requestId,
+      blockHeaders: blocks.map((block) => block.header),
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.BLOCK_HEADERS_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
+  }
+
+  private async handleBlockHeadersResponse(message: Message) {
+    const response = message.payload
+    if (!isBlockHeadersResponse(response) || !this.sentRequests.has(response.requestId)) {
+      return
+    }
+    this.sentRequests.delete(response.requestId)
+
+    console.log("New block headers:", response.blockHeaders)
   }
 
   private async handleBlockRequest(message: Message) {
@@ -955,13 +1218,13 @@ export class AwesomeNode {
   }
 
   private async broadcastNewBlock() {
-    if (this.candidateBlock) {
+    if (this.newBlock) {
       this.socket.emit("message.send", {
         from: this.identity.address,
         to: "*",
         room: `${chainConfig.chainId}:nodes`,
         type: MESSAGE_TYPE.NEW_BLOCK,
-        payload: this.candidateBlock,
+        payload: this.newBlock,
         timestamp: Date.now(),
       })
     }

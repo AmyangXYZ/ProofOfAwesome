@@ -1,6 +1,6 @@
 import Footer from "@/components/Footer"
 import SideBar from "@/components/SideBar"
-import CallForAchievementsView from "@/views/CallForAchievemetnView"
+import CallForAchievementsView from "@/views/CallForAchievementsView"
 import ContentView from "@/views/ContentView"
 
 export default function Home() {

@@ -11,6 +11,8 @@ import {
   isReview,
   Account,
   isAccount,
+  BlockHeader,
+  isBlockHeader,
 } from "./awesome"
 import { isSparseMerkleProof, MerkleProof, SparseMerkleProof } from "./merkle"
 
@@ -26,11 +28,15 @@ export enum MESSAGE_TYPE {
   NEW_ACHIEVEMENT = "NEW_ACHIEVEMENT",
   // exchanged among tpc members in the review phase
   NEW_REVIEW = "NEW_REVIEW",
-  // data sync
+  // data queries
   ACCOUNT_REQUEST = "ACCOUNT_REQUEST",
   ACCOUNT_RESPONSE = "ACCOUNT_RESPONSE",
   CHAIN_HEAD_REQUEST = "CHAIN_HEAD_REQUEST",
   CHAIN_HEAD_RESPONSE = "CHAIN_HEAD_RESPONSE",
+  BLOCK_HEADER_REQUEST = "BLOCK_HEADER_REQUEST",
+  BLOCK_HEADER_RESPONSE = "BLOCK_HEADER_RESPONSE",
+  BLOCK_HEADERS_REQUEST = "BLOCK_HEADERS_REQUEST",
+  BLOCK_HEADERS_RESPONSE = "BLOCK_HEADERS_RESPONSE",
   BLOCK_REQUEST = "BLOCK_REQUEST",
   BLOCK_RESPONSE = "BLOCK_RESPONSE",
   BLOCKS_REQUEST = "BLOCKS_REQUEST",
@@ -69,10 +75,30 @@ export interface ChainHeadResponse {
   chainHead: ChainHead
 }
 
+export interface BlockHeaderRequest {
+  requestId: string
+  height: number
+}
+
+export interface BlockHeaderResponse {
+  requestId: string
+  blockHeader: BlockHeader
+}
+
+export interface BlockHeadersRequest {
+  requestId: string
+  fromHeight: number
+  toHeight: number
+}
+
+export interface BlockHeadersResponse {
+  requestId: string
+  blockHeaders: BlockHeader[]
+}
+
 export interface BlockRequest {
   requestId: string
-  hash?: string
-  height?: number
+  height: number
 }
 
 export interface BlockResponse {
@@ -193,13 +219,43 @@ export function isChainHeadResponse(payload: unknown): payload is ChainHeadRespo
   )
 }
 
-export function isBlockRequest(payload: unknown): payload is BlockRequest {
+export function isBlockHeaderRequest(payload: unknown): payload is BlockHeaderRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload && "height" in payload
+}
+
+export function isBlockHeaderResponse(payload: unknown): payload is BlockHeaderResponse {
   return (
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
-    ("hash" in payload || "height" in payload)
+    "blockHeader" in payload &&
+    isBlockHeader(payload.blockHeader)
   )
+}
+
+export function isBlockHeadersRequest(payload: unknown): payload is BlockHeadersRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "fromHeight" in payload &&
+    "toHeight" in payload
+  )
+}
+
+export function isBlockHeadersResponse(payload: unknown): payload is BlockHeadersResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "blockHeaders" in payload &&
+    Array.isArray(payload.blockHeaders) &&
+    payload.blockHeaders.every((blockHeader) => isBlockHeader(blockHeader))
+  )
+}
+
+export function isBlockRequest(payload: unknown): payload is BlockRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload && "height" in payload
 }
 
 export function isBlockResponse(payload: unknown): payload is BlockResponse {

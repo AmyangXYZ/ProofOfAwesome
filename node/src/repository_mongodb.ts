@@ -31,18 +31,11 @@ interface TransactionDocument {
   pending: boolean
 }
 
-interface BalanceDocument {
-  _id?: mongoose.Types.ObjectId
-  address: string
-  balance: number
-}
-
 interface AchievementDocument {
   _id?: mongoose.Types.ObjectId
   edition: number
   authorName: string
   authorAddress: string
-  title: string
   description: string
   attachments: string[]
   timestamp: Date
@@ -75,7 +68,6 @@ export class MongoDBRepository implements Repository {
   private address: string
   private readonly BlockModel: mongoose.Model<BlockDocument>
   private readonly TransactionModel: mongoose.Model<TransactionDocument>
-  private readonly BalanceModel: mongoose.Model<BalanceDocument>
   private readonly AchievementModel: mongoose.Model<AchievementDocument>
   private readonly ReviewModel: mongoose.Model<ReviewDocument>
 
@@ -109,14 +101,6 @@ export class MongoDBRepository implements Repository {
         timestamp: Date,
         signature: { type: String, index: true },
         pending: { type: Boolean, default: true, index: true },
-      })
-    )
-
-    this.BalanceModel = mongoose.model<BalanceDocument>(
-      "Balance",
-      new mongoose.Schema<BalanceDocument>({
-        address: { type: String, index: true },
-        balance: Number,
       })
     )
 
@@ -195,7 +179,6 @@ export class MongoDBRepository implements Repository {
       edition: achievementDoc.edition,
       authorName: achievementDoc.authorName,
       authorAddress: achievementDoc.authorAddress,
-      title: achievementDoc.title,
       description: achievementDoc.description,
       attachments: achievementDoc.attachments,
       timestamp: achievementDoc.timestamp.getTime(),
@@ -238,7 +221,6 @@ export class MongoDBRepository implements Repository {
           edition: a.edition,
           authorName: a.authorName,
           authorAddress: a.authorAddress,
-          title: a.title,
           description: a.description,
           attachments: a.attachments,
           timestamp: new Date(a.timestamp),
@@ -281,17 +263,6 @@ export class MongoDBRepository implements Repository {
     await this.BlockModel.create(blockDoc)
   }
 
-  async getBlockByHash(hash: string): Promise<Block | null> {
-    const blockDoc = await this.BlockModel.findOne({ hash })
-      .populate("transactions")
-      .populate("achievements")
-      .populate("reviews")
-      .lean()
-    if (!blockDoc) return null
-
-    return this.blockDocToBlock(blockDoc)
-  }
-
   async getLatestBlock(): Promise<Block | null> {
     const blockDoc = await this.BlockModel.findOne({})
       .sort({ "header.height": -1 })
@@ -315,7 +286,7 @@ export class MongoDBRepository implements Repository {
     )
   }
 
-  async getBlockByHeight(height: number): Promise<Block | null> {
+  async getBlock(height: number): Promise<Block | null> {
     const blockDoc = await this.BlockModel.findOne({ "header.height": height })
       .populate("transactions")
       .populate("achievements")
@@ -348,12 +319,6 @@ export class MongoDBRepository implements Repository {
     return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
   }
 
-  async getTransactionsByBlock(blockHash: string): Promise<Transaction[]> {
-    const blockDoc = await this.BlockModel.findOne({ hash: blockHash })
-    if (!blockDoc) return []
-    return Promise.all(blockDoc.transactions.map((t) => this.transactionDocToTransaction(t as TransactionDocument)))
-  }
-
   async getPendingTransactions(): Promise<Transaction[]> {
     const transactionDocs = await this.TransactionModel.find({ pending: true })
     return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
@@ -365,11 +330,6 @@ export class MongoDBRepository implements Repository {
 
   async addAchievement(achievement: Achievement): Promise<void> {
     await this.AchievementModel.create(achievement)
-  }
-
-  async getAchievementsByEdition(edition: number): Promise<Achievement[]> {
-    const achievementDocs = await this.AchievementModel.find({ edition })
-    return Promise.all(achievementDocs.map((a) => this.achievementDocToAchievement(a)))
   }
 
   async getAchievementBySignature(signature: string): Promise<Achievement | null> {
@@ -405,11 +365,6 @@ export class MongoDBRepository implements Repository {
 
   async getReviewsByReviewer(reviewer: string): Promise<Review[]> {
     const reviewDocs = await this.ReviewModel.find({ reviewerAddress: reviewer })
-    return Promise.all(reviewDocs.map((r) => this.reviewDocToReview(r)))
-  }
-
-  async getReviewsByEdition(edition: number): Promise<Review[]> {
-    const reviewDocs = await this.ReviewModel.find({ edition })
     return Promise.all(reviewDocs.map((r) => this.reviewDocToReview(r)))
   }
 }
