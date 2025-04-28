@@ -51,6 +51,12 @@ import {
   isTransactionsResponse,
   isAchievementRequest,
   isAchievementResponse,
+  isAccountRequest,
+  AccountResponse,
+  isAccountsRequest,
+  AccountsResponse,
+  isAccountsResponse,
+  isAccountResponse,
 } from "./message"
 import { Reviewer } from "./reviewer"
 
@@ -143,11 +149,8 @@ export class AwesomeNode {
       address: this.identity.address,
       balance: 0,
       nonce: 0,
-      participatedEditions: 0,
       acceptedAchievements: 0,
       submittedReviews: 0,
-      lastActiveEdition: 0,
-      firstActiveEdition: 0,
     }
     if (this.identity.nodeType == "full") {
       this.accounts = new SparseMerkleTree()
@@ -220,10 +223,6 @@ export class AwesomeNode {
             if (account) {
               account.balance += chainConfig.rewardRules.acceptedAchievements
               account.acceptedAchievements += 1
-              if (account.lastActiveEdition != this.awesomeComStatus.edition) {
-                account.participatedEditions += 1
-                account.lastActiveEdition = this.awesomeComStatus.edition
-              }
               this.accounts.insert(account)
             }
           }
@@ -300,6 +299,22 @@ export class AwesomeNode {
         if (members.length == 1 && members[0].address === this.identity.address) {
           if (this.identity.nodeType === "full") {
             console.log("First node in the chain, initializing the chain")
+            if (this.accounts) {
+              this.accounts.insert(this.account)
+              const requestId = crypto.randomUUID()
+              this.sentRequests.set(requestId, true)
+              const msg: Message = {
+                from: this.identity.address,
+                to: this.identity.address,
+                type: MESSAGE_TYPE.ACCOUNTS_REQUEST,
+                payload: {
+                  requestId,
+                  all: true,
+                },
+                timestamp: Date.now(),
+              }
+              this.socket.emit("message.send", msg)
+            }
           }
         } else if (members.length > 0) {
           const requestId = crypto.randomUUID()
@@ -352,10 +367,6 @@ export class AwesomeNode {
       }
     }
     this.awesomeComStatus = status
-    this.account.lastActiveEdition = status.edition
-    if (this.account.firstActiveEdition == 0) {
-      this.account.firstActiveEdition = status.edition
-    }
     this.emit("awesomecom.status.updated", status)
   }
 
@@ -378,6 +389,18 @@ export class AwesomeNode {
         break
       case MESSAGE_TYPE.NEW_REVIEW:
         this.handleNewReview(message)
+        break
+      case MESSAGE_TYPE.ACCOUNT_REQUEST:
+        this.handleAccountRequest(message)
+        break
+      case MESSAGE_TYPE.ACCOUNT_RESPONSE:
+        this.handleAccountResponse(message)
+        break
+      case MESSAGE_TYPE.ACCOUNTS_REQUEST:
+        this.handleAccountsRequest(message)
+        break
+      case MESSAGE_TYPE.ACCOUNTS_RESPONSE:
+        this.handleAccountsResponse(message)
         break
       case MESSAGE_TYPE.CHAIN_HEAD_REQUEST:
         if (this.identity.nodeType == "full") {
@@ -518,14 +541,6 @@ export class AwesomeNode {
         sender.balance -= transaction.amount
         recipient.balance += transaction.amount
         sender.nonce += 1
-        if (sender.lastActiveEdition != this.awesomeComStatus.edition) {
-          sender.participatedEditions += 1
-          sender.lastActiveEdition = this.awesomeComStatus.edition
-        }
-        if (recipient.lastActiveEdition != this.awesomeComStatus.edition) {
-          recipient.participatedEditions += 1
-          recipient.lastActiveEdition = this.awesomeComStatus.edition
-        }
         this.accounts.insert(sender)
         this.accounts.insert(recipient)
       }
@@ -545,22 +560,16 @@ export class AwesomeNode {
     if (this.identity.nodeType == "full" && this.accounts) {
       const { account } = this.accounts.get(achievement.authorAddress)
       if (account) {
-        if (account.lastActiveEdition != this.awesomeComStatus.edition) {
-          account.participatedEditions += 1
-          account.lastActiveEdition = this.awesomeComStatus.edition
-        }
         this.accounts.insert(account)
       } else {
         const newAccount: Account = {
           address: achievement.authorAddress,
-          balance: chainConfig.rewardRules.acceptedAchievements,
+          balance: 0,
           nonce: 0,
-          participatedEditions: 1,
           acceptedAchievements: 0,
           submittedReviews: 0,
-          lastActiveEdition: this.awesomeComStatus.edition,
-          firstActiveEdition: this.awesomeComStatus.edition,
         }
+
         this.accounts.insert(newAccount)
       }
     }
@@ -583,26 +592,93 @@ export class AwesomeNode {
       if (account) {
         account.balance += chainConfig.rewardRules.review
         account.submittedReviews += 1
-        if (account.lastActiveEdition != this.awesomeComStatus.edition) {
-          account.participatedEditions += 1
-          account.lastActiveEdition = this.awesomeComStatus.edition
-        }
+
         this.accounts.insert(account)
       } else {
         const newAccount: Account = {
           address: review.reviewerAddress,
           balance: chainConfig.rewardRules.review,
           nonce: 0,
-          participatedEditions: 1,
           acceptedAchievements: 0,
           submittedReviews: 1,
-          lastActiveEdition: this.awesomeComStatus.edition,
-          firstActiveEdition: this.awesomeComStatus.edition,
         }
         this.accounts.insert(newAccount)
       }
     }
     console.log("New review:", review)
+  }
+
+  private async handleAccountRequest(message: Message) {
+    if (this.identity.nodeType != "full" || !this.accounts) {
+      return
+    }
+    const request = message.payload
+    if (!isAccountRequest(request)) {
+      return
+    }
+    console.log("Account request:", request)
+    const { account, proof } = this.accounts.get(request.address)
+    if (!account) {
+      return
+    }
+    const response: AccountResponse = {
+      requestId: request.requestId,
+      account,
+      proof,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.ACCOUNT_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
+  }
+
+  private async handleAccountResponse(message: Message) {
+    const response = message.payload
+    if (!isAccountResponse(response) || !this.sentRequests.has(response.requestId)) {
+      return
+    }
+    this.sentRequests.delete(response.requestId)
+
+    console.log("Account:", response.account)
+  }
+
+  private async handleAccountsRequest(message: Message) {
+    if (this.identity.nodeType != "full" || !this.accounts) {
+      return
+    }
+    const request = message.payload
+    if (!isAccountsRequest(request)) {
+      return
+    }
+    if (request.all) {
+      const response: AccountsResponse = {
+        requestId: request.requestId,
+        accounts: this.accounts.getAllAccounts(),
+      }
+
+      const msg: Message = {
+        from: this.identity.address,
+        to: message.from,
+        type: MESSAGE_TYPE.ACCOUNTS_RESPONSE,
+        payload: response,
+        timestamp: Date.now(),
+      }
+      this.socket.emit("message.send", msg)
+    }
+  }
+
+  private async handleAccountsResponse(message: Message) {
+    const response = message.payload
+    if (!isAccountsResponse(response) || !this.sentRequests.has(response.requestId)) {
+      return
+    }
+    this.sentRequests.delete(response.requestId)
+
+    console.log("Accounts:", response.accounts)
   }
 
   private async handleChainHeadRequest(message: Message) {

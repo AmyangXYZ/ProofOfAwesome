@@ -325,8 +325,11 @@ export class MongoDBRepository implements Repository {
     return this.blockDocToBlock(blockDoc)
   }
 
-  async addTransaction(transaction: Transaction): Promise<void> {
-    await this.TransactionModel.create(transaction)
+  async addTransaction(transaction: Transaction, pending: boolean): Promise<void> {
+    await this.TransactionModel.create({
+      ...transaction,
+      pending,
+    })
   }
 
   async getTransactionBySignature(signature: string): Promise<Transaction | null> {
@@ -335,9 +338,33 @@ export class MongoDBRepository implements Repository {
     return this.transactionDocToTransaction(transactionDoc)
   }
 
+  async getTransactionsBySender(sender: string): Promise<Transaction[]> {
+    const transactionDocs = await this.TransactionModel.find({ senderAddress: sender })
+    return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
+  }
+
+  async getTransactionsByRecipient(recipient: string): Promise<Transaction[]> {
+    const transactionDocs = await this.TransactionModel.find({ recipientAddress: recipient })
+    return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
+  }
+
+  async getTransactionsByBlock(blockHash: string): Promise<Transaction[]> {
+    const blockDoc = await this.BlockModel.findOne({ hash: blockHash })
+    if (!blockDoc) return []
+    return Promise.all(blockDoc.transactions.map((t) => this.transactionDocToTransaction(t as TransactionDocument)))
+  }
+
   async getPendingTransactions(): Promise<Transaction[]> {
     const transactionDocs = await this.TransactionModel.find({ pending: true })
     return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
+  }
+
+  async updateTransactionStatus(signature: string, pending: boolean): Promise<void> {
+    await this.TransactionModel.updateOne({ signature }, { $set: { pending } })
+  }
+
+  async addAchievement(achievement: Achievement): Promise<void> {
+    await this.AchievementModel.create(achievement)
   }
 
   async getAchievementsByEdition(edition: number): Promise<Achievement[]> {
@@ -345,8 +372,67 @@ export class MongoDBRepository implements Repository {
     return Promise.all(achievementDocs.map((a) => this.achievementDocToAchievement(a)))
   }
 
+  async getAchievementBySignature(signature: string): Promise<Achievement | null> {
+    const achievementDoc = await this.AchievementModel.findOne({ signature })
+    if (!achievementDoc) return null
+    return this.achievementDocToAchievement(achievementDoc)
+  }
+
+  async getAchievementsByAuthor(author: string): Promise<Achievement[]> {
+    const achievementDocs = await this.AchievementModel.find({ authorAddress: author })
+    return Promise.all(achievementDocs.map((a) => this.achievementDocToAchievement(a)))
+  }
+
+  async getAchievementsByTheme(theme: string): Promise<Achievement[]> {
+    const achievementDocs = await this.AchievementModel.find({ theme })
+    return Promise.all(achievementDocs.map((a) => this.achievementDocToAchievement(a)))
+  }
+
+  async addReview(review: Review): Promise<void> {
+    await this.ReviewModel.create(review)
+  }
+
+  async getReviewBySignature(signature: string): Promise<Review | null> {
+    const reviewDoc = await this.ReviewModel.findOne({ signature })
+    if (!reviewDoc) return null
+    return this.reviewDocToReview(reviewDoc)
+  }
+
+  async getReviewsByAchievement(achievementSignature: string): Promise<Review[]> {
+    const reviewDocs = await this.ReviewModel.find({ achievementSignature })
+    return Promise.all(reviewDocs.map((r) => this.reviewDocToReview(r)))
+  }
+
+  async getReviewsByReviewer(reviewer: string): Promise<Review[]> {
+    const reviewDocs = await this.ReviewModel.find({ reviewerAddress: reviewer })
+    return Promise.all(reviewDocs.map((r) => this.reviewDocToReview(r)))
+  }
+
   async getReviewsByEdition(edition: number): Promise<Review[]> {
     const reviewDocs = await this.ReviewModel.find({ edition })
     return Promise.all(reviewDocs.map((r) => this.reviewDocToReview(r)))
   }
+}
+
+const main = async () => {
+  const repo = new MongoDBRepository("mongodb://localhost:27017/awesome")
+  await repo.init()
+  await repo.addTransaction(
+    {
+      senderPublicKey: "0x123",
+      senderAddress: "0x123",
+      recipientAddress: "0x456",
+      amount: 100,
+      nonce: 0,
+      timestamp: Date.now(),
+      signature: "0x123",
+    },
+    true
+  )
+  console.log(await repo.getTransactionBySignature("0x123"))
+  await repo.updateTransactionStatus("0x123", true)
+  console.log(await repo.getPendingTransactions())
+}
+if (require.main === module) {
+  main()
 }

@@ -9,8 +9,10 @@ import {
   isTransaction,
   isAchievement,
   isReview,
+  Account,
+  isAccount,
 } from "./awesome"
-import { MerkleProof } from "./merkle"
+import { isSparseMerkleProof, MerkleProof, SparseMerkleProof } from "./merkle"
 
 export enum MESSAGE_TYPE {
   // periodically broadcasted by full nodes
@@ -22,7 +24,11 @@ export enum MESSAGE_TYPE {
   NEW_TRANSACTION = "NEW_TRANSACTION",
   NEW_ACHIEVEMENT = "NEW_ACHIEVEMENT",
   NEW_REVIEW = "NEW_REVIEW",
-  // light nodes request from full nodes
+  // data sync
+  ACCOUNT_REQUEST = "ACCOUNT_REQUEST",
+  ACCOUNT_RESPONSE = "ACCOUNT_RESPONSE",
+  ACCOUNTS_REQUEST = "ACCOUNTS_REQUEST",
+  ACCOUNTS_RESPONSE = "ACCOUNTS_RESPONSE",
   CHAIN_HEAD_REQUEST = "CHAIN_HEAD_REQUEST",
   CHAIN_HEAD_RESPONSE = "CHAIN_HEAD_RESPONSE",
   BLOCK_REQUEST = "BLOCK_REQUEST",
@@ -41,6 +47,29 @@ export enum MESSAGE_TYPE {
   REVIEW_RESPONSE = "REVIEW_RESPONSE",
   REVIEWS_REQUEST = "REVIEWS_REQUEST",
   REVIEWS_RESPONSE = "REVIEWS_RESPONSE",
+}
+
+export interface AccountRequest {
+  requestId: string
+  address: string
+}
+
+export interface AccountResponse {
+  requestId: string
+  account: Account
+  proof: SparseMerkleProof
+}
+
+export interface AccountsRequest {
+  requestId: string
+  all?: boolean
+  addresses?: string[]
+  limit?: number
+}
+
+export interface AccountsResponse {
+  requestId: string
+  accounts: Account[]
 }
 
 export interface ChainHeadRequest {
@@ -144,6 +173,42 @@ export interface ReviewsRequest {
 export interface ReviewsResponse {
   requestId: string
   reviews: Review[]
+}
+
+export function isAccountRequest(payload: unknown): payload is AccountRequest {
+  return typeof payload === "object" && payload !== null && "requestId" in payload && "address" in payload
+}
+
+export function isAccountResponse(payload: unknown): payload is AccountResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "account" in payload &&
+    isAccount(payload.account) &&
+    "proof" in payload &&
+    isSparseMerkleProof(payload.proof)
+  )
+}
+
+export function isAccountsRequest(payload: unknown): payload is AccountsRequest {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    ("all" in payload || "addresses" in payload || "limit" in payload)
+  )
+}
+
+export function isAccountsResponse(payload: unknown): payload is AccountsResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    "accounts" in payload &&
+    Array.isArray(payload.accounts) &&
+    payload.accounts.every((account) => isAccount(account))
+  )
 }
 
 export function isChainHeadRequest(payload: unknown): payload is ChainHeadRequest {

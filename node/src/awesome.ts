@@ -98,11 +98,8 @@ export interface Account {
   address: string
   balance: number
   nonce: number
-  participatedEditions: number
   acceptedAchievements: number
   submittedReviews: number
-  lastActiveEdition: number
-  firstActiveEdition: number
 }
 
 export interface ChainHead {
@@ -180,11 +177,8 @@ export function isAccount(payload: unknown): payload is Account {
     "address" in payload &&
     "balance" in payload &&
     "nonce" in payload &&
-    "participatedEditions" in payload &&
     "acceptedAchievements" in payload &&
-    "submittedReviews" in payload &&
-    "firstActiveEdition" in payload &&
-    "lastActiveEdition" in payload
+    "submittedReviews" in payload
   )
 }
 

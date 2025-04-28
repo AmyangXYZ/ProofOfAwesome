@@ -109,7 +109,7 @@ export type SparseMerkleProof = string[]
 export class SparseMerkleTree {
   private root: SMTNode
   private static defaultHash: string = sha256("")
-  private static defaultHashSymbol: string = "-"
+  private static defaultHashSymbol: string = "."
 
   constructor() {
     this.root = { hash: SparseMerkleTree.defaultHash }
@@ -146,11 +146,8 @@ export class SparseMerkleTree {
         node.account.address,
         node.account.balance.toString(),
         node.account.nonce.toString(),
-        node.account.participatedEditions.toString(),
         node.account.acceptedAchievements.toString(),
         node.account.submittedReviews.toString(),
-        node.account.lastActiveEdition.toString(),
-        node.account.firstActiveEdition.toString(),
       ].join("_")
     )
 
@@ -211,11 +208,8 @@ export class SparseMerkleTree {
         account.address,
         account.balance.toString(),
         account.nonce.toString(),
-        account.participatedEditions.toString(),
         account.acceptedAchievements.toString(),
         account.submittedReviews.toString(),
-        account.lastActiveEdition.toString(),
-        account.firstActiveEdition.toString(),
       ].join("_")
     )
     for (let i = proof.length - 1; i >= 0; i--) {
@@ -241,6 +235,10 @@ export class SparseMerkleTree {
   }
 }
 
+export function isSparseMerkleProof(proof: unknown): proof is SparseMerkleProof {
+  return Array.isArray(proof) && proof.every((item) => typeof item === "string")
+}
+
 if (require.main === module) {
   // const items = ["a", "b", "c", "d", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]
   // const root = calculateMerkleRoot(items)
@@ -257,22 +255,16 @@ if (require.main === module) {
     address: "0x756eE1DA69C1c9316e22c383040c2D063F032A43",
     balance: 100,
     nonce: 0,
-    participatedEditions: 0,
     acceptedAchievements: 0,
     submittedReviews: 0,
-    lastActiveEdition: 0,
-    firstActiveEdition: 0,
   })
   console.log(smt.merkleRoot)
   smt.insert({
     address: "0x756eE1DA69C1c9316e22c383040c2D063F032A43",
     balance: 110,
     nonce: 0,
-    participatedEditions: 0,
     acceptedAchievements: 0,
     submittedReviews: 0,
-    lastActiveEdition: 0,
-    firstActiveEdition: 0,
   })
   console.log(smt.merkleRoot)
   const { account, proof } = smt.get("0x756eE1DA69C1c9316e22c383040c2D063F032A43")
