@@ -2,7 +2,7 @@ process.removeAllListeners("warning")
 
 import OpenAI from "openai"
 import { Achievement } from "./awesome"
-import { Reviewer, ReviewRequest, ReviewResult } from "./reviewer"
+import { Reviewer, ReviewerRequest, ReviewerResult } from "./reviewer"
 import { ChatCompletion, ChatCompletionMessageParam } from "openai/resources/chat/completions"
 
 const systemPrompt = `
@@ -300,7 +300,7 @@ export class AIReviewer implements Reviewer {
   private provider: OpenAI
   private model: string
   private supportsImage: boolean
-  private listeners: ((review: ReviewResult) => void)[] = []
+  private listeners: ((review: ReviewerResult) => void)[] = []
 
   constructor(provider: OpenAI, model: string, supportsImage: boolean) {
     this.provider = provider
@@ -308,17 +308,17 @@ export class AIReviewer implements Reviewer {
     this.supportsImage = supportsImage
   }
 
-  assignAchievement(request: ReviewRequest): void {
+  assignAchievement(request: ReviewerRequest): void {
     this.review(request.achievement, request.theme).then((result) => {
       this.listeners.forEach((listener) => listener(result))
     })
   }
 
-  onReviewSubmitted(listener: (reviewResult: ReviewResult) => void): void {
+  onReviewSubmitted(listener: (reviewResult: ReviewerResult) => void): void {
     this.listeners.push(listener)
   }
 
-  private async review(achievement: Achievement, theme: string): Promise<ReviewResult> {
+  private async review(achievement: Achievement, theme: string): Promise<ReviewerResult> {
     if (!systemPrompt) {
       throw new Error("System prompt not set")
     }

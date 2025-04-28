@@ -17,18 +17,18 @@ import { isSparseMerkleProof, MerkleProof, SparseMerkleProof } from "./merkle"
 export enum MESSAGE_TYPE {
   // periodically broadcasted by full nodes
   CHAIN_HEAD = "CHAIN_HEAD",
-  // exchanged among full nodes in block creation (tpc meeting) phase
+  // exchanged among full nodes in the consensus phase
   CANDIDATE_BLOCK = "CANDIDATE_BLOCK",
-  // actively broadcasted by creators
+  // full nodes broadcasted to light nodes in the announcement phase
   NEW_BLOCK = "NEW_BLOCK",
   NEW_TRANSACTION = "NEW_TRANSACTION",
+  // broadcasted to tpc members in the submission phase
   NEW_ACHIEVEMENT = "NEW_ACHIEVEMENT",
+  // exchanged among tpc members in the review phase
   NEW_REVIEW = "NEW_REVIEW",
   // data sync
   ACCOUNT_REQUEST = "ACCOUNT_REQUEST",
   ACCOUNT_RESPONSE = "ACCOUNT_RESPONSE",
-  ACCOUNTS_REQUEST = "ACCOUNTS_REQUEST",
-  ACCOUNTS_RESPONSE = "ACCOUNTS_RESPONSE",
   CHAIN_HEAD_REQUEST = "CHAIN_HEAD_REQUEST",
   CHAIN_HEAD_RESPONSE = "CHAIN_HEAD_RESPONSE",
   BLOCK_REQUEST = "BLOCK_REQUEST",
@@ -58,18 +58,6 @@ export interface AccountResponse {
   requestId: string
   account: Account
   proof: SparseMerkleProof
-}
-
-export interface AccountsRequest {
-  requestId: string
-  all?: boolean
-  addresses?: string[]
-  limit?: number
-}
-
-export interface AccountsResponse {
-  requestId: string
-  accounts: Account[]
 }
 
 export interface ChainHeadRequest {
@@ -188,26 +176,6 @@ export function isAccountResponse(payload: unknown): payload is AccountResponse 
     isAccount(payload.account) &&
     "proof" in payload &&
     isSparseMerkleProof(payload.proof)
-  )
-}
-
-export function isAccountsRequest(payload: unknown): payload is AccountsRequest {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "requestId" in payload &&
-    ("all" in payload || "addresses" in payload || "limit" in payload)
-  )
-}
-
-export function isAccountsResponse(payload: unknown): payload is AccountsResponse {
-  return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "requestId" in payload &&
-    "accounts" in payload &&
-    Array.isArray(payload.accounts) &&
-    payload.accounts.every((account) => isAccount(account))
   )
 }
 

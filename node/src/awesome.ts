@@ -17,7 +17,7 @@ export const chainConfig = {
     announcementPhase: [14 * 1000, 15 * 1000],
   },
   reviewRules: {
-    minReviewPerAchievement: 3,
+    minReviewPerAchievement: 1,
     scores: {
       1: "reject",
       2: "weak reject",

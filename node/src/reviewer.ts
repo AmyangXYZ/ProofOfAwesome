@@ -1,11 +1,11 @@
 import { Achievement } from "./awesome"
 
-export interface ReviewRequest {
+export interface ReviewerRequest {
   theme: string
   achievement: Achievement
 }
 
-export interface ReviewResult {
+export interface ReviewerResult {
   achievementSignature: string
   scores: {
     overall: number
@@ -19,6 +19,6 @@ export interface ReviewResult {
 }
 
 export interface Reviewer {
-  assignAchievement(request: ReviewRequest): void
-  onReviewSubmitted(listener: (reviewResult: ReviewResult) => void): void
+  assignAchievement(request: ReviewerRequest): void
+  onReviewSubmitted(listener: (reviewResult: ReviewerResult) => void): void
 }
