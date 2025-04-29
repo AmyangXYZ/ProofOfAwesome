@@ -1,7 +1,7 @@
 "use client"
 
 import { ReactNode, useEffect, useState } from "react"
-import AwesomeComView from "./AwesomeComView"
+import AwesomeComView from "./awesomecom"
 
 export default function ContentView({ children }: { children: ReactNode }) {
   const [currentView, setCurrentView] = useState("")
@@ -18,5 +18,5 @@ export default function ContentView({ children }: { children: ReactNode }) {
 
   if (!currentView) return children
 
-  return <div className="inset-0">{currentView === "awesomecom" && <AwesomeComView />}</div>
+  return <div className="inset-0 bg-transparent">{currentView === "awesomecom" && <AwesomeComView />}</div>
 }

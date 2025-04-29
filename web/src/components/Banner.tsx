@@ -1,8 +1,11 @@
 "use client"
 
 import { useState } from "react"
-import { useAwesomeNode } from "@/context/AwesomeNodeContext"
+import { useAwesomeNode } from "@/context/awesome-node-context"
 import { AwesomeComStatus } from "@/awesome/awesome"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+
 export default function Banner() {
   const node = useAwesomeNode()
   const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
@@ -18,39 +21,44 @@ export default function Banner() {
   })
 
   return (
-    <>
-      <div className="bg-blue-50 border border-blue-200 rounded-lg mt-8 p-2 pb-3 max-w-xl mx-auto">
-        <div className="flex justify-center items-center">
-          <span className="bg-blue-50 px-3 py-1 rounded text-blue-800 text-xl">
-            Edition #{awesomeComStatus.edition}
-          </span>
-          <span className="bg-blue-50 px-0 py-1 rounded text-blue-800 text-xl">on</span>
-          <span className="bg-blue-50 px-3 py-1 rounded text-blue-800 text-xl">[{awesomeComStatus.theme}]</span>
-        </div>
-        <h3 className="text-lg font-medium text-blue-900 mb-2">Current Phase: {awesomeComStatus?.phase}</h3>
-        <div className="flex justify-center gap-8 mb-3">
-          <div className="text-center">
-            <div className="text-xl font-semibold text-blue-800">
-              {Math.floor(awesomeComStatus.phaseRemaining / 60000)}m{" "}
-              {Math.floor((awesomeComStatus.phaseRemaining % 60000) / 1000)}s
+    <div className="mt-8 max-w-lg mx-auto">
+      <Card className="bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 gap-4 py-4">
+        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-50" />
+
+        <CardHeader>
+          <CardTitle>
+            Edition #{awesomeComStatus.edition} on [{awesomeComStatus.theme}]
+          </CardTitle>
+          <CardDescription>Current Phase: {awesomeComStatus?.phase}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex justify-center gap-8 mb-2">
+            <div className="text-center">
+              <div className="text-xl font-medium">
+                {Math.floor(awesomeComStatus.phaseRemaining / 60000)}m{" "}
+                {Math.floor((awesomeComStatus.phaseRemaining % 60000) / 1000)}s
+              </div>
+              <div className="text-xs">Phase Remaining</div>
             </div>
-            <div className="text-sm font-medium text-blue-600">Phase Remaining</div>
-          </div>
-          <div className="text-center">
-            <div className="text-xl font-semibold text-blue-800">
-              {Math.floor(awesomeComStatus.editionRemaining / 60000)}m{" "}
-              {Math.floor((awesomeComStatus.editionRemaining % 60000) / 1000)}s
+            <div className="text-center">
+              <div className="text-xl font-medium">
+                {Math.floor(awesomeComStatus.editionRemaining / 60000)}m{" "}
+                {Math.floor((awesomeComStatus.editionRemaining % 60000) / 1000)}s
+              </div>
+              <div className="text-xs">Edition Remaining</div>
             </div>
-            <div className="text-sm font-medium text-blue-600">Edition Remaining</div>
           </div>
-        </div>
-        <button
-          onClick={() => {}}
-          className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors duration-200 text-sm cursor-pointer"
-        >
-          Participate Now
-        </button>
-      </div>
-    </>
+        </CardContent>
+        <CardFooter className="flex justify-center">
+          <Button
+            onClick={() => {
+              window.location.hash = "awesomecom"
+            }}
+          >
+            Participate Now
+          </Button>
+        </CardFooter>
+      </Card>
+    </div>
   )
 }

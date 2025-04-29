@@ -1,6 +1,6 @@
 "use client"
 
-import { useAwesomeNode } from "@/context/AwesomeNodeContext"
+import { useAwesomeNode } from "@/context/awesome-node-context"
 import { useState } from "react"
 
 export default function Footer() {

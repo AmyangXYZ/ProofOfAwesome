@@ -1,18 +1,12 @@
 "use client"
 
 import { AwesomeComStatus } from "@/awesome/awesome"
-import { useAwesomeNode } from "@/context/AwesomeNodeContext"
+import { useAwesomeNode } from "@/context/awesome-node-context"
 import { useState } from "react"
 
 export default function AwesomeComView() {
   const node = useAwesomeNode()
-  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
-    edition: 0,
-    theme: "",
-    phase: "Submission",
-    phaseRemaining: 0,
-    editionRemaining: 0,
-  })
+  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>(node.getAwesomeComStatus())
 
   node.on("awesomecom.status.updated", (status: AwesomeComStatus) => {
     setAwesomeComStatus(status)
@@ -21,39 +15,31 @@ export default function AwesomeComView() {
   return (
     <div className="max-w-3xl mx-auto p-8">
       <header className="mb-6 text-center">
-        <h1 className="text-3xl font-bold mb-2 text-blue-900 font-serif">
+        <h1 className="text-3xl font-bold mb-4 text-blue-900 ">
           {awesomeComStatus.edition}th AwesomeCom on [{awesomeComStatus.theme}]
         </h1>
+        <h3 className="text-xl font-medium text-blue-900 mb-2">Current Phase: {awesomeComStatus?.phase}</h3>
+        <div className="text-lg font-semibold text-blue-800">
+          Remaining: {Math.floor(awesomeComStatus.phaseRemaining / 60000)}m{" "}
+          {Math.floor((awesomeComStatus.phaseRemaining % 60000) / 1000)}s
+        </div>
       </header>
       <header className="mb-8">
-        <h1 className="text-2xl font-bold mb-1 text-center text-blue-800 text-line-through">
+        <h1 className="text-xl font-semibold mb-1 text-center text-blue-900 line-through">
           🎉 I am thrilled to announce that I have 🏆
         </h1>
-        <p className="text-slate-600 font-sans">
-          Submit your achievement for the current AwesomeCom session on &quot;{awesomeComStatus.theme}&quot;
-        </p>
       </header>
 
       <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 font-sans">
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Authors</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Author</label>
             <input
               type="text"
               placeholder="Name(s) and affiliations"
               className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
             />
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Abstract</label>
-            <textarea
-              rows={3}
-              placeholder="A brief summary of your achievement"
-              className="w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-            />
-          </div>
-
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Detailed Description</label>
             <textarea

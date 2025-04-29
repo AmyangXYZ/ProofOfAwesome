@@ -9,12 +9,12 @@ export const chainConfig = {
   genesisTime: new Date("2025-04-24T16:00:00Z").getTime(),
 
   awesomeCom: {
-    period: 15 * 2 * 1000,
+    period: 180 * 1000,
     themes: ["Pro Player", "Fitness King", "Art Master", "Meme Lord", "Home Hero"],
-    submissionPhase: [0, 8 * 2 * 1000],
-    reviewPhase: [8 * 2 * 1000, 12 * 2 * 1000],
-    consensusPhase: [12 * 2 * 1000, 14 * 2 * 1000],
-    announcementPhase: [14 * 2 * 1000, 15 * 2 * 1000],
+    submissionPhase: [0, 90 * 1000],
+    reviewPhase: [90 * 1000, 150 * 1000],
+    consensusPhase: [150 * 1000, 170 * 1000],
+    announcementPhase: [170 * 1000, 180 * 1000],
   },
   reviewRules: {
     minReviewPerAchievement: 1,
