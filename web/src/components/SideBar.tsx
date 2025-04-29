@@ -40,7 +40,7 @@ export default function SideBar() {
   return (
     <aside className="w-64 bg-slate-900 text-slate-100 flex flex-col border-r border-slate-700 shadow-lg">
       <div className="p-6 border-b border-slate-700 flex flex-col items-center">
-        <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center mb-2 relative">
+        <div className="w-16 h-16 bg-blue-900 rounded-full flex items-center justify-center mb-2 relative font-serif">
           <span className="text-2xl font-bold text-blue-200">PoA</span>
           <div className="absolute inset-0 rounded-full border-2 border-blue-500 opacity-70"></div>
           <div className="absolute w-2 h-2 bg-blue-400 rounded-full top-1 right-2 animate-pulse"></div>
@@ -55,31 +55,49 @@ export default function SideBar() {
         <div className="space-y-2">
           <button
             onClick={() => setCurrentView("")}
-            className={`w-full text-left px-4 py-2 rounded transition-colors ${currentView === "" ? "bg-blue-900 text-blue-100" : "text-slate-300 hover:bg-slate-800 cursor-pointer"}`}
+            className={`w-full text-left px-4 py-2 rounded transition-colors ${
+              currentView === "" ? "bg-blue-900 text-blue-100" : "text-slate-300 hover:bg-slate-800 cursor-pointer"
+            }`}
           >
             Call for Achievements
           </button>
           <button
             onClick={() => setCurrentView("submission")}
-            className={`w-full text-left px-4 py-2 rounded transition-colors ${currentView === "submission" ? "bg-blue-900 text-blue-100" : "text-slate-300 hover:bg-slate-800 cursor-pointer"}`}
+            className={`w-full text-left px-4 py-2 rounded transition-colors ${
+              currentView === "submission"
+                ? "bg-blue-900 text-blue-100"
+                : "text-slate-300 hover:bg-slate-800 cursor-pointer"
+            }`}
           >
             Submit Achievement
           </button>
           <button
             onClick={() => setCurrentView("review")}
-            className={`w-full text-left px-4 py-2 rounded transition-colors ${currentView === "review" ? "bg-blue-900 text-blue-100" : "text-slate-300 hover:bg-slate-800 cursor-pointer"}`}
+            className={`w-full text-left px-4 py-2 rounded transition-colors ${
+              currentView === "review"
+                ? "bg-blue-900 text-blue-100"
+                : "text-slate-300 hover:bg-slate-800 cursor-pointer"
+            }`}
           >
             Peer Review
           </button>
           <button
             onClick={() => setCurrentView("blockchain")}
-            className={`w-full text-left px-4 py-2 rounded transition-colors ${currentView === "blockchain" ? "bg-blue-900 text-blue-100" : "text-slate-300 hover:bg-slate-800 cursor-pointer"}`}
+            className={`w-full text-left px-4 py-2 rounded transition-colors ${
+              currentView === "blockchain"
+                ? "bg-blue-900 text-blue-100"
+                : "text-slate-300 hover:bg-slate-800 cursor-pointer"
+            }`}
           >
             Blockchain Explorer
           </button>
           <button
             onClick={() => setCurrentView("wallet")}
-            className={`w-full text-left px-4 py-2 rounded transition-colors ${currentView === "wallet" ? "bg-blue-900 text-blue-100" : "text-slate-300 hover:bg-slate-800 cursor-pointer"}`}
+            className={`w-full text-left px-4 py-2 rounded transition-colors ${
+              currentView === "wallet"
+                ? "bg-blue-900 text-blue-100"
+                : "text-slate-300 hover:bg-slate-800 cursor-pointer"
+            }`}
           >
             Token Management
           </button>

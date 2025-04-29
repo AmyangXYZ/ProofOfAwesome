@@ -9,10 +9,18 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@next/font": "^14.2.15",
     "@vercel/analytics": "^1.5.0",
+    "bip32": "^5.0.0-rc.0",
+    "bip39": "^3.1.0",
+    "js-sha256": "^0.11.0",
+    "js-sha3": "^0.9.3",
     "next": "15.3.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "tiny-secp256k1": "^2.2.3"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",

@@ -4,7 +4,7 @@ export default function CallForAchievementsView() {
   return (
     <div className="max-w-5xl mx-auto p-8">
       <header className="mb-6 text-center">
-        <h1 className="text-3xl font-bold mb-2 text-blue-900">AwesomeCom • Call for Achievements</h1>
+        <h1 className="text-3xl font-bold mb-2 text-blue-900 font-serif">AwesomeCom • Call for Achievements</h1>
         <Banner />
       </header>
 

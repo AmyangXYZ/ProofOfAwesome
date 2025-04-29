@@ -5,8 +5,9 @@
   --foreground: #171717;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: system-ui, -apple-system, sans-serif;
-  --font-mono: ui-monospace, monospace;
+  --font-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-serif: "Times New Roman", Times, serif;
 }
 
 @media (prefers-color-scheme: light) {

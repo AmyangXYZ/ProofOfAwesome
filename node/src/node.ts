@@ -1,7 +1,7 @@
 import { io, Socket } from "socket.io-client"
 import { sha256 } from "js-sha256"
 import { Repository } from "./repository"
-import { ClientEvents, ServerEvents, Identity, Message } from "@proof-of-awesome/connect"
+import { ClientEvents, ServerEvents, Identity, Message } from "./connect"
 import { Wallet } from "./wallet"
 import {
   verifyBlock,
@@ -28,7 +28,6 @@ import {
   signReview,
   waitForGenesis,
   Account,
-  signAchievement,
 } from "./awesome"
 import { MerkleTree, SparseMerkleTree } from "./merkle"
 import {
@@ -55,18 +54,12 @@ import {
   isAccountRequest,
   AccountResponse,
   isAccountResponse,
-  AccountRequest,
   isBlockHeaderResponse,
   isBlockHeaderRequest,
   isBlockHeadersRequest,
   isBlockHeadersResponse,
   BlockHeaderResponse,
   BlockHeadersResponse,
-  BlocksRequest,
-  BlockHeadersRequest,
-  ChainHeadRequest,
-  BlockHeaderRequest,
-  BlockRequest,
 } from "./message"
 import { Reviewer, ReviewResult } from "./reviewer"
 
@@ -98,7 +91,7 @@ export class AwesomeNode {
   private wallet: Wallet
   private identity: Identity
   private repository: Repository
-  private reviewer: Reviewer
+  private reviewer: Reviewer | null = null
   private account: Account
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
@@ -130,8 +123,9 @@ export class AwesomeNode {
   private candidateBlockBroadcastPeriod: number = 30 * 1000
   private newBlockBroadcastPeriod: number = 10 * 1000
   private cleanReceivedMessagesPeriod: number = 30 * 60 * 1000
+  private awesomeComStatusUpdatePeriod: number = 500
 
-  private statusUpdateInterval: NodeJS.Timeout | null = null
+  private awesomeComStatusUpdateInterval: NodeJS.Timeout | null = null
   private chainHeadBroadcastInterval: NodeJS.Timeout | null = null
   private candidateBlockBroadcastInterval: NodeJS.Timeout | null = null
   private newBlockBroadcastInterval: NodeJS.Timeout | null = null
@@ -144,7 +138,7 @@ export class AwesomeNode {
     mnemonic: string,
     passphrase: string,
     repository: Repository,
-    reviewer: Reviewer
+    reviewer?: Reviewer
   ) {
     this.wallet = new Wallet(mnemonic, passphrase)
 
@@ -183,7 +177,9 @@ export class AwesomeNode {
 
     this.repository = repository
 
-    this.reviewer = reviewer
+    if (reviewer) {
+      this.reviewer = reviewer
+    }
 
     this.socket = io(connectAddress, { autoConnect: false })
     this.setupSocket()
@@ -199,28 +195,29 @@ export class AwesomeNode {
     this.on("peer.discovered", (peers: Identity[]) => {
       if (peers.length > 0) {
         this.selectSyncPeer(peers)
-        if (this.syncPeer) {
-          this.syncWith(this.syncPeer)
-        }
+        // if (this.syncPeer) {
+        //   this.syncWith(this.syncPeer)
+        // }
       }
     })
 
-    this.reviewer.onReviewSubmitted((result: ReviewResult) => {
-      console.log("Review result:", result)
-      const review: Review = {
-        edition: this.awesomeComStatus.edition,
-        achievementSignature: result.achievementSignature,
-        reviewerName: this.identity.name,
-        reviewerAddress: this.identity.address,
-        scores: result.scores,
-        comment: result.comment,
-        timestamp: Date.now(),
-        reviewerPublicKey: this.identity.publicKey,
-        signature: "",
-      }
-      review.signature = signReview(review, this.wallet)
-      this.pendingReviews.push(review)
-    })
+    if (this.reviewer) {
+      this.reviewer.onReviewSubmitted((result: ReviewResult) => {
+        const review: Review = {
+          edition: this.awesomeComStatus.edition,
+          achievementSignature: result.achievementSignature,
+          reviewerName: this.identity.name,
+          reviewerAddress: this.identity.address,
+          scores: result.scores,
+          comment: result.comment,
+          timestamp: Date.now(),
+          reviewerPublicKey: this.identity.publicKey,
+          signature: "",
+        }
+        review.signature = signReview(review, this.wallet)
+        this.pendingReviews.push(review)
+      })
+    }
 
     this.on("awesomecom.submission.started", async () => {
       this.newBlock = null
@@ -303,153 +300,6 @@ export class AwesomeNode {
     this.socket.emit("room.leave", this.currentTPCRoom())
   }
 
-  public requestAccount(address: string) {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
-    }
-    const requestId = crypto.randomUUID()
-    const request: AccountRequest = {
-      requestId,
-      address,
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: this.syncPeer,
-      type: MESSAGE_TYPE.ACCOUNT_REQUEST,
-      payload: request,
-      timestamp: Date.now(),
-    })
-    this.sentRequests.set(requestId, true)
-  }
-
-  public requestChainHead() {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
-    }
-    const requestId = crypto.randomUUID()
-    const request: ChainHeadRequest = {
-      requestId,
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: this.syncPeer,
-      type: MESSAGE_TYPE.CHAIN_HEAD_REQUEST,
-      payload: request,
-      timestamp: Date.now(),
-    })
-    this.sentRequests.set(requestId, true)
-  }
-
-  public submitAchievement(description: string) {
-    const achievement: Achievement = {
-      edition: this.awesomeComStatus.edition,
-      description,
-      authorAddress: this.identity.address,
-      attachments: [],
-      timestamp: Date.now(),
-      authorName: this.identity.name,
-      authorPublicKey: this.identity.publicKey,
-      signature: "",
-    }
-    achievement.signature = signAchievement(achievement, this.wallet)
-
-    if (this.inTPC) {
-      this.pendingAchievements.push(achievement)
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: "*",
-      room: this.currentTPCRoom(),
-      type: MESSAGE_TYPE.NEW_ACHIEVEMENT,
-      payload: achievement,
-      timestamp: Date.now(),
-    })
-  }
-
-  public requestBlockHeader(height: number) {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
-    }
-    const requestId = crypto.randomUUID()
-    const request: BlockHeaderRequest = {
-      requestId,
-      height,
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: this.syncPeer,
-      type: MESSAGE_TYPE.BLOCK_HEADER_REQUEST,
-      payload: request,
-      timestamp: Date.now(),
-    })
-    this.sentRequests.set(requestId, true)
-  }
-
-  public requestBlockHeaders(fromHeight: number, toHeight: number) {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
-    }
-    const requestId = crypto.randomUUID()
-    const request: BlockHeadersRequest = {
-      requestId,
-      fromHeight,
-      toHeight,
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: this.syncPeer,
-      type: MESSAGE_TYPE.BLOCK_HEADERS_REQUEST,
-      payload: request,
-      timestamp: Date.now(),
-    })
-    this.sentRequests.set(requestId, true)
-  }
-
-  public requestBlock(height: number) {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
-    }
-    const requestId = crypto.randomUUID()
-    const request: BlockRequest = {
-      requestId,
-      height,
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: this.syncPeer,
-      type: MESSAGE_TYPE.BLOCK_REQUEST,
-      payload: request,
-      timestamp: Date.now(),
-    })
-    this.sentRequests.set(requestId, true)
-  }
-
-  public requestBlocks(fromHeight: number, toHeight: number) {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
-    }
-    const requestId = crypto.randomUUID()
-    const request: BlocksRequest = {
-      requestId,
-      fromHeight,
-      toHeight,
-    }
-    this.socket.emit("message.send", {
-      from: this.identity.address,
-      to: this.syncPeer,
-      type: MESSAGE_TYPE.BLOCKS_REQUEST,
-      payload: request,
-      timestamp: Date.now(),
-    })
-    this.sentRequests.set(requestId, true)
-  }
-
   public on<K extends keyof EventMap>(event: K, callback: (data: EventMap[K]) => void): () => void {
     if (!this.eventListeners.has(event)) {
       this.eventListeners.set(event, new Set())
@@ -511,20 +361,16 @@ export class AwesomeNode {
     this.syncPeer = peers[0].address
   }
 
-  private syncWith(peer: string) {
-    this.requestAccount(peer)
-  }
-
   private startAwesomeComStatusUpdate() {
     this.updateAwesomeComStatus()
-    this.statusUpdateInterval = setInterval(() => {
+    this.awesomeComStatusUpdateInterval = setInterval(() => {
       this.updateAwesomeComStatus()
-    }, 500)
+    }, this.awesomeComStatusUpdatePeriod)
   }
 
   private stopAwesomeComStatusUpdate() {
-    if (this.statusUpdateInterval) {
-      clearInterval(this.statusUpdateInterval)
+    if (this.awesomeComStatusUpdateInterval) {
+      clearInterval(this.awesomeComStatusUpdateInterval)
     }
   }
 
@@ -578,9 +424,7 @@ export class AwesomeNode {
         this.handleAccountResponse(message)
         break
       case MESSAGE_TYPE.CHAIN_HEAD_REQUEST:
-        if (this.identity.nodeType == "full") {
-          this.handleChainHeadRequest(message)
-        }
+        this.handleChainHeadRequest(message)
         break
       case MESSAGE_TYPE.CHAIN_HEAD_RESPONSE:
         this.handleChainHeadResponse(message)
@@ -753,7 +597,9 @@ export class AwesomeNode {
 
     console.log("New achievement:", achievement)
     this.pendingAchievements.push(achievement)
-    this.reviewer.assignAchievement(achievement, this.awesomeComStatus.theme)
+    if (this.reviewer) {
+      this.reviewer.assignAchievement(achievement, this.awesomeComStatus.theme)
+    }
   }
 
   private async handleNewReview(message: Message) {
@@ -844,9 +690,6 @@ export class AwesomeNode {
   }
 
   private async handleChainHeadResponse(message: Message) {
-    if (this.identity.nodeType == "light") {
-      return
-    }
     const response = message.payload
     if (!isChainHeadResponse(response) || !this.sentRequests.has(response.requestId)) {
       return

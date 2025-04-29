@@ -2,7 +2,6 @@
 
 import { ReactNode, useEffect, useState } from "react"
 import SubmissionView from "./SubmissionView"
-// import { AwesomeNode } from "@proof-of-awesome/node"
 
 export default function ContentView({ children }: { children: ReactNode }) {
   const [currentView, setCurrentView] = useState("")

@@ -6,7 +6,7 @@ import ContentView from "@/views/ContentView"
 export default function Home() {
   return (
     <>
-      <div className="flex h-screen bg-slate-100 text-slate-800 font-serif">
+      <div className="flex h-screen bg-slate-100 text-slate-800">
         <SideBar />
 
         <main className="w-full flex-1 overflow-auto relative flex flex-col">
