@@ -1,16 +1,34 @@
-const awesomeComStatus = {
-  edition: 42,
-  theme: "Computational Fitness",
-  phase: "Achievement Submission",
-  phaseRemaining: 285000,
-  editionRemaining: 485000,
-}
+"use client"
 
-export default function SubmissionView() {
+import { AwesomeComStatus } from "@/awesome/awesome"
+import { useAwesomeNode } from "@/context/AwesomeNodeContext"
+import { useState } from "react"
+
+export default function AwesomeComView() {
+  const node = useAwesomeNode()
+  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
+    edition: 0,
+    theme: "",
+    phase: "Submission",
+    phaseRemaining: 0,
+    editionRemaining: 0,
+  })
+
+  node.on("awesomecom.status.updated", (status: AwesomeComStatus) => {
+    setAwesomeComStatus(status)
+  })
+
   return (
     <div className="max-w-3xl mx-auto p-8">
+      <header className="mb-6 text-center">
+        <h1 className="text-3xl font-bold mb-2 text-blue-900 font-serif">
+          {awesomeComStatus.edition}th AwesomeCom on [{awesomeComStatus.theme}]
+        </h1>
+      </header>
       <header className="mb-8">
-        <h1 className="text-2xl font-bold mb-1">Submit Achievement</h1>
+        <h1 className="text-2xl font-bold mb-1 text-center text-blue-800 text-line-through">
+          🎉 I am thrilled to announce that I have 🏆
+        </h1>
         <p className="text-slate-600 font-sans">
           Submit your achievement for the current AwesomeCom session on &quot;{awesomeComStatus.theme}&quot;
         </p>

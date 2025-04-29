@@ -79,6 +79,7 @@ interface EventMap {
   "transaction.added": Transaction
 }
 
+// full node
 export class AwesomeNode {
   private awesomeComStatus: AwesomeComStatus = {
     edition: 0,
@@ -92,14 +93,13 @@ export class AwesomeNode {
   private identity: Identity
   private repository: Repository
   private reviewer: Reviewer | null = null
-  private account: Account
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
   // address of the full node that this node is syncing with
   private syncPeer: string | null = null
 
-  // only full nodes maintain the account states
-  private accounts: SparseMerkleTree | null = null
+  // full nodes maintain the account states
+  private accounts: SparseMerkleTree = new SparseMerkleTree()
 
   private chainHead: ChainHead | null = null
   // created or received in the submission phase in current edition
@@ -117,7 +117,7 @@ export class AwesomeNode {
   private sentRequests: Map<string, boolean> = new Map()
 
   // full nodes join TPC automatically and light nodes opt-in
-  public inTPC: boolean = false
+  private inTPC: boolean = true
 
   private chainHeadBroadcastPeriod: number = 1 * 60 * 1000
   private candidateBlockBroadcastPeriod: number = 30 * 1000
@@ -134,7 +134,6 @@ export class AwesomeNode {
   constructor(
     connectAddress: string,
     name: string,
-    nodeType: "light" | "full",
     mnemonic: string,
     passphrase: string,
     repository: Repository,
@@ -146,7 +145,7 @@ export class AwesomeNode {
       chainId: chainConfig.chainId,
       name,
       address: this.wallet.derieveAddress(),
-      nodeType,
+      nodeType: "full",
       publicKey: this.wallet.publicKey,
       signature: "",
     }
@@ -163,17 +162,7 @@ export class AwesomeNode {
     )
     console.log("Node identity:", this.identity)
 
-    this.account = {
-      address: this.identity.address,
-      balance: 0,
-      nonce: 0,
-      acceptedAchievements: 0,
-    }
-    if (this.identity.nodeType == "full") {
-      this.accounts = new SparseMerkleTree()
-    }
-
-    this.inTPC = this.identity.nodeType == "full"
+    this.accounts = new SparseMerkleTree()
 
     this.repository = repository
 
@@ -187,9 +176,8 @@ export class AwesomeNode {
 
   public async start() {
     await waitForGenesis()
-    if (this.identity.nodeType == "full") {
-      await this.repository.init()
-    }
+    await this.repository.init()
+
     this.socket.connect()
 
     this.on("peer.discovered", (peers: Identity[]) => {
@@ -234,48 +222,42 @@ export class AwesomeNode {
 
     this.on("awesomecom.consensus.started", async () => {
       this.candidateBlock = null
-      if (this.identity.nodeType == "full") {
-        this.candidateBlock = await this.createBlock()
-        if (this.candidateBlock) {
-          this.startCandidateBlockBroadcast()
-        } else {
-          console.log("failed to create block")
-        }
+      this.candidateBlock = await this.createBlock()
+      if (this.candidateBlock) {
+        this.startCandidateBlockBroadcast()
+      } else {
+        console.log("failed to create block")
       }
     })
 
     this.on("awesomecom.announcement.started", async () => {
-      if (this.identity.nodeType == "full") {
-        this.stopCandidateBlockBroadcast()
-        if (this.candidateBlock) {
-          this.newBlock = this.candidateBlock
-          console.log("new block header:", this.newBlock.header)
-          this.candidateBlock = null
+      this.stopCandidateBlockBroadcast()
+      if (this.candidateBlock) {
+        this.newBlock = this.candidateBlock
+        console.log("new block header:", this.newBlock.header)
+        this.candidateBlock = null
 
-          this.chainHead = {
-            chainId: chainConfig.chainId,
-            latestBlockHeight: this.newBlock.header.height,
-            latestBlockHash: this.newBlock.header.hash,
-            timestamp: Date.now(),
-            nodePublicKey: this.identity.publicKey,
-            signature: "",
-          }
-          this.chainHead.signature = signChainHead(this.chainHead, this.wallet)
+        this.chainHead = {
+          chainId: chainConfig.chainId,
+          latestBlockHeight: this.newBlock.header.height,
+          latestBlockHash: this.newBlock.header.hash,
+          timestamp: Date.now(),
+          nodePublicKey: this.identity.publicKey,
+          signature: "",
+        }
+        this.chainHead.signature = signChainHead(this.chainHead, this.wallet)
 
-          await this.repository.addBlock(this.newBlock)
-          this.emit("block.added", this.newBlock)
-          this.startNewBlockBroadcast()
+        await this.repository.addBlock(this.newBlock)
+        this.emit("block.added", this.newBlock)
+        this.startNewBlockBroadcast()
 
-          // assign achievement rewards
-          if (this.accounts) {
-            for (const achievement of this.newBlock.achievements) {
-              const { account } = this.accounts.get(achievement.authorAddress)
-              if (account) {
-                account.balance += chainConfig.rewardRules.acceptedAchievements
-                account.acceptedAchievements += 1
-                this.accounts.insert(account)
-              }
-            }
+        // assign achievement rewards
+        for (const achievement of this.newBlock.achievements) {
+          const { account } = this.accounts.get(achievement.authorAddress)
+          if (account) {
+            account.balance += chainConfig.rewardRules.acceptedAchievements
+            account.acceptedAchievements += 1
+            this.accounts.insert(account)
           }
         }
       }
@@ -284,20 +266,8 @@ export class AwesomeNode {
     this.on("block.added", async () => {})
 
     this.startAwesomeComStatusUpdate()
-    if (this.identity.nodeType == "full") {
-      this.startChainHeadBroadcast()
-    }
+    this.startChainHeadBroadcast()
     this.startCleanReceivedMessages()
-  }
-
-  public async joinTPC() {
-    this.inTPC = true
-    this.socket.emit("room.join", this.currentTPCRoom())
-  }
-
-  public async leaveTPC() {
-    this.inTPC = false
-    this.socket.emit("room.leave", this.currentTPCRoom())
   }
 
   public on<K extends keyof EventMap>(event: K, callback: (data: EventMap[K]) => void): () => void {
@@ -359,42 +329,6 @@ export class AwesomeNode {
       return
     }
     this.syncPeer = peers[0].address
-  }
-
-  private startAwesomeComStatusUpdate() {
-    this.updateAwesomeComStatus()
-    this.awesomeComStatusUpdateInterval = setInterval(() => {
-      this.updateAwesomeComStatus()
-    }, this.awesomeComStatusUpdatePeriod)
-  }
-
-  private stopAwesomeComStatusUpdate() {
-    if (this.awesomeComStatusUpdateInterval) {
-      clearInterval(this.awesomeComStatusUpdateInterval)
-    }
-  }
-
-  private updateAwesomeComStatus() {
-    const status = getAwesomeComStatus()
-    if (status.edition !== this.awesomeComStatus.edition || status.phase !== this.awesomeComStatus.phase) {
-      console.log(`[${status.edition}th AwesomeCom (Theme: ${status.theme})] Entering ${status.phase} phase`)
-      switch (status.phase) {
-        case "Submission":
-          this.emit("awesomecom.submission.started", undefined)
-          break
-        case "Review":
-          this.emit("awesomecom.review.started", undefined)
-          break
-        case "Consensus":
-          this.emit("awesomecom.consensus.started", undefined)
-          break
-        case "Announcement":
-          this.emit("awesomecom.announcement.started", undefined)
-          break
-      }
-    }
-    this.awesomeComStatus = status
-    this.emit("awesomecom.status.updated", status)
   }
 
   private handleMessage(message: Message) {
@@ -507,7 +441,7 @@ export class AwesomeNode {
   }
 
   private async handleCandidateBlock(message: Message) {
-    if (this.awesomeComStatus.phase != "Consensus" || this.identity.nodeType != "full") {
+    if (this.awesomeComStatus.phase != "Consensus") {
       return
     }
     const block = message.payload
@@ -570,18 +504,16 @@ export class AwesomeNode {
 
     console.log("New transaction:", transaction)
 
-    if (this.identity.nodeType == "full" && this.accounts) {
-      const { account: sender } = this.accounts.get(transaction.senderAddress)
-      const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+    const { account: sender } = this.accounts.get(transaction.senderAddress)
+    const { account: recipient } = this.accounts.get(transaction.recipientAddress)
 
-      if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
-        sender.balance -= transaction.amount
-        recipient.balance += transaction.amount
-        sender.nonce += 1
-        this.accounts.insert(sender)
-        this.accounts.insert(recipient)
-        this.repository.addTransaction(transaction, false)
-      }
+    if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
+      sender.balance -= transaction.amount
+      recipient.balance += transaction.amount
+      sender.nonce += 1
+      this.accounts.insert(sender)
+      this.accounts.insert(recipient)
+      this.repository.addTransaction(transaction, false)
     }
   }
 
@@ -617,9 +549,6 @@ export class AwesomeNode {
   }
 
   private async handleAccountRequest(message: Message) {
-    if (this.identity.nodeType != "full" || !this.accounts) {
-      return
-    }
     const request = message.payload
     if (!isAccountRequest(request)) {
       return
@@ -658,15 +587,12 @@ export class AwesomeNode {
     }
     const verified = SparseMerkleTree.verifyProof(response.account, response.proof, latestBlock.header.accountsRoot)
     if (verified) {
-      this.account = response.account
-      this.emit("account.updated", this.account)
+      this.accounts.insert(response.account)
+      this.emit("account.updated", response.account)
     }
   }
 
   private async handleChainHeadRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isChainHeadRequest(request)) {
       return
@@ -709,9 +635,6 @@ export class AwesomeNode {
   }
 
   private async handleBlockHeaderRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isBlockHeaderRequest(request)) {
       return
@@ -745,9 +668,6 @@ export class AwesomeNode {
   }
 
   private async handleBlockHeadersRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isBlockHeadersRequest(request)) {
       return
@@ -778,9 +698,6 @@ export class AwesomeNode {
   }
 
   private async handleBlockRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isBlockRequest(request)) {
       return
@@ -798,9 +715,6 @@ export class AwesomeNode {
   }
 
   private async handleBlocksRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isBlocksRequest(request)) {
       return
@@ -818,9 +732,6 @@ export class AwesomeNode {
   }
 
   private async handleTransactionRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isTransactionRequest(request)) {
       return
@@ -838,9 +749,6 @@ export class AwesomeNode {
   }
 
   private async handleTransactionsRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isTransactionsRequest(request)) {
       return
@@ -858,9 +766,6 @@ export class AwesomeNode {
   }
 
   private async handleAchievementRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isAchievementRequest(request)) {
       return
@@ -878,9 +783,6 @@ export class AwesomeNode {
   }
 
   private async handleAchievementsRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isAchievementsRequest(request)) {
       return
@@ -898,9 +800,6 @@ export class AwesomeNode {
   }
 
   private async handleReviewRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isReviewRequest(request)) {
       return
@@ -918,9 +817,6 @@ export class AwesomeNode {
   }
 
   private async handleReviewsRequest(message: Message) {
-    if (this.identity.nodeType != "full") {
-      return
-    }
     const request = message.payload
     if (!isReviewsRequest(request)) {
       return
@@ -938,9 +834,6 @@ export class AwesomeNode {
   }
 
   private async createBlock(): Promise<Block | null> {
-    if (this.identity.nodeType != "full" || !this.accounts) {
-      return null
-    }
     let previousHash = ""
     let previousHeight = -1
     const transactions = await this.repository.getPendingTransactions()
@@ -1003,6 +896,42 @@ export class AwesomeNode {
     }
     block.header.hash = hashBlockHeader(block.header)
     return block
+  }
+
+  private startAwesomeComStatusUpdate() {
+    this.updateAwesomeComStatus()
+    this.awesomeComStatusUpdateInterval = setInterval(() => {
+      this.updateAwesomeComStatus()
+    }, this.awesomeComStatusUpdatePeriod)
+  }
+
+  private stopAwesomeComStatusUpdate() {
+    if (this.awesomeComStatusUpdateInterval) {
+      clearInterval(this.awesomeComStatusUpdateInterval)
+    }
+  }
+
+  private updateAwesomeComStatus() {
+    const status = getAwesomeComStatus()
+    if (status.edition !== this.awesomeComStatus.edition || status.phase !== this.awesomeComStatus.phase) {
+      console.log(`[${status.edition}th AwesomeCom (Theme: ${status.theme})] Entering ${status.phase} phase`)
+      switch (status.phase) {
+        case "Submission":
+          this.emit("awesomecom.submission.started", undefined)
+          break
+        case "Review":
+          this.emit("awesomecom.review.started", undefined)
+          break
+        case "Consensus":
+          this.emit("awesomecom.consensus.started", undefined)
+          break
+        case "Announcement":
+          this.emit("awesomecom.announcement.started", undefined)
+          break
+      }
+    }
+    this.awesomeComStatus = status
+    this.emit("awesomecom.status.updated", status)
   }
 
   private async broadcastChainHead() {

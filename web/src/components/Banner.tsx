@@ -48,7 +48,7 @@ export default function Banner() {
           onClick={() => {}}
           className="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded transition-colors duration-200 text-sm cursor-pointer"
         >
-          Connect Wallet to Participate
+          Participate Now
         </button>
       </div>
     </>

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 
 export default function SideBar() {
-  const [currentView, setCurrentView] = useState("")
+  const [currentView, setCurrentView] = useState<"" | "awesomecom" | "review" | "peers" | "blockchain">("")
 
   const [awesomeComStatus, setAwesomeComStatus] = useState({
     edition: 42,
@@ -62,9 +62,9 @@ export default function SideBar() {
             Call for Achievements
           </button>
           <button
-            onClick={() => setCurrentView("submission")}
+            onClick={() => setCurrentView("awesomecom")}
             className={`w-full text-left px-4 py-2 rounded transition-colors ${
-              currentView === "submission"
+              currentView === "awesomecom"
                 ? "bg-blue-900 text-blue-100"
                 : "text-slate-300 hover:bg-slate-800 cursor-pointer"
             }`}
@@ -90,16 +90,6 @@ export default function SideBar() {
             }`}
           >
             Blockchain Explorer
-          </button>
-          <button
-            onClick={() => setCurrentView("wallet")}
-            className={`w-full text-left px-4 py-2 rounded transition-colors ${
-              currentView === "wallet"
-                ? "bg-blue-900 text-blue-100"
-                : "text-slate-300 hover:bg-slate-800 cursor-pointer"
-            }`}
-          >
-            Token Management
           </button>
         </div>
 

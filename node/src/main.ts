@@ -6,8 +6,7 @@ import { MongoDBRepository } from "./repository_mongodb"
 
 const node = new AwesomeNode(
   "https://connect.proof-of-awesome.app",
-  "AwesomeNode-1",
-  "full",
+  "AwesomeNode - NodeJs",
   "",
   "",
   new MongoDBRepository("mongodb://localhost:27017/awesome"),
