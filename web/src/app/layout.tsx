@@ -2,10 +2,9 @@ import type { Metadata } from "next"
 import { Geist, Geist_Mono } from "next/font/google"
 import "./globals.css"
 import { Analytics } from "@vercel/analytics/next"
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar"
 import { AwesomeNodeProvider } from "@/context/awesome-node-context"
 import { ThemeProvider } from "@/components/theme-provider"
-import { AppSidebar } from "@/components/app-sidebar"
+import Header from "@/components/header"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -68,18 +67,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className="h-full">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-          <AwesomeNodeProvider>
-            <SidebarProvider defaultOpen={false}>
-              <AppSidebar />
-              <main className="flex-1 w-full h-full">
-                <SidebarTrigger />
-                {children}{" "}
-              </main>
-            </SidebarProvider>
-          </AwesomeNodeProvider>
-        </ThemeProvider>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
+        <AwesomeNodeProvider>
+          <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+            <Header />
+            <div className="flex-1 flex flex-col">
+              <main className="flex-1">{children}</main>
+            </div>
+          </ThemeProvider>
+        </AwesomeNodeProvider>
       </body>
       <Analytics />
     </html>

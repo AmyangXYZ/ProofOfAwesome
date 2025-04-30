@@ -167,6 +167,10 @@ export class AwesomeNodeLight {
     this.startCleanReceivedMessages()
   }
 
+  public isConnected() {
+    return this.socket.connected
+  }
+
   public getIdentity() {
     return this.identity
   }

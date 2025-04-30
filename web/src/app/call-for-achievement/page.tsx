@@ -1,9 +1,9 @@
 import Banner from "@/components/banner"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
-export default function CallForAchievementsView() {
+export default function CallForAchievement() {
   return (
-    <div className="max-w-3xl px-8 mx-auto py-2">
+    <div className="max-w-5xl px-8 mx-auto py-2">
       <header className="mb-6 text-center">
         <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-3xl">
           AwesomeCom • Call for Achievements

@@ -5,6 +5,7 @@ import { useAwesomeNode } from "@/context/awesome-node-context"
 import { AwesomeComStatus } from "@/awesome/awesome"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import Link from "next/link"
 
 export default function Banner() {
   const node = useAwesomeNode()
@@ -22,7 +23,7 @@ export default function Banner() {
 
   return (
     <div className="mt-8 max-w-lg mx-auto">
-      <Card className="bg-neutral-900 gap-4 py-4">
+      <Card className="bg-zinc-900 gap-4 py-4">
         <CardHeader>
           <CardTitle>
             Edition #{awesomeComStatus.edition} on [{awesomeComStatus.theme}]
@@ -48,13 +49,8 @@ export default function Banner() {
           </div>
         </CardContent>
         <CardFooter className="flex justify-center">
-          <Button
-            onClick={() => {
-              window.location.hash = "awesomecom"
-            }}
-            className="cursor-pointer"
-          >
-            Participate Now
+          <Button asChild>
+            <Link href="/">Participate Now</Link>
           </Button>
         </CardFooter>
       </Card>
