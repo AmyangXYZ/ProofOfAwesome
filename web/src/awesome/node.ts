@@ -264,7 +264,7 @@ export class AwesomeNodeLight {
     this.sentRequests.set(requestId, true)
   }
 
-  public submitAchievement(description: string) {
+  public createAchievement(description: string): Achievement {
     const achievement: Achievement = {
       edition: this.awesomeComStatus.edition,
       description,
@@ -289,6 +289,7 @@ export class AwesomeNodeLight {
       payload: achievement,
       timestamp: Date.now(),
     })
+    return achievement
   }
 
   public requestBlockHeader(height: number) {
