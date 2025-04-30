@@ -30,7 +30,7 @@ export default function Header() {
   })
 
   return (
-    <header className="sticky top-0 z-50 w-full">
+    <header className="top-0 z-50 w-full">
       <div className=" flex h-10 w-full items-center px-4 justify-between md:text-sm">
         <nav className="flex space-x-4 items-center">
           <Link href="/" className="mr-6 flex space-between space-x-2 z-50">
