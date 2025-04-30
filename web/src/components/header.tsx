@@ -90,6 +90,14 @@ export default function Header() {
           >
             Call for Achievement
           </Link>
+
+          <Link
+            href="https://github.com/AmyangXYZ/ProofOfAwesome"
+            className={cn("text-md px-4 transition-colors hover:text-foreground/80", "text-foreground/60")}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Github Repo
+          </Link>
         </div>
       </div>
     </header>
