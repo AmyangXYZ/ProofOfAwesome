@@ -42,6 +42,8 @@
 }
 
 :root {
+  --font-geist-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-geist-mono: var(--font-geist-mono), ui-monospace, monospace;
   --radius: 0.625rem;
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
@@ -77,6 +79,8 @@
 }
 
 .dark {
+  --font-geist-sans: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  --font-geist-mono: var(--font-geist-mono), ui-monospace, monospace;
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
   --card: oklch(0.205 0 0);
@@ -117,4 +121,12 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+body {
+  font-family: var(--font-geist-sans);
+}
+
+p {
+  @apply leading-relaxed;
 }

@@ -22,9 +22,7 @@ export default function Banner() {
 
   return (
     <div className="mt-8 max-w-lg mx-auto">
-      <Card className="bg-gradient-to-r from-neutral-950 via-neutral-900 to-neutral-950 gap-4 py-4">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 to-purple-500/10 opacity-50" />
-
+      <Card className="bg-neutral-900 gap-4 py-4">
         <CardHeader>
           <CardTitle>
             Edition #{awesomeComStatus.edition} on [{awesomeComStatus.theme}]
@@ -34,14 +32,14 @@ export default function Banner() {
         <CardContent>
           <div className="flex justify-center gap-8 mb-2">
             <div className="text-center">
-              <div className="text-xl font-medium">
+              <div className="text-lg font-medium">
                 {Math.floor(awesomeComStatus.phaseRemaining / 60000)}m{" "}
                 {Math.floor((awesomeComStatus.phaseRemaining % 60000) / 1000)}s
               </div>
               <div className="text-xs">Phase Remaining</div>
             </div>
             <div className="text-center">
-              <div className="text-xl font-medium">
+              <div className="text-lg font-medium">
                 {Math.floor(awesomeComStatus.editionRemaining / 60000)}m{" "}
                 {Math.floor((awesomeComStatus.editionRemaining % 60000) / 1000)}s
               </div>
@@ -54,6 +52,7 @@ export default function Banner() {
             onClick={() => {
               window.location.hash = "awesomecom"
             }}
+            className="cursor-pointer"
           >
             Participate Now
           </Button>

@@ -13,24 +13,25 @@ export default function AwesomeComView() {
   })
 
   return (
-    <div className="max-w-3xl mx-auto p-8">
+    <div className="max-w-3xl mx-auto p-2">
       <header className="mb-6 text-center">
-        <h1 className="text-3xl font-bold mb-4 text-blue-900 ">
+        <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-3xl">
           {awesomeComStatus.edition}th AwesomeCom on [{awesomeComStatus.theme}]
         </h1>
-        <h3 className="text-xl font-medium text-blue-900 mb-2">Current Phase: {awesomeComStatus?.phase}</h3>
-        <div className="text-lg font-semibold text-blue-800">
+
+        <h3 className="text-xl font-medium mt-8 mb-2">Current Phase: {awesomeComStatus?.phase}</h3>
+        <div className="text-lg font-semibold">
           Remaining: {Math.floor(awesomeComStatus.phaseRemaining / 60000)}m{" "}
           {Math.floor((awesomeComStatus.phaseRemaining % 60000) / 1000)}s
         </div>
       </header>
       <header className="mb-8">
-        <h1 className="text-xl font-semibold mb-1 text-center text-blue-900 line-through">
+        <h1 className="text-xl font-semibold mb-1 text-center line-through">
           🎉 I am thrilled to announce that I have 🏆
         </h1>
       </header>
 
-      <div className="bg-white border border-slate-200 rounded-lg shadow-sm p-6 font-sans">
+      <div className="bg-transparent border border-slate-200 rounded-lg shadow-sm p-6 font-sans">
         <div className="space-y-6">
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">Author</label>
