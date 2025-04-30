@@ -14,14 +14,14 @@ import {
 // Menu items.
 const items = [
   {
-    title: "Call for Achievements",
+    title: "AwesomeCom",
     url: "#",
-    icon: Home,
+    icon: Inbox,
   },
   {
-    title: "AwesomeCom",
-    url: "#awesomecom",
-    icon: Inbox,
+    title: "Call for Achievements",
+    url: "#call-for-achievements",
+    icon: Home,
   },
   {
     title: "Calendar",
@@ -42,7 +42,7 @@ const items = [
 
 export function AppSidebar() {
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar>
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>Proof of Awesome</SidebarGroupLabel>

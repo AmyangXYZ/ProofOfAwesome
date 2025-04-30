@@ -1,19 +1,29 @@
 "use client"
 
-import { AwesomeComStatus } from "@/awesome/awesome"
+import { AwesomeComStatus, getAwesomeComStatus } from "@/awesome/awesome"
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 
 export default function AwesomeComView() {
   const node = useAwesomeNode()
-  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>(node.getAwesomeComStatus())
+  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
+    edition: 0,
+    theme: "",
+    phase: "Announcement",
+    phaseRemaining: 0,
+    editionRemaining: 0,
+  })
+
+  useEffect(() => {
+    setAwesomeComStatus(getAwesomeComStatus())
+  }, [])
 
   node.on("awesomecom.status.updated", (status: AwesomeComStatus) => {
     setAwesomeComStatus(status)
   })
 
   return (
-    <div className="max-w-3xl mx-auto p-2">
+    <div className="max-w-3xl mx-auto p-2 px-6">
       <header className="mb-6 text-center">
         <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-3xl">
           {awesomeComStatus.edition}th AwesomeCom on [{awesomeComStatus.theme}]

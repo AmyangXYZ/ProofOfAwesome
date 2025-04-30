@@ -1,9 +1,10 @@
 "use client"
 
-import { ReactNode, useEffect, useState } from "react"
+import { useEffect, useState } from "react"
 import AwesomeComView from "./awesomecom"
+import CallForAchievements from "./call-for-achievements"
 
-export default function ContentView({ children }: { children: ReactNode }) {
+export default function ContentView() {
   const [currentView, setCurrentView] = useState("")
 
   const updateViewFromHash = () => {
@@ -16,7 +17,10 @@ export default function ContentView({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("hashchange", updateViewFromHash)
   }, [])
 
-  if (!currentView) return children
-
-  return <div className="inset-0 bg-transparent">{currentView === "awesomecom" && <AwesomeComView />}</div>
+  return (
+    <div className="inset-0 bg-transparent">
+      {currentView === "" && <AwesomeComView />}
+      {currentView === "call-for-achievements" && <CallForAchievements />}
+    </div>
+  )
 }

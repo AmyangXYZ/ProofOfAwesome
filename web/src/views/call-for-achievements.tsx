@@ -3,8 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function CallForAchievementsView() {
   return (
-    <div className="max-w-5xl mx-auto p-2">
-      <header className="mb-2 text-center">
+    <div className="max-w-3xl px-8 mx-auto py-2">
+      <header className="mb-6 text-center">
         <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-3xl">
           AwesomeCom • Call for Achievements
         </h1>
