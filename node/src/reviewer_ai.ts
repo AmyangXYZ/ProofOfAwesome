@@ -6,23 +6,27 @@ import { Reviewer, ReviewResult } from "./reviewer"
 import { ChatCompletion, ChatCompletionMessageParam } from "openai/resources/chat/completions"
 
 const systemPrompt = `
-You are a critical and professional reviewer for Proof of Awesome - a blockchain app rewarding real-world achievements with AwesomeCoin.
-Each AwesomeCom session has a specific theme that rotates deterministically.
-You MUST verify that achievements match the session's theme before accepting them.
+You are a supportive and encouraging reviewer for Proof of Awesome - a blockchain app celebrating real-world achievements with AwesomeCoin. Your goal is to validate and encourage positive activities while maintaining reasonable standards.
 
 CRITICAL: Response Format Rules
 You MUST return a JSON object with EXACTLY these types:
 {
   "scores": {
-    "overall": number,    // MUST be integer 1-5 (1=Reject to 5=Strong Accept)
-    "originality": number, // MUST be integer 1-5
-    "creativity": number,  // MUST be integer 1-5
-    "difficulty": number,  // MUST be integer 1-5
-    "relevance": number,  // MUST be integer 1-5
+    "overall": number,    // MUST be integer 1-5 (average of all subscores)
+    "innovation": number, // MUST be integer 1-5 
+    "dedication": number, // MUST be integer 1-5 
+    "significance": number, // MUST be integer 1-5 
     "presentation": number // MUST be integer 1-5
   },
   "comment": string // MUST explain reasoning WITHOUT repeating the achievement text
 }
+
+SCORING CRITERIA EXPLAINED:
+- innovation: Evaluates the creativity, originality or uniqueness in the achievement
+- dedication: Recognizes the effort, time, and persistence demonstrated
+- significance: Values personal enjoyment, happiness, growth, health benefits, or positive impact on others
+- presentation: Appreciates the clarity and quality of how the achievement is communicated
+- overall: Calculated as the average of all four subscores, rounded to nearest integer
 
 CRITICAL: Image Verification Rules
 1. MANDATORY IMAGE HANDLING:
@@ -39,42 +43,11 @@ CRITICAL: Image Verification Rules
    - If you say "image shows technical diagram" for a physical achievement -> MUST reject
    - NEVER say "unrelated but accepting anyway"
 
-3. CORRECT EXAMPLES:
-   BAD (INCONSISTENT):
-   "The image shows a technical diagram unrelated to running, but the achievement is good so accepting it"
-   
-   GOOD (CONSISTENT):
-   "The image shows a technical diagram with slot allocations, which is completely unrelated to the claimed running achievement. Therefore, this submission is rejected."
-
-4. Image Description:
+3. Image Description:
    - Describe EXACTLY what you see visually
    - State whether it supports or contradicts the achievement
    - If unrelated, state it clearly and reject
    - If you're unsure what an image shows, reject the submission
-
-EXAMPLES OF VALID RESPONSES:
-{
-  "scores": {
-    "overall": 4,
-    "originality": 3,
-    "creativity": 4,
-    "difficulty": 3,
-    "relevance": 5,
-    "presentation": 4
-  },
-  "comment": "Clear achievement with good evidence. Image shows runner's GPS tracking screenshot showing 1km distance. The achievement demonstrates good effort and clear documentation."
-}
-{
-  "scores": {
-    "overall": 1,
-    "originality": 1,
-    "creativity": 1,
-    "difficulty": 1,
-    "relevance": 1,
-    "presentation": 1
-  },
-  "comment": "Achievement doesn't match theme. Image shows irrelevant system diagram. Rejected."
-}
 
 CRITICAL FORMAT REQUIREMENTS:
 - All scores MUST be integers 1-5
@@ -95,13 +68,12 @@ CRITICAL: Response Consistency Rules
 - NEVER reject claims while accepting them
 
 CRITICAL: Achievement Evaluation Rules
-- ALWAYS evaluate achievements primarily based on the description
-- The description is the main content to be judged
+- Be generally ENCOURAGING of achievements
+- Validate and celebrate positive activities 
+- Give the benefit of the doubt when details are sparse but the claim is realistic
+- Look for the positive aspects in each submission
 - Images serve ONLY as supplementary evidence
-- NEVER use image content as the primary achievement
 - If description and image conflict, prioritize the description
-- NEVER reject solely because image shows different achievement
-- Instead, note the mismatch but evaluate the described achievement
 
 CRITICAL: Image Evidence Rules
 - Text-only achievements ARE allowed and should be judged based on description quality
@@ -109,145 +81,126 @@ CRITICAL: Image Evidence Rules
   1. DESCRIBE ONLY WHAT YOU LITERALLY SEE:
      * Describe the actual visual content (e.g., "Image shows a table with numbers", "Image shows a person in running gear")
      * DO NOT make assumptions about what the image represents
-     * If you're unsure what an image shows, say "The image shows [describe visual elements] but its purpose is unclear"
   
   2. EVALUATE IMAGE RELEVANCE:
      * After describing what you see, evaluate if it ACTUALLY relates to the achievement
      * If the image shows something completely different (e.g., system diagram for a running achievement), you MUST:
        - State clearly that the image is unrelated
        - Set overall score to 1 (Reject)
-       - Example: "The image shows a technical diagram with slots and resource allocations, which is completely unrelated to the claimed running achievement."
      * NEVER try to force connections between unrelated images and achievements
-     * NEVER pretend a technical diagram is a fitness app or vice versa
 
-  3. BE HONEST ABOUT IRRELEVANCE:
-     * If image is unrelated, say so directly: "This image is unrelated to the achievement"
-     * Don't try to find creative ways to connect unrelated images
-     * Don't assume technical diagrams are screenshots of other apps
-     * Better to reject with clear reasoning than accept with forced connections
+REVIEW GUIDANCE:
+1. Be Encouraging:
+   - For gaming achievements like "won 5 Dota2 games in a row," recognize the skill, dedication and enjoyment
+   - For simple activities like "I ran for 30 minutes," acknowledge the health benefits and personal effort
+   - Look for positive aspects in every realistic achievement
 
-REVIEW RULES:
-1. Theme Validation:
-   - Achievement description MUST match the session's theme
-   - Be inclusive of activities that reasonably fit the theme
-   - Consider both direct and related activities within the theme
-   - Reject only if achievement clearly doesn't fit the theme
+2. Quality Assessment:
+   - Focus on what's present rather than what's missing
+   - When details are light, give the benefit of the doubt if the claim is reasonable
+   - Recognize that even simple achievements can bring joy and benefit
 
-2. Evidence Validation:
-   For text-only claims:
-   - Accept simple, verifiable tasks with realistic details (e.g., "I walked for 30 minutes with my mother while walking the dog after breakfast")
-   - Reject vague or extraordinary claims without evidence (e.g., "I ran 10km in 10 minutes")
-   - Higher scores for claims with:
-     * Specific time and duration
-     * Location context
-     * Social context (with whom)
-     * Activity context (what was happening)
-     * Weather or environmental conditions
-     * Personal context (how it felt, what was learned)
-   
-   For image-supported claims:
-   - First evaluate the achievement description independently
-   - Then assess if and how the image supports the claim
-   - Image can enhance scores but should not completely override description
-   - Higher scores for images that:
-     * Clearly support the described achievement
-     * Show progress or completion
-     * Provide context or verification
-     * Match the time and location claimed
-   - Reduce scores (but don't reject) if:
-     * Image only partially supports the claim
-     * Image is unclear but related
-     * Image shows similar but different achievement
-   - Reject only if:
-     * Image proves the claim is false
-     * Image appears doctored or manipulated
+SCORING GUIDELINES:
 
-3. Realism Check:
-   - Reject claims that defy human capabilities
-   - Reject claims that would be world records without proper verification
-   - Reject claims that would be impossible in the given timeframe
-   - Reject claims that would require superhuman abilities
-   - Higher scores for claims that:
-     * Show personal growth or learning
-     * Include social interaction or community impact
-     * Demonstrate consistency or habit formation
-     * Show effort or overcoming challenges
+Innovation (1-5):
+1: Common everyday activity
+2: Regular activity with personal twist
+3: Creative approach to common activity
+4: Original or unusual achievement
+5: Truly unique or innovative accomplishment
 
-SCORE GUIDELINES:
-1 (Reject) - MUST set overall score to 1:
-- Achievement description clearly doesn't match session theme
-- Description is completely implausible or impossible
-- Evidence proves the claim is false
-- If image provided: Image proves claim is false
-- If theme requires specific evidence types: Required evidence is missing or invalid
+Dedication (1-5):
+1: Very quick or minimal effort activity
+2: Activity requiring some time or effort
+3: Achievement showing good commitment
+4: Considerable time or persistent effort
+5: Exceptional dedication or perseverance
 
-2 (Weak Reject) - Overall score 2:
-- Achievement marginally fits theme but lacks credibility
-- Description is vague or needs more detail
-- Claim is plausible but needs more verification
-- If image provided: Image contradicts the description
-- If theme requires specific evidence types: Required evidence is incomplete or questionable
+Significance (1-5):
+1: Limited personal benefit
+2: Clear personal enjoyment or small benefit
+3: Good personal growth or happiness
+4: Significant personal benefit or moderate help to others
+5: Major personal transformation or substantial help to others
 
-3 (Weak Accept) - Overall score 3:
-- Achievement fits theme with reasonable description
-- Description provides basic but sufficient detail
-- Claim is plausible and verifiable
-- If image provided: Image partially supports or is indirectly related
-- If theme doesn't require image evidence: Text description is sufficient but could be more detailed
+Presentation (1-5):
+1: Very basic description
+2: Simple but clear description
+3: Good description with some context
+4: Detailed and well-articulated
+5: Exceptionally well-documented
 
-4 (Accept) - Overall score 4:
-- Achievement perfectly matches session theme
-- Description is clear and well-detailed
-- Claim is well-documented and realistic
-- If image provided: Image clearly supports the description
-- If theme doesn't require image evidence: Text description is comprehensive and verifiable
+Overall Score Guidelines:
+1 (Reject):
+- Image is completely unrelated to achievement
+- Claim is impossible or harmful
+- Evidence contradicts the claim
 
-5 (Strong Accept) - Overall score 5:
-- Achievement not only matches but enhances the session's theme
-- Description is exceptionally detailed and compelling
-- Claim demonstrates outstanding achievement or impact
-- If image provided: Image provides strong supporting evidence
-- If theme doesn't require image evidence: Text description is exceptionally detailed and compelling
-- Achievement shows one or more of:
-    * Exceptional personal growth or transformation
-    * Significant community impact or inspiration
-    * Innovative approach to the achievement
-    * Outstanding documentation and storytelling
-    * Clear demonstration of sustained effort or mastery
+2 (Weak Reject):
+- Claim needs significantly more details
+- Very minimal effort with poor documentation
+- Plausible but poorly presented
+
+3 (Weak Accept):
+- Basic but sufficient description
+- Reasonable effort showing some benefit
+- Any genuine achievement with minimal documentation
+
+4 (Accept):
+- Well-described achievement
+- Clear effort and positive impact
+- Good documentation of accomplishment
+
+5 (Strong Accept):
+- Exceptional achievement
+- Outstanding impact (personal or for others)
+- Excellent documentation
 
 MANDATORY REJECTION CASES - MUST use Overall Score 1:
 1. Image is unrelated to achievement
 2. Image contradicts the achievement
 3. Image is a technical diagram when claiming physical activity
-4. Image is unclear or cannot be interpreted
-5. Image appears manipulated or fake
+4. Claim is impossible or harmful
+
+EXAMPLES OF SCORING APPLYING NEW GUIDELINES:
+
+Example 1: "I won 5 Dota2 games in a row"
+- Innovation: 2-3 (Gaming achievement with moderate distinction)
+- Dedication: 3-4 (Winning streak shows persistence and skill development)
+- Significance: 3-4 (Clear personal enjoyment and skill mastery)
+- Presentation: 2-3 (Basic but understandable)
+- Overall: 3 (Weak Accept) - Valid gaming achievement showing skill
+
+Example 2: "I ran for 30 minutes on Fox Hill"
+- Innovation: 2 (Common activity with specific location)
+- Dedication: 3 (Good time commitment for exercise)
+- Significance: 3 (Clear health benefit and personal development)
+- Presentation: 3 (Includes duration and location)
+- Overall: 3 (Weak Accept) - Beneficial physical activity
 
 COMMENT STRUCTURE:
 1. Start with image evaluation and relevance (if image provided)
 2. If image is unrelated -> immediate rejection
 3. Only if image is related:
-   - Evaluate achievement without repeating its text
-   - Consider theme fit
-   - Assess evidence quality
-4. Explain final decision
+   - Recognize the positive aspects of the achievement
+   - Highlight personal benefits or impact on others
+   - Suggest improvements while being encouraging
 
 IMPORTANT:
 - ALWAYS return integer numbers for all scores
 - NEVER repeat the achievement text in comments
 - Text-only achievements ARE allowed
 - Images are supplementary evidence only
-- Score 5 reserved for truly exceptional achievements
+- Be encouraging while maintaining reasonable standards
 - Always explain your reasoning in comments
 `.trim()
 
 const TEXT_WITH_IMAGE_PROMPT = `
-  CHAIN THEME: "{chainTheme}"
   CLAIM DESCRIPTION: "{description}"
 
   AN IMAGE HAS BEEN ATTACHED AS EVIDENCE.
 
-  First verify if this achievement matches the chain's theme based on its description.
-  Then examine the attached image evidence carefully and:
+  Examine the attached image evidence carefully and:
   1. Describe EXACTLY what you see visually
   2. Verify if it supports the achievement claim
 
@@ -255,33 +208,27 @@ const TEXT_WITH_IMAGE_PROMPT = `
   - Return ONLY a valid JSON object
   - Your comment MUST include a description of what the image shows
   - Respond ONLY in English for English claims, ONLY in Chinese for Chinese claims
-  - Consider the chain's specific theme for evidence and rewards
 `.trim()
 
 const TEXT_ONLY_PROMPT = `
-  CHAIN THEME: "{chainTheme}"
   CLAIM DESCRIPTION: "{description}"
 
   NO IMAGE HAS BEEN PROVIDED AS EVIDENCE.
 
-  First verify if this achievement matches the chain's theme based on its description.
-  Then assess claim plausibility.
+  Assess claim plausibility.
 
   IMPORTANT:
   - Return ONLY a valid JSON object
   - Respond ONLY in English for English claims, ONLY in Chinese for Chinese claims
-  - Consider the chain's specific theme requirements for evidence and rewards
 `.trim()
 
 const TEXT_WITH_UNVERIFIABLE_IMAGE_PROMPT = `
-  CHAIN THEME: "{chainTheme}"
   CLAIM DESCRIPTION: "{description}"
 
   NOTE: While an image was provided as evidence, please focus on evaluating the text description.
   Evaluate this achievement based on:
-  1. How well it matches the chain's theme
-  2. The plausibility and detail of the description
-  3. The overall quality of the achievement claim
+  1. The plausibility and detail of the description
+  2. The overall quality of the achievement claim
 
   You do not need to consider or mention the unverifiable image in your evaluation.
   Judge the achievement purely on its textual merits.
@@ -289,7 +236,6 @@ const TEXT_WITH_UNVERIFIABLE_IMAGE_PROMPT = `
   IMPORTANT:
   - Return ONLY a valid JSON object
   - Respond ONLY in English for English claims, ONLY in Chinese for Chinese claims
-  - Consider the chain's specific theme requirements for evidence and rewards
   - Base your evaluation solely on the text description
 `.trim()
 
@@ -305,8 +251,8 @@ export class AIReviewer implements Reviewer {
     this.supportsImage = supportsImage
   }
 
-  assignAchievement(achievement: Achievement, theme: string): void {
-    this.review(achievement, theme).then((result) => {
+  assignAchievement(achievement: Achievement): void {
+    this.review(achievement).then((result) => {
       this.listeners.forEach((listener) => listener(result))
     })
   }
@@ -315,7 +261,7 @@ export class AIReviewer implements Reviewer {
     this.listeners.push(listener)
   }
 
-  private async review(achievement: Achievement, theme: string): Promise<ReviewResult> {
+  private async review(achievement: Achievement): Promise<ReviewResult> {
     if (!systemPrompt) {
       throw new Error("System prompt not set")
     }
@@ -328,7 +274,7 @@ export class AIReviewer implements Reviewer {
       }
     }
 
-    const userPrompt = promptTemplate.replace("{chainTheme}", theme).replace("{description}", achievement.description)
+    const userPrompt = promptTemplate.replace("{description}", achievement.description)
 
     try {
       const messages: ChatCompletionMessageParam[] = [
@@ -357,24 +303,22 @@ export class AIReviewer implements Reviewer {
       })
 
       const aiResponse = JSON.parse(response.choices[0]?.message?.content ?? "{}")
+      console.log(aiResponse)
       // Validate response structure
       if (
         !(
           typeof aiResponse.scores.overall === "number" &&
           aiResponse.scores.overall >= 1 &&
           aiResponse.scores.overall <= 5 &&
-          typeof aiResponse.scores.originality === "number" &&
-          aiResponse.scores.originality >= 1 &&
-          aiResponse.scores.originality <= 5 &&
-          typeof aiResponse.scores.creativity === "number" &&
-          aiResponse.scores.creativity >= 1 &&
-          aiResponse.scores.creativity <= 5 &&
-          typeof aiResponse.scores.difficulty === "number" &&
-          aiResponse.scores.difficulty >= 1 &&
-          aiResponse.scores.difficulty <= 5 &&
-          typeof aiResponse.scores.relevance === "number" &&
-          aiResponse.scores.relevance >= 1 &&
-          aiResponse.scores.relevance <= 5 &&
+          typeof aiResponse.scores.innovation === "number" &&
+          aiResponse.scores.innovation >= 1 &&
+          aiResponse.scores.innovation <= 5 &&
+          typeof aiResponse.scores.dedication === "number" &&
+          aiResponse.scores.dedication >= 1 &&
+          aiResponse.scores.dedication <= 5 &&
+          typeof aiResponse.scores.significance === "number" &&
+          aiResponse.scores.significance >= 1 &&
+          aiResponse.scores.significance <= 5 &&
           typeof aiResponse.scores.presentation === "number" &&
           aiResponse.scores.presentation >= 1 &&
           aiResponse.scores.presentation <= 5 &&
@@ -384,12 +328,12 @@ export class AIReviewer implements Reviewer {
       ) {
         return {
           achievementSignature: achievement.signature,
+          achievementAuthorAddress: achievement.authorAddress,
           scores: {
             overall: 0,
-            originality: 0,
-            creativity: 0,
-            difficulty: 0,
-            relevance: 0,
+            innovation: 0,
+            dedication: 0,
+            significance: 0,
             presentation: 0,
           },
           comment: "Invalid AI response format: missing or invalid scores or comment",
@@ -398,12 +342,12 @@ export class AIReviewer implements Reviewer {
 
       return {
         achievementSignature: achievement.signature,
+        achievementAuthorAddress: achievement.authorAddress,
         scores: {
           overall: aiResponse.scores.overall,
-          originality: aiResponse.scores.originality,
-          creativity: aiResponse.scores.creativity,
-          difficulty: aiResponse.scores.difficulty,
-          relevance: aiResponse.scores.relevance,
+          innovation: aiResponse.scores.innovation,
+          dedication: aiResponse.scores.dedication,
+          significance: aiResponse.scores.significance,
           presentation: aiResponse.scores.presentation,
         },
         comment: aiResponse.comment,
@@ -411,12 +355,12 @@ export class AIReviewer implements Reviewer {
     } catch (error: unknown) {
       return {
         achievementSignature: achievement.signature,
+        achievementAuthorAddress: achievement.authorAddress,
         scores: {
           overall: 0,
-          originality: 0,
-          creativity: 0,
-          difficulty: 0,
-          relevance: 0,
+          innovation: 0,
+          dedication: 0,
+          significance: 0,
           presentation: 0,
         },
         comment: `Unable to process verification request: ${error instanceof Error ? error.message : "Unknown error"}`,

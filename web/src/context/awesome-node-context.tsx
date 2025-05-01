@@ -10,7 +10,7 @@ interface AwesomeNodeContextType {
 const AwesomeNodeContext = createContext<AwesomeNodeContextType | null>(null)
 
 export function AwesomeNodeProvider({ children }: { children: ReactNode }) {
-  const node = new AwesomeNodeLight("https://connect.proof-of-awesome.app", "AwesomeNode - Web", "", "")
+  const node = new AwesomeNodeLight("https://connect.proof-of-awesome.app", "Web Node", "", "")
   node.start()
   return <AwesomeNodeContext.Provider value={{ node }}>{children}</AwesomeNodeContext.Provider>
 }

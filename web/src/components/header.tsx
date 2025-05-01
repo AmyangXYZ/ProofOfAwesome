@@ -14,7 +14,6 @@ export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
     edition: 0,
-    theme: "",
     phase: "Submission",
     editionRemaining: 0,
     phaseRemaining: 0,

@@ -83,7 +83,6 @@ interface EventMap {
 export class AwesomeNode {
   private awesomeComStatus: AwesomeComStatus = {
     edition: 0,
-    theme: "",
     phase: "Announcement",
     phaseRemaining: 0,
     editionRemaining: 0,
@@ -115,9 +114,6 @@ export class AwesomeNode {
   private hasReceived: Map<string, number> = new Map()
   // process response only if requestId exists
   private sentRequests: Map<string, boolean> = new Map()
-
-  // full nodes join TPC automatically and light nodes opt-in
-  private inTPC: boolean = true
 
   private chainHeadBroadcastPeriod: number = 1 * 60 * 1000
   private candidateBlockBroadcastPeriod: number = 30 * 1000
@@ -177,6 +173,7 @@ export class AwesomeNode {
   public async start() {
     await waitForGenesis()
     await this.repository.init()
+    this.startAwesomeComStatusUpdate()
 
     this.socket.connect()
 
@@ -204,6 +201,17 @@ export class AwesomeNode {
         }
         review.signature = signReview(review, this.wallet)
         this.pendingReviews.push(review)
+
+        // first reply to the authors
+        const message: Message = {
+          from: this.identity.address,
+          to: result.achievementAuthorAddress,
+          type: MESSAGE_TYPE.NEW_REVIEW,
+          payload: review,
+          timestamp: Date.now(),
+        }
+        console.log("Sending review to author:", message)
+        this.socket.emit("message.send", message)
       })
     }
 
@@ -211,9 +219,6 @@ export class AwesomeNode {
       this.newBlock = null
       this.stopNewBlockBroadcast()
       this.pendingAchievements = []
-      if (this.inTPC) {
-        this.socket.emit("room.join", this.currentTPCRoom())
-      }
     })
 
     this.on("awesomecom.review.started", async () => {
@@ -265,7 +270,6 @@ export class AwesomeNode {
 
     this.on("block.added", async () => {})
 
-    this.startAwesomeComStatusUpdate()
     this.startChainHeadBroadcast()
     this.startCleanReceivedMessages()
   }
@@ -293,8 +297,16 @@ export class AwesomeNode {
     }
   }
 
-  private currentTPCRoom() {
-    return `${chainConfig.chainId}:awesomecom_${this.awesomeComStatus.edition}_tpc`
+  get fullNodesRoom() {
+    return `${chainConfig.chainId}:fullnodes`
+  }
+
+  get allNodesRoom() {
+    return `${chainConfig.chainId}:nodes`
+  }
+
+  get tpcRoom() {
+    return `${chainConfig.chainId}:tpc`
   }
 
   private setupSocket() {
@@ -304,7 +316,9 @@ export class AwesomeNode {
 
     this.socket.on("node.connected", () => {
       console.log("Connected to AwesomeConnect")
-      this.socket.emit("room.get_members", `${chainConfig.chainId}:fullnodes`)
+      this.socket.emit("room.get_members", this.fullNodesRoom)
+
+      this.socket.emit("room.join", this.tpcRoom)
     })
 
     this.socket.on("message.received", (message: Message) => {
@@ -315,7 +329,7 @@ export class AwesomeNode {
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
-      if (room === `${chainConfig.chainId}:fullnodes`) {
+      if (room === this.fullNodesRoom) {
         this.emit("peer.discovered", members)
       }
     })
@@ -518,9 +532,9 @@ export class AwesomeNode {
   }
 
   private async handleNewAchievement(message: Message) {
-    if (this.awesomeComStatus.phase != "Submission" || !this.inTPC) {
-      return
-    }
+    // if (this.awesomeComStatus.phase != "Submission") {
+    //   return
+    // }
     const achievement = message.payload
     if (!isAchievement(achievement) || this.hasReceived.has(achievement.signature) || !verifyAchievement(achievement)) {
       return
@@ -530,12 +544,12 @@ export class AwesomeNode {
     console.log("New achievement:", achievement)
     this.pendingAchievements.push(achievement)
     if (this.reviewer) {
-      this.reviewer.assignAchievement(achievement, this.awesomeComStatus.theme)
+      this.reviewer.assignAchievement(achievement)
     }
   }
 
   private async handleNewReview(message: Message) {
-    if (this.awesomeComStatus.phase != "Review" || !this.inTPC) {
+    if (this.awesomeComStatus.phase != "Review") {
       return
     }
     const review = message.payload
@@ -914,7 +928,9 @@ export class AwesomeNode {
   private updateAwesomeComStatus() {
     const status = getAwesomeComStatus()
     if (status.edition !== this.awesomeComStatus.edition || status.phase !== this.awesomeComStatus.phase) {
-      console.log(`[${status.edition}th AwesomeCom (Theme: ${status.theme})] Entering ${status.phase} phase`)
+      console.log(`[${status.edition}th AwesomeCom)] Entering ${status.phase} phase`)
+      this.awesomeComStatus = status
+
       switch (status.phase) {
         case "Submission":
           this.emit("awesomecom.submission.started", undefined)
@@ -940,7 +956,7 @@ export class AwesomeNode {
       this.socket.emit("message.send", {
         from: this.identity.address,
         to: "*",
-        room: `${chainConfig.chainId}:nodes`,
+        room: this.allNodesRoom,
         type: MESSAGE_TYPE.CHAIN_HEAD,
         payload: this.chainHead,
         timestamp: Date.now(),
@@ -967,7 +983,7 @@ export class AwesomeNode {
       this.socket.emit("message.send", {
         from: this.identity.address,
         to: "*",
-        room: `${chainConfig.chainId}:nodes`,
+        room: this.fullNodesRoom,
         type: MESSAGE_TYPE.CANDIDATE_BLOCK,
         payload: this.candidateBlock,
         timestamp: Date.now(),
@@ -994,7 +1010,7 @@ export class AwesomeNode {
       this.socket.emit("message.send", {
         from: this.identity.address,
         to: "*",
-        room: `${chainConfig.chainId}:nodes`,
+        room: this.allNodesRoom,
         type: MESSAGE_TYPE.NEW_BLOCK,
         payload: this.newBlock,
         timestamp: Date.now(),

@@ -52,10 +52,9 @@ interface ReviewDocument {
   reviewerAddress: string
   scores: {
     overall: number
-    originality: number
-    creativity: number
-    difficulty: number
-    relevance: number
+    innovation: number
+    dedication: number
+    significance: number
     presentation: number
   }
   comment: string
@@ -125,10 +124,9 @@ export class MongoDBRepository implements Repository {
         reviewerAddress: String,
         scores: {
           overall: Number,
-          originality: Number,
-          creativity: Number,
-          difficulty: Number,
-          relevance: Number,
+          innovation: Number,
+          dedication: Number,
+          significance: Number,
           presentation: Number,
         },
         comment: String,

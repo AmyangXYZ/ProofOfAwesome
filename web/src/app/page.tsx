@@ -5,11 +5,12 @@ import { Button } from "@/components/ui/button"
 import { ArrowUp, Paperclip } from "lucide-react"
 import { useState } from "react"
 import AchievementCard from "@/components/achievement-card"
-import { Achievement } from "@/awesome/awesome"
+import { Achievement, Review } from "@/awesome/awesome"
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { motion } from "framer-motion"
 import Greeting from "@/components/greeting"
+import ReviewResult from "@/components/review-result"
 
 const suggestedAchievements: {
   title: string
@@ -42,19 +43,44 @@ const suggestedAchievements: {
 export default function AwesomeCom() {
   const node = useAwesomeNode()
   const [description, setDescription] = useState("")
+  const [reviews, setReviews] = useState<Review[]>([])
   const [achievement, setAchievement] = useState<Achievement | null>(null)
 
   const createAchievement = (description: string) => {
+    setReviews([])
+    setAchievement(null)
     const achievement = node.createAchievement(description)
     setAchievement(achievement)
-    console.log(achievement)
     setDescription("")
   }
+
+  node.on("review.new", (review: Review) => {
+    if (achievement?.signature === review.achievementSignature) {
+      setReviews((prev) => [...prev, review])
+    }
+  })
 
   return (
     <div className="max-w-3xl mx-auto p-4">
       {!achievement && <Greeting />}
-      {achievement && <AchievementCard achievement={achievement} />}
+      {achievement && (
+        <>
+          <AchievementCard achievement={achievement} />
+          <div className="mt-4">
+            {reviews.map((review, i) => (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                transition={{ delay: 0.5 }}
+                key={`review-${i}`}
+              >
+                <ReviewResult key={i} review={review} />
+              </motion.div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className="max-w-3xl mx-auto fixed bottom-0 left-0 right-0 p-4 bg-background">
         <div className="relative">

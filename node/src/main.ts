@@ -6,7 +6,7 @@ import { MongoDBRepository } from "./repository_mongodb"
 
 const node = new AwesomeNode(
   "https://connect.proof-of-awesome.app",
-  "AwesomeNode - NodeJs",
+  "Full Node w/ GPT-4o Mini",
   "",
   "",
   new MongoDBRepository("mongodb://localhost:27017/awesome"),
@@ -19,6 +19,3 @@ const node = new AwesomeNode(
   )
 )
 node.start()
-node.on("peer.discovered", (peers) => {
-  console.log(peers)
-})

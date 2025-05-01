@@ -76,7 +76,6 @@ interface EventMap {
 export class AwesomeNodeLight {
   private awesomeComStatus: AwesomeComStatus = {
     edition: 0,
-    theme: "",
     phase: "Announcement",
     phaseRemaining: 0,
     editionRemaining: 0,
@@ -149,22 +148,17 @@ export class AwesomeNodeLight {
 
   public async start() {
     await waitForGenesis()
-
+    this.startAwesomeComStatusUpdate()
+    this.startCleanReceivedMessages()
     this.socket.connect()
 
     this.on("awesomecom.submission.started", async () => {
       this.pendingAchievements = []
-      if (this.inTPC) {
-        this.socket.emit("room.join", this.currentTPCRoom())
-      }
     })
 
     this.on("awesomecom.review.started", async () => {
       this.pendingReviews = []
     })
-
-    this.startAwesomeComStatusUpdate()
-    this.startCleanReceivedMessages()
   }
 
   public isConnected() {
@@ -217,12 +211,12 @@ export class AwesomeNodeLight {
 
   public async joinTPC() {
     this.inTPC = true
-    this.socket.emit("room.join", this.currentTPCRoom())
+    this.socket.emit("room.join", this.tpcRoom)
   }
 
   public async leaveTPC() {
     this.inTPC = false
-    this.socket.emit("room.leave", this.currentTPCRoom())
+    this.socket.emit("room.leave", this.tpcRoom)
   }
 
   public requestAccount(address: string) {
@@ -281,14 +275,17 @@ export class AwesomeNodeLight {
       this.pendingAchievements.push(achievement)
     }
     this.emit("achievement.new", achievement)
-    this.socket.emit("message.send", {
+    const message: Message = {
       from: this.identity.address,
       to: "*",
-      room: this.currentTPCRoom(),
+      room: this.tpcRoom,
       type: MESSAGE_TYPE.NEW_ACHIEVEMENT,
       payload: achievement,
       timestamp: Date.now(),
-    })
+    }
+
+    this.socket.emit("message.send", message)
+    console.log("Sent achievement to TPC:", message)
     return achievement
   }
 
@@ -397,8 +394,16 @@ export class AwesomeNodeLight {
     }
   }
 
-  private currentTPCRoom() {
-    return `${chainConfig.chainId}:awesomecom_${this.awesomeComStatus.edition}_tpc`
+  get fullNodesRoom() {
+    return `${chainConfig.chainId}:fullnodes`
+  }
+
+  get allNodesRoom() {
+    return `${chainConfig.chainId}:nodes`
+  }
+
+  get tpcRoom() {
+    return `${chainConfig.chainId}:tpc`
   }
 
   private setupSocket() {
@@ -411,7 +416,7 @@ export class AwesomeNodeLight {
 
     this.socket.on("node.connected", () => {
       this.emit("node.connected", undefined)
-      this.socket.emit("room.get_members", `${chainConfig.chainId}:fullnodes`)
+      this.socket.emit("room.get_members", this.fullNodesRoom)
     })
 
     this.socket.on("message.received", (message: Message) => {
@@ -422,7 +427,7 @@ export class AwesomeNodeLight {
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
-      if (room === `${chainConfig.chainId}:fullnodes`) {
+      if (room === this.fullNodesRoom) {
         this.emit("peer.discovered", members)
       }
     })
@@ -583,15 +588,14 @@ export class AwesomeNodeLight {
   }
 
   private async handleNewReview(message: Message) {
-    if (this.awesomeComStatus.phase != "Review" || !this.inTPC) {
-      return
-    }
+    // if (this.awesomeComStatus.phase != "Review") {
+    //   return
+    // }
     const review = message.payload
     if (!isReview(review) || this.hasReceived.has(review.signature) || !verifyReview(review)) {
       return
     }
     this.hasReceived.set(review.signature, Date.now())
-
     this.pendingReviews.push(review)
     this.emit("review.new", review)
   }

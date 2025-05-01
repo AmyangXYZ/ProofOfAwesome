@@ -6,11 +6,10 @@ import { MerkleTree } from "./merkle"
 
 export const chainConfig = {
   chainId: "Proof-of-Awesome-0.1.0",
-  genesisTime: new Date("2025-04-24T16:00:00Z").getTime(),
+  genesisTime: new Date("2025-05-01T00:00:00Z").getTime(),
 
   awesomeCom: {
     period: 180 * 1000,
-    themes: ["Pro Player", "Fitness King", "Art Master", "Meme Lord", "Home Hero"],
     submissionPhase: [0, 90 * 1000],
     reviewPhase: [90 * 1000, 150 * 1000],
     consensusPhase: [150 * 1000, 170 * 1000],
@@ -34,7 +33,6 @@ export const chainConfig = {
 
 export interface AwesomeComStatus {
   edition: number
-  theme: string
   phase: "Submission" | "Review" | "Consensus" | "Announcement"
   editionRemaining: number
   phaseRemaining: number
@@ -62,7 +60,6 @@ export function getAwesomeComStatus(): AwesomeComStatus {
 
   const status: AwesomeComStatus = {
     edition,
-    theme: getTheme(edition),
     phase: "Announcement",
     editionRemaining: chainConfig.awesomeCom.period - editionElapsedTime,
     phaseRemaining: 0,
@@ -84,12 +81,6 @@ export function getAwesomeComStatus(): AwesomeComStatus {
   }
 
   return status
-}
-
-export function getTheme(edition: number) {
-  const hash = sha256(edition.toString())
-  const themeIndex = parseInt(hash.substring(0, 8), 16) % chainConfig.awesomeCom.themes.length
-  return chainConfig.awesomeCom.themes[themeIndex]
 }
 
 export interface Account {
@@ -154,10 +145,9 @@ export interface Review {
   reviewerAddress: string
   scores: {
     overall: number
-    originality: number
-    creativity: number
-    difficulty: number
-    relevance: number
+    innovation: number
+    dedication: number
+    significance: number
     presentation: number
   }
   comment: string
@@ -496,10 +486,9 @@ export function signReview(review: Review, wallet: Wallet): string {
       review.reviewerName,
       review.reviewerAddress,
       review.scores.overall,
-      review.scores.originality,
-      review.scores.creativity,
-      review.scores.difficulty,
-      review.scores.relevance,
+      review.scores.innovation,
+      review.scores.dedication,
+      review.scores.significance,
       review.scores.presentation,
       review.comment,
       review.timestamp,
@@ -513,14 +502,12 @@ export function verifyReview(review: Review): boolean {
   if (
     review.scores.overall < 0 ||
     review.scores.overall > 5 ||
-    review.scores.originality < 0 ||
-    review.scores.originality > 5 ||
-    review.scores.creativity < 0 ||
-    review.scores.creativity > 5 ||
-    review.scores.difficulty < 0 ||
-    review.scores.difficulty > 5 ||
-    review.scores.relevance < 0 ||
-    review.scores.relevance > 5 ||
+    review.scores.innovation < 0 ||
+    review.scores.innovation > 5 ||
+    review.scores.dedication < 0 ||
+    review.scores.dedication > 5 ||
+    review.scores.significance < 0 ||
+    review.scores.significance > 5 ||
     review.scores.presentation < 0 ||
     review.scores.presentation > 5
   ) {
@@ -532,10 +519,9 @@ export function verifyReview(review: Review): boolean {
       review.reviewerName,
       review.reviewerAddress,
       review.scores.overall,
-      review.scores.originality,
-      review.scores.creativity,
-      review.scores.difficulty,
-      review.scores.relevance,
+      review.scores.innovation,
+      review.scores.dedication,
+      review.scores.significance,
       review.scores.presentation,
       review.comment,
       review.timestamp,
