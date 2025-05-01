@@ -45,26 +45,40 @@ export default function Header() {
           >
             Call for Achievement
           </Link>
+          <Link
+            href="/review"
+            className={cn(
+              "transition-colors hover:text-foreground/80 hidden md:block",
+              pathname === "/review" ? "text-foreground" : "text-foreground/60"
+            )}
+          >
+            Review
+          </Link>
+          <Link
+            href="/chain"
+            className={cn(
+              "transition-colors hover:text-foreground/80 hidden md:block",
+              pathname === "/chain" ? "text-foreground" : "text-foreground/60"
+            )}
+          >
+            Chain
+          </Link>
         </nav>
         <div className="hidden md:flex items-center space-x-2">
-          <span className="">
-            Edition {awesomeComStatus.edition} on [{awesomeComStatus.theme}]
-          </span>
-          <span className="w-60 text-right">
-            {awesomeComStatus.phase} ending in {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
-          </span>
+          {awesomeComStatus.phase} phase for block #{awesomeComStatus.edition} ending in{" "}
+          {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
         </div>
         <Button variant="ghost" className="md:hidden relative z-50 w-6 h-6" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           <div className="absolute w-5 h-5 flex flex-col justify-center items-center">
             <span
               className={cn(
-                "absolute h-[1.5px] w-5 bg-foreground transform transition-all duration-300",
+                "absolute w-5 h-1/10 bg-foreground transform transition-all duration-300",
                 isMenuOpen ? "rotate-45" : "-translate-y-1"
               )}
             />
             <span
               className={cn(
-                "absolute h-[1.5px] w-5 bg-foreground transform transition-all duration-300",
+                "absolute h-1/10 w-5 bg-foreground transform transition-all duration-300",
                 isMenuOpen ? "-rotate-45" : "translate-y-1"
               )}
             />
@@ -89,6 +103,28 @@ export default function Header() {
             onClick={() => setIsMenuOpen(false)}
           >
             Call for Achievement
+          </Link>
+
+          <Link
+            href="/review"
+            className={cn(
+              "text-md px-4 transition-colors hover:text-foreground/80",
+              pathname === "/review" ? "text-foreground" : "text-foreground/60"
+            )}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Review
+          </Link>
+
+          <Link
+            href="/chain"
+            className={cn(
+              "text-md px-4 transition-colors hover:text-foreground/80",
+              pathname === "/chain" ? "text-foreground" : "text-foreground/60"
+            )}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Chain
           </Link>
 
           <Link

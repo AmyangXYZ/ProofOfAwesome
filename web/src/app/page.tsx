@@ -93,7 +93,7 @@ export default function AwesomeCom() {
             value={description}
             onChange={(e) => setDescription(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === "Enter" && description.trim().length > 0) {
                 e.preventDefault()
                 createAchievement(description)
               }
@@ -108,7 +108,8 @@ export default function AwesomeCom() {
           <div className="absolute bottom-2 right-2">
             <Button
               size="icon"
-              className="rounded-full h-fit w-fit p-1 bg-zinc-400"
+              className="rounded-full h-fit w-fit p-1"
+              disabled={description.length === 0}
               onClick={() => createAchievement(description)}
             >
               <ArrowUp className="size-5" />

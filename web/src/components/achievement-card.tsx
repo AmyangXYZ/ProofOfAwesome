@@ -5,9 +5,9 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
   return (
     <Card className="py-4 gap-2">
       <CardHeader>
-        <CardTitle>Achievement ({achievement.signature.slice(0, 8)}...) submitted</CardTitle>
+        <CardTitle className="text-sm">Achievement ({achievement.signature.slice(0, 20)}...)</CardTitle>
         <CardDescription>
-          By {achievement.authorName} (Address: {achievement.authorAddress.slice(0, 8)}...)
+          from {achievement.authorName} ({achievement.authorAddress.slice(0, 12)}...)
         </CardDescription>
       </CardHeader>
       <CardContent>{achievement.description}</CardContent>

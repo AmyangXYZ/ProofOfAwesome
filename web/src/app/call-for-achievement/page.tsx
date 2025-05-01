@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function CallForAchievement() {
   return (
-    <div className="max-w-5xl px-8 mx-auto py-2">
+    <div className="max-w-5xl px-4 mx-auto py-2">
       <header className="mb-8 text-center">
         <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-3xl">Call for Achievements</h1>
       </header>
