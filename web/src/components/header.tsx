@@ -46,6 +46,15 @@ export default function Header() {
             Call for Achievement
           </Link>
           <Link
+            href="/peers"
+            className={cn(
+              "transition-colors hover:text-foreground/80 hidden md:block",
+              pathname === "/peers" ? "text-foreground" : "text-foreground/60"
+            )}
+          >
+            Peers
+          </Link>
+          <Link
             href="/review"
             className={cn(
               "transition-colors hover:text-foreground/80 hidden md:block",
@@ -55,17 +64,25 @@ export default function Header() {
             Review
           </Link>
           <Link
-            href="/chain"
+            href="/blocks"
             className={cn(
               "transition-colors hover:text-foreground/80 hidden md:block",
-              pathname === "/chain" ? "text-foreground" : "text-foreground/60"
+              pathname === "/blocks" ? "text-foreground" : "text-foreground/60"
             )}
           >
-            Chain
+            Blocks
+          </Link>
+
+          <Link
+            href="https://github.com/AmyangXYZ/ProofOfAwesome"
+            target="_blank"
+            className={cn("transition-colors hover:text-foreground/80 hidden md:block text-foreground/60")}
+          >
+            Github
           </Link>
         </nav>
         <div className="hidden md:flex items-center space-x-2">
-          {awesomeComStatus.phase} phase for block #{awesomeComStatus.edition} ending in{" "}
+          {awesomeComStatus.phase} for block #{awesomeComStatus.edition} ending in{" "}
           {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
         </div>
         <Button variant="ghost" className="md:hidden relative z-50 w-6 h-6" onClick={() => setIsMenuOpen(!isMenuOpen)}>
@@ -106,6 +123,17 @@ export default function Header() {
           </Link>
 
           <Link
+            href="/peers"
+            className={cn(
+              "text-md px-4 transition-colors hover:text-foreground/80",
+              pathname === "/peers" ? "text-foreground" : "text-foreground/60"
+            )}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Peers
+          </Link>
+
+          <Link
             href="/review"
             className={cn(
               "text-md px-4 transition-colors hover:text-foreground/80",
@@ -117,14 +145,14 @@ export default function Header() {
           </Link>
 
           <Link
-            href="/chain"
+            href="/blocks"
             className={cn(
               "text-md px-4 transition-colors hover:text-foreground/80",
-              pathname === "/chain" ? "text-foreground" : "text-foreground/60"
+              pathname === "/blocks" ? "text-foreground" : "text-foreground/60"
             )}
             onClick={() => setIsMenuOpen(false)}
           >
-            Chain
+            Blocks
           </Link>
 
           <Link
@@ -132,7 +160,7 @@ export default function Header() {
             className={cn("text-md px-4 transition-colors hover:text-foreground/80", "text-foreground/60")}
             onClick={() => setIsMenuOpen(false)}
           >
-            Github Repo
+            Github
           </Link>
         </div>
       </div>

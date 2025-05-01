@@ -3,7 +3,7 @@ import { Achievement } from "@/awesome/awesome"
 
 export default function AchievementCard({ achievement }: { achievement: Achievement }) {
   return (
-    <Card className="py-4 gap-2">
+    <Card className="py-2 gap-2">
       <CardHeader>
         <CardTitle className="text-sm">Achievement ({achievement.signature.slice(0, 20)}...)</CardTitle>
         <CardDescription>
