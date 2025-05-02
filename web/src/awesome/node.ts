@@ -87,6 +87,7 @@ export class AwesomeNodeLight {
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
   // address of the full node that this node is syncing with
+  private activePeers: Identity[] = []
   private syncPeer: string | null = null
 
   // created or received in the submission phase in current edition
@@ -191,6 +192,10 @@ export class AwesomeNodeLight {
 
   public getPendingReviews() {
     return this.pendingReviews
+  }
+
+  public getActivePeers() {
+    return this.activePeers
   }
 
   public getSyncPeer() {
