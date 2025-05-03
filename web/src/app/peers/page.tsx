@@ -15,7 +15,7 @@ const Blocks = () => {
     if (!canvasRef.current) return
     const engine = new BABYLON.Engine(canvasRef.current, true, { preserveDrawingBuffer: true }, true)
     const scene = new BABYLON.Scene(engine)
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 1)
+    scene.clearColor = new BABYLON.Color4(0, 0, 0, 0)
 
     // Camera
     const camera = new BABYLON.ArcRotateCamera(
