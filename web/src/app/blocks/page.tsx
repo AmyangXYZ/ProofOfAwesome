@@ -6,10 +6,11 @@ import "babylonjs-loaders"
 import { InstancedMesh } from "babylonjs/Meshes/instancedMesh"
 
 const CUBE_SIZE = 24 // Size of the cube
-const GRID_SIZE = 16 // Number of grid lines per axis (denser)
+const GRID_SIZE = 12 // Number of grid lines per axis (denser)
 const GRID_LENGTH = CUBE_SIZE // Length of the cube/grid
 const GRID_TUBE_RADIUS = 0.06
-const CUBELET_SIZE = 1
+const CUBELET_SIZE = 1.3
+const TOTAL_CUBELETS = 2500 // Total number of cubelets independent of grid size
 
 const Blocks = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -44,51 +45,63 @@ const Blocks = () => {
     const gridMaterial = new BABYLON.StandardMaterial("gridMat", scene)
     gridMaterial.emissiveColor = new BABYLON.Color3(0.6, 0.4, 1)
 
-    // Create grid tubes along X, Y, Z axes
-    const gridTubes: BABYLON.Mesh[] = []
-    const tubeRadius = GRID_TUBE_RADIUS
+    // Create base tubes for instancing (one for each axis, centered at origin)
+    const baseTubeX = BABYLON.MeshBuilder.CreateTube(
+      "baseTubeX",
+      {
+        path: [new BABYLON.Vector3(-GRID_LENGTH / 2, 0, 0), new BABYLON.Vector3(GRID_LENGTH / 2, 0, 0)],
+        radius: GRID_TUBE_RADIUS,
+        updatable: false,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+      },
+      scene
+    )
+    baseTubeX.material = gridMaterial
+    baseTubeX.isVisible = false
+
+    const baseTubeY = BABYLON.MeshBuilder.CreateTube(
+      "baseTubeY",
+      {
+        path: [new BABYLON.Vector3(0, -GRID_LENGTH / 2, 0), new BABYLON.Vector3(0, GRID_LENGTH / 2, 0)],
+        radius: GRID_TUBE_RADIUS,
+        updatable: false,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+      },
+      scene
+    )
+    baseTubeY.material = gridMaterial
+    baseTubeY.isVisible = false
+
+    const baseTubeZ = BABYLON.MeshBuilder.CreateTube(
+      "baseTubeZ",
+      {
+        path: [new BABYLON.Vector3(0, 0, -GRID_LENGTH / 2), new BABYLON.Vector3(0, 0, GRID_LENGTH / 2)],
+        radius: GRID_TUBE_RADIUS,
+        updatable: false,
+        sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+      },
+      scene
+    )
+    baseTubeZ.material = gridMaterial
+    baseTubeZ.isVisible = false
+
+    // Create grid tubes along X, Y, Z axes using instancing, matching original positions
+    const gridTubes: BABYLON.InstancedMesh[] = []
     for (let i = 0; i <= GRID_SIZE; i++) {
       const offset = -GRID_LENGTH / 2 + (i * GRID_LENGTH) / GRID_SIZE
       for (let j = 0; j <= GRID_SIZE; j++) {
         const y = -GRID_LENGTH / 2 + (j * GRID_LENGTH) / GRID_SIZE
-        // Z axis tubes
-        const zTube = BABYLON.MeshBuilder.CreateTube(
-          `zTube_${i}_${j}`,
-          {
-            path: [new BABYLON.Vector3(-GRID_LENGTH / 2, y, offset), new BABYLON.Vector3(GRID_LENGTH / 2, y, offset)],
-            radius: tubeRadius,
-            updatable: false,
-            sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-          },
-          scene
-        )
-        zTube.material = gridMaterial
+        // Z axis tubes: X = [-L/2, L/2], Y = y, Z = offset
+        const zTube = baseTubeX.createInstance(`zTube_${i}_${j}`)
+        zTube.position.set(0, y, offset)
         gridTubes.push(zTube)
-        // Y axis tubes
-        const yTube = BABYLON.MeshBuilder.CreateTube(
-          `yTube_${i}_${j}`,
-          {
-            path: [new BABYLON.Vector3(offset, -GRID_LENGTH / 2, y), new BABYLON.Vector3(offset, GRID_LENGTH / 2, y)],
-            radius: tubeRadius,
-            updatable: false,
-            sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-          },
-          scene
-        )
-        yTube.material = gridMaterial
+        // Y axis tubes: X = offset, Y = [-L/2, L/2], Z = y
+        const yTube = baseTubeY.createInstance(`yTube_${i}_${j}`)
+        yTube.position.set(offset, 0, y)
         gridTubes.push(yTube)
-        // X axis tubes
-        const xTube = BABYLON.MeshBuilder.CreateTube(
-          `xTube_${i}_${j}`,
-          {
-            path: [new BABYLON.Vector3(y, offset, -GRID_LENGTH / 2), new BABYLON.Vector3(y, offset, GRID_LENGTH / 2)],
-            radius: tubeRadius,
-            updatable: false,
-            sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-          },
-          scene
-        )
-        xTube.material = gridMaterial
+        // X axis tubes: X = y, Y = offset, Z = [-L/2, L/2]
+        const xTube = baseTubeZ.createInstance(`xTube_${i}_${j}`)
+        xTube.position.set(y, offset, 0)
         gridTubes.push(xTube)
       }
     }
@@ -110,28 +123,77 @@ const Blocks = () => {
       speed: number
       size: number
     }[] = []
-    for (let i = 0; i <= GRID_SIZE; i++) {
-      for (let j = 0; j <= GRID_SIZE; j++) {
-        for (let k = 0; k <= GRID_SIZE; k++) {
-          const cubelet = baseCube.createInstance(`cubelet_${i}_${j}_${k}`)
-          cubelet.material = cubeMat
-          // Assign a random axis to move along: 0=X, 1=Y, 2=Z
+
+    // Distribute TOTAL_CUBELETS as evenly as possible across the 6 faces using a grid per face
+    let cubeletCount = 0
+    const basePerFace = Math.floor(TOTAL_CUBELETS / 6)
+    const remainder = TOTAL_CUBELETS % 6
+    for (let face = 0; face < 6; face++) {
+      // Distribute remainder: first 'remainder' faces get one extra
+      const cubeletsThisFace = basePerFace + (face < remainder ? 1 : 0)
+      const gridN = Math.ceil(Math.sqrt(cubeletsThisFace))
+      let placedOnFace = 0
+      for (let i = 0; i < gridN && placedOnFace < cubeletsThisFace; i++) {
+        for (let j = 0; j < gridN && placedOnFace < cubeletsThisFace; j++) {
+          const half = GRID_LENGTH / 2
+          const jitter = () => (Math.random() - 0.5) * 0.15 // small jitter
+          // u, v in [-half, half]
+          const u = -half + (i / (gridN - 1)) * GRID_LENGTH
+          const v = -half + (j / (gridN - 1)) * GRID_LENGTH
+          let x = 0,
+            y = 0,
+            z = 0
+          if (face === 0) {
+            // +X face
+            x = half
+            y = u
+            z = v
+          } else if (face === 1) {
+            // -X face
+            x = -half
+            y = u
+            z = v
+          } else if (face === 2) {
+            // +Y face
+            x = u
+            y = half
+            z = v
+          } else if (face === 3) {
+            // -Y face
+            x = u
+            y = -half
+            z = v
+          } else if (face === 4) {
+            // +Z face
+            x = u
+            y = v
+            z = half
+          } else if (face === 5) {
+            // -Z face
+            x = u
+            y = v
+            z = -half
+          }
+          x += jitter()
+          y += jitter()
+          z += jitter()
           const axis = Math.floor(Math.random() * 3)
-          // Store the other two fixed grid indices
           let fixedA, fixedB
           if (axis === 0) {
-            fixedA = j
-            fixedB = k
+            fixedA = y
+            fixedB = z
           } else if (axis === 1) {
-            fixedA = i
-            fixedB = k
+            fixedA = x
+            fixedB = z
           } else {
-            fixedA = i
-            fixedB = j
+            fixedA = x
+            fixedB = y
           }
-          // Random size, biased toward smaller
-          const size = 0.5 + Math.pow(Math.random(), 2) * 1.5
+          const size = 0.3 + Math.pow(Math.random(), 2) * 1.2
+          const cubelet = baseCube.createInstance(`cubelet_shell_${cubeletCount}`)
+          cubelet.material = cubeMat
           cubelet.scaling.set(size, size, size)
+          cubelet.position.set(x, y, z)
           cubelet.isVisible = true
           cubelets.push(cubelet)
           cubeletData.push({
@@ -139,16 +201,20 @@ const Blocks = () => {
             fixedA,
             fixedB,
             phase: Math.random() * Math.PI * 2,
-            speed: 0.7 + Math.random() * 0.5,
+            speed: 0.5 + Math.random() * 0.7,
             size,
           })
+          cubeletCount++
+          placedOnFace++
+          if (cubeletCount >= TOTAL_CUBELETS) break
         }
+        if (cubeletCount >= TOTAL_CUBELETS) break
       }
+      if (cubeletCount >= TOTAL_CUBELETS) break
     }
     // Animate cubes along their axis
     engine.runRenderLoop(() => {
       const t = performance.now() * 0.0001
-      const step = GRID_LENGTH / GRID_SIZE
       for (let i = 0; i < cubelets.length; i++) {
         const { axis, fixedA, fixedB, phase, speed, size } = cubeletData[i]
         const progress = Math.sin(t * speed + phase) * 0.5 + 0.5 // oscillate between 0 and 1
@@ -158,15 +224,15 @@ const Blocks = () => {
           z = 0
         if (axis === 0) {
           x = pos
-          y = -GRID_LENGTH / 2 + fixedA * step
-          z = -GRID_LENGTH / 2 + fixedB * step
+          y = fixedA
+          z = fixedB
         } else if (axis === 1) {
-          x = -GRID_LENGTH / 2 + fixedA * step
+          x = fixedA
           y = pos
-          z = -GRID_LENGTH / 2 + fixedB * step
+          z = fixedB
         } else {
-          x = -GRID_LENGTH / 2 + fixedA * step
-          y = -GRID_LENGTH / 2 + fixedB * step
+          x = fixedA
+          y = fixedB
           z = pos
         }
         cubelets[i].position.set(x, y, z)

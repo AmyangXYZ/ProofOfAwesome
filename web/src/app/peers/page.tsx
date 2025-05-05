@@ -357,7 +357,7 @@ const Blocks = () => {
       "camera",
       -Math.PI / 2,
       Math.PI / 2.5,
-      100,
+      60,
       new BABYLON.Vector3(0, 0, 0),
       scene
     )
@@ -375,8 +375,8 @@ const Blocks = () => {
     createAnimatedBlock({
       scene,
       blockSize: 24,
-      gridCount: 8,
-      cubeletSize: 1.4,
+      gridCount: 10,
+      cubeletSize: 1.2,
       totalDuration: 20, // seconds
     })
 
