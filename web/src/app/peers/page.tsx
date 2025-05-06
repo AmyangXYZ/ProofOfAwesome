@@ -4,39 +4,237 @@ import React, { useEffect, useRef, useState } from "react"
 import * as BABYLON from "babylonjs"
 import "babylonjs-loaders"
 
+function createGridTubes({
+  scene,
+  gridSize,
+  gridLength,
+  tubeRadius,
+  tubeColor,
+  totalDuration = 20, // Total duration in seconds for all tubes
+}: {
+  scene: BABYLON.Scene
+  gridSize: number
+  gridLength: number
+  tubeRadius: number
+  tubeColor: BABYLON.Color3
+  totalDuration?: number
+}): BABYLON.InstancedMesh[] {
+  const step = gridLength / gridSize
+  const faceTubes: BABYLON.InstancedMesh[] = []
+  const tubeAnimData: {
+    mesh: BABYLON.InstancedMesh
+    axis: "x" | "y" | "z"
+    finalPos: BABYLON.Vector3
+    facePos: BABYLON.Vector3
+    finalScale: BABYLON.Vector3
+    delay: number
+    isEdge: boolean
+  }[] = []
+
+  // Create grid material
+  const gridMaterial = new BABYLON.StandardMaterial("gridMat", scene)
+  gridMaterial.emissiveColor = tubeColor
+
+  // Create base tubes for each axis (length gridLength)
+  const baseTubeX = BABYLON.MeshBuilder.CreateTube(
+    "baseTubeX",
+    {
+      path: [new BABYLON.Vector3(-gridLength / 2, 0, 0), new BABYLON.Vector3(gridLength / 2, 0, 0)],
+      radius: tubeRadius,
+      updatable: false,
+    },
+    scene
+  )
+  baseTubeX.material = gridMaterial
+  baseTubeX.isVisible = false
+
+  const baseTubeY = BABYLON.MeshBuilder.CreateTube(
+    "baseTubeY",
+    {
+      path: [new BABYLON.Vector3(0, -gridLength / 2, 0), new BABYLON.Vector3(0, gridLength / 2, 0)],
+      radius: tubeRadius,
+      updatable: false,
+      sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+    },
+    scene
+  )
+  baseTubeY.material = gridMaterial
+  baseTubeY.isVisible = false
+
+  const baseTubeZ = BABYLON.MeshBuilder.CreateTube(
+    "baseTubeZ",
+    {
+      path: [new BABYLON.Vector3(0, 0, -gridLength / 2), new BABYLON.Vector3(0, 0, gridLength / 2)],
+      radius: tubeRadius,
+      updatable: false,
+      sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+    },
+    scene
+  )
+  baseTubeZ.material = gridMaterial
+  baseTubeZ.isVisible = false
+
+  // Helper to get face position (centered on face, not grid)
+  function getFacePos(axis: "x" | "y" | "z", finalPos: BABYLON.Vector3) {
+    if (axis === "x") {
+      return new BABYLON.Vector3(finalPos.x, 0, 0)
+    } else if (axis === "y") {
+      return new BABYLON.Vector3(0, finalPos.y, 0)
+    } else {
+      return new BABYLON.Vector3(0, 0, finalPos.z)
+    }
+  }
+
+  // Collect all tubes (edges first, then face grid lines in round robin)
+  const allTubes: { axis: "x" | "y" | "z"; pos: BABYLON.Vector3; isEdge: boolean }[] = []
+  // Edges
+  for (let y = 0; y <= gridSize; y += gridSize) {
+    for (let z = 0; z <= gridSize; z += gridSize) {
+      allTubes.push({
+        axis: "x",
+        pos: new BABYLON.Vector3(0, -gridLength / 2 + y * step, -gridLength / 2 + z * step),
+        isEdge: true,
+      })
+    }
+  }
+  for (let x = 0; x <= gridSize; x += gridSize) {
+    for (let z = 0; z <= gridSize; z += gridSize) {
+      allTubes.push({
+        axis: "y",
+        pos: new BABYLON.Vector3(-gridLength / 2 + x * step, 0, -gridLength / 2 + z * step),
+        isEdge: true,
+      })
+    }
+  }
+  for (let x = 0; x <= gridSize; x += gridSize) {
+    for (let y = 0; y <= gridSize; y += gridSize) {
+      allTubes.push({
+        axis: "z",
+        pos: new BABYLON.Vector3(-gridLength / 2 + x * step, -gridLength / 2 + y * step, 0),
+        isEdge: true,
+      })
+    }
+  }
+  // Face grid lines (round robin)
+  const xFaceGrids = []
+  const yFaceGrids = []
+  const zFaceGrids = []
+  for (let y = 0; y <= gridSize; y++) {
+    for (let z = 0; z <= gridSize; z++) {
+      if ((y === 0 || y === gridSize) && (z === 0 || z === gridSize)) continue
+      if (y !== 0 && y !== gridSize && z !== 0 && z !== gridSize) continue
+      xFaceGrids.push({ y, z })
+    }
+  }
+  for (let x = 0; x <= gridSize; x++) {
+    for (let z = 0; z <= gridSize; z++) {
+      if ((x === 0 || x === gridSize) && (z === 0 || z === gridSize)) continue
+      if (x !== 0 && x !== gridSize && z !== 0 && z !== gridSize) continue
+      yFaceGrids.push({ x, z })
+    }
+  }
+  for (let x = 0; x <= gridSize; x++) {
+    for (let y = 0; y <= gridSize; y++) {
+      if ((x === 0 || x === gridSize) && (y === 0 || y === gridSize)) continue
+      if (x !== 0 && x !== gridSize && y !== 0 && y !== gridSize) continue
+      zFaceGrids.push({ x, y })
+    }
+  }
+  const maxLen = Math.max(xFaceGrids.length, yFaceGrids.length, zFaceGrids.length)
+  for (let i = 0; i < maxLen; i++) {
+    if (i < xFaceGrids.length) {
+      const { y, z } = xFaceGrids[i]
+      allTubes.push({
+        axis: "x",
+        pos: new BABYLON.Vector3(0, -gridLength / 2 + y * step, -gridLength / 2 + z * step),
+        isEdge: false,
+      })
+    }
+    if (i < yFaceGrids.length) {
+      const { x, z } = yFaceGrids[i]
+      allTubes.push({
+        axis: "y",
+        pos: new BABYLON.Vector3(-gridLength / 2 + x * step, 0, -gridLength / 2 + z * step),
+        isEdge: false,
+      })
+    }
+    if (i < zFaceGrids.length) {
+      const { x, y } = zFaceGrids[i]
+      allTubes.push({
+        axis: "z",
+        pos: new BABYLON.Vector3(-gridLength / 2 + x * step, -gridLength / 2 + y * step, 0),
+        isEdge: false,
+      })
+    }
+  }
+  // Animation timing
+  const tubeAnimDuration = totalDuration * 0.6 // each tube animates for 60% of totalDuration
+  const stagger = allTubes.length > 1 ? (totalDuration - tubeAnimDuration) / (allTubes.length - 1) : 0
+  // Create tubes and animation data
+  allTubes.forEach((tubeData, i) => {
+    let tube
+    if (tubeData.axis === "x") {
+      tube = baseTubeX.createInstance(`tube_x_${i}`)
+    } else if (tubeData.axis === "y") {
+      tube = baseTubeY.createInstance(`tube_y_${i}`)
+    } else {
+      tube = baseTubeZ.createInstance(`tube_z_${i}`)
+    }
+    tube.position.copyFrom(tubeData.pos)
+    faceTubes.push(tube)
+    tubeAnimData.push({
+      mesh: tube,
+      axis: tubeData.axis,
+      finalPos: tubeData.pos.clone(),
+      facePos: getFacePos(tubeData.axis as "x" | "y" | "z", tubeData.pos),
+      finalScale: new BABYLON.Vector3(1, 1, 1),
+      delay: i * stagger,
+      isEdge: tubeData.isEdge,
+    })
+  })
+
+  let globalTime = 0
+  let fps = 60
+  scene.onBeforeRenderObservable.add(() => {
+    if (scene.getEngine().getFps) {
+      fps = scene.getEngine().getFps() || 60
+    }
+    globalTime += 1 / fps
+    tubeAnimData.forEach(({ mesh, finalPos, delay }) => {
+      const t = Math.max(0, Math.min(1, (globalTime - delay) / tubeAnimDuration))
+      const ease = 0.5 - 0.5 * Math.cos(Math.PI * t)
+      mesh.scaling.set(ease, ease, ease)
+      mesh.position.set(finalPos.x * ease, finalPos.y * ease, finalPos.z * ease)
+    })
+  })
+
+  return faceTubes
+}
+
 function createAnimatedBlock({
   scene,
   blockSize,
   gridCount,
   cubeletSize,
   totalDuration,
+  delay = 0,
 }: {
   scene: BABYLON.Scene
   blockSize: number
   gridCount: number
   cubeletSize: number
-  totalDuration: number
+  totalDuration?: number
+  delay?: number
 }) {
   const GRID_SIZE = gridCount
   const CUBE_SIZE = blockSize
   const GRID_LENGTH = CUBE_SIZE
   const step = GRID_LENGTH / GRID_SIZE
-  const NUM_CUBELETS = Math.pow(GRID_SIZE + 1, 3)
   const CUBELET_SIZE = cubeletSize
+  const flyInFraction = 0.1 // 10% for fly-in, 90% for grid travel
+  const totalDurationSafe = totalDuration ?? 10
 
-  const bufferTime = totalDuration * 0.1 // 10% buffer at the end
-  const effectiveDuration = totalDuration - bufferTime
-
-  // Animation timing fractions
-  const gridFormationFraction = 0.1 // 70% for grid
-  const gridFormationTime = effectiveDuration * gridFormationFraction
-  const cubeletAnimTime = effectiveDuration - gridFormationTime
-
-  // --- Glowing Grid Tubes (cell-level, instanced, smooth animation) ---
-  const gridMaterial = new BABYLON.StandardMaterial("gridMat", scene)
-  gridMaterial.emissiveColor = new BABYLON.Color3(0.6, 0.4, 1)
-
-  // --- Instanced Cubes: dark, sleek, metallic ---
+  // Create base cube
   const baseCube = BABYLON.MeshBuilder.CreateBox("cubelet", { size: CUBELET_SIZE }, scene)
   const cubeMat = new BABYLON.StandardMaterial("cubeMat", scene)
   cubeMat.diffuseColor = new BABYLON.Color3(0.12, 0.22, 0.32)
@@ -45,231 +243,142 @@ function createAnimatedBlock({
   baseCube.isVisible = false
 
   // Store per-cubelet animation state
-  const startPositions: BABYLON.Vector3[] = []
-  const delays: number[] = []
-  const animProgress: number[] = []
-  const paths: BABYLON.Vector3[][] = []
   const cubelets: BABYLON.InstancedMesh[] = []
-  const cubeletData: { target: BABYLON.Vector3; arrived: boolean; travelTime: number }[] = []
+  const cubeletData: {
+    flyInStart: BABYLON.Vector3
+    surfaceEntry: BABYLON.Vector3
+    finalPos: BABYLON.Vector3
+    startTime: number
+    duration: number
+  }[] = []
 
-  // Before the for loop, create a shuffled array of indices for random appearance order
-  const shuffledAppearOrder = Array.from({ length: NUM_CUBELETS }, (_, i) => i)
-  for (let i = shuffledAppearOrder.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1))
-    ;[shuffledAppearOrder[i], shuffledAppearOrder[j]] = [shuffledAppearOrder[j], shuffledAppearOrder[i]]
-  }
-
-  let appearOrderIdx = 0
+  // Generate all grid intersections on the surfaces
+  const facePositions: BABYLON.Vector3[] = []
   for (let i = 0; i <= GRID_SIZE; i++) {
     for (let j = 0; j <= GRID_SIZE; j++) {
-      for (let k = 0; k <= GRID_SIZE; k++) {
-        const tx = -GRID_LENGTH / 2 + i * step
-        const ty = -GRID_LENGTH / 2 + j * step
-        const tz = -GRID_LENGTH / 2 + k * step
-        // Start at a random grid cell inside the block
-        const randI = Math.floor(Math.random() * (GRID_SIZE + 1))
-        const randJ = Math.floor(Math.random() * (GRID_SIZE + 1))
-        const randK = Math.floor(Math.random() * (GRID_SIZE + 1))
-        const sx = -GRID_LENGTH / 2 + randI * step
-        const sy = -GRID_LENGTH / 2 + randJ * step
-        const sz = -GRID_LENGTH / 2 + randK * step
-        // Path
-        const path: BABYLON.Vector3[] = []
-        let ci = randI,
-          cj = randJ,
-          ck = randK
-        path.push(new BABYLON.Vector3(sx, sy, sz))
-        const moves: string[] = []
-        for (let n = 0; n < Math.abs(i - randI); n++) moves.push("i")
-        for (let n = 0; n < Math.abs(j - randJ); n++) moves.push("j")
-        for (let n = 0; n < Math.abs(k - randK); n++) moves.push("k")
-        for (let n = moves.length - 1; n > 0; n--) {
-          const m = Math.floor(Math.random() * (n + 1))
-          ;[moves[n], moves[m]] = [moves[m], moves[n]]
-        }
-        for (const move of moves) {
-          if (move === "i") ci += Math.sign(i - randI)
-          if (move === "j") cj += Math.sign(j - randJ)
-          if (move === "k") ck += Math.sign(k - randK)
-          path.push(
-            new BABYLON.Vector3(
-              -GRID_LENGTH / 2 + ci * step,
-              -GRID_LENGTH / 2 + cj * step,
-              -GRID_LENGTH / 2 + ck * step
-            )
-          )
-        }
-        paths.push(path)
-        // Cubelet
-        const cubelet = baseCube.createInstance(`cubelet_${i}_${j}_${k}`)
-        cubelet.material = cubeMat
-        cubelet.scaling.set(CUBELET_SIZE, CUBELET_SIZE, CUBELET_SIZE)
-        cubelet.position.set(sx, sy, sz)
-        cubelet.isVisible = false
-        cubelets.push(cubelet)
-        startPositions.push(new BABYLON.Vector3(sx, sy, sz))
-        // Calculate timing based on total duration
-        const gridTime = totalDuration * gridFormationFraction
-        const remainingTime = totalDuration - gridTime
-        const appearWindow = remainingTime * 0.5
-        const travelWindow = remainingTime * 0.5
-        const appearInterval = appearWindow / NUM_CUBELETS
-        const appearIdx = shuffledAppearOrder[appearOrderIdx++]
-        const delay = appearIdx * appearInterval
-        const travelTime = travelWindow
-        delays.push(delay)
-        animProgress.push(0)
-        cubeletData.push({
-          target: new BABYLON.Vector3(tx, ty, tz),
-          arrived: false,
-          travelTime,
-        })
-      }
+      // X faces
+      facePositions.push(
+        new BABYLON.Vector3(-GRID_LENGTH / 2, -GRID_LENGTH / 2 + i * step, -GRID_LENGTH / 2 + j * step)
+      )
+      facePositions.push(new BABYLON.Vector3(GRID_LENGTH / 2, -GRID_LENGTH / 2 + i * step, -GRID_LENGTH / 2 + j * step))
+      // Y faces
+      facePositions.push(
+        new BABYLON.Vector3(-GRID_LENGTH / 2 + i * step, -GRID_LENGTH / 2, -GRID_LENGTH / 2 + j * step)
+      )
+      facePositions.push(new BABYLON.Vector3(-GRID_LENGTH / 2 + i * step, GRID_LENGTH / 2, -GRID_LENGTH / 2 + j * step))
+      // Z faces
+      facePositions.push(
+        new BABYLON.Vector3(-GRID_LENGTH / 2 + i * step, -GRID_LENGTH / 2 + j * step, -GRID_LENGTH / 2)
+      )
+      facePositions.push(new BABYLON.Vector3(-GRID_LENGTH / 2 + i * step, -GRID_LENGTH / 2 + j * step, GRID_LENGTH / 2))
     }
   }
-  // --- Glowing Grid Tubes (cell-level, instanced, smooth animation) ---
-  // Create a base tube mesh (unit length, will scale/position instances)
-  const baseTube = BABYLON.MeshBuilder.CreateTube(
-    "baseTube",
-    {
-      path: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(1, 0, 0)],
-      radius: 0.06,
-      updatable: false,
-      sideOrientation: BABYLON.Mesh.DOUBLESIDE,
-      tessellation: 8,
-    },
-    scene
-  )
-  baseTube.material = gridMaterial
-  baseTube.isVisible = false
 
-  // Helper to get cell segment transforms
-  function cellSegmentTransform(axis: number, i: number, j: number, k: number, step: number, GRID_LENGTH: number) {
-    // axis: 0=X, 1=Y, 2=Z
-    // i, j, k: cell indices
-    const base = [-GRID_LENGTH / 2 + i * step, -GRID_LENGTH / 2 + j * step, -GRID_LENGTH / 2 + k * step]
-    const pos = new BABYLON.Vector3(base[0], base[1], base[2])
-    let rot = BABYLON.Quaternion.Identity()
-    if (axis === 0) {
-      // X edge
-      rot = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, 0)
-    } else if (axis === 1) {
-      // Y edge
-      rot = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Z, Math.PI / 2)
+  // Remove duplicates (corners/edges shared by multiple faces)
+  const posKey = (v: BABYLON.Vector3) => `${v.x.toFixed(5)},${v.y.toFixed(5)},${v.z.toFixed(5)}`
+  const uniquePositions = Array.from(new Map(facePositions.map((v) => [posKey(v), v])).values())
+
+  // Shuffle for animation variety
+  for (let i = uniquePositions.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[uniquePositions[i], uniquePositions[j]] = [uniquePositions[j], uniquePositions[i]]
+  }
+
+  // Helper: get a random point outside the block, but only in the direction of the face containing the final position
+  function getFaceFlyInStart(final: BABYLON.Vector3) {
+    const margin = GRID_LENGTH * 1.2
+    if (Math.abs(final.x - GRID_LENGTH / 2) < 0.001) {
+      // +X face
+      return new BABYLON.Vector3(
+        GRID_LENGTH / 2 + margin,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH
+      )
+    } else if (Math.abs(final.x + GRID_LENGTH / 2) < 0.001) {
+      // -X face
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 - margin,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH
+      )
+    } else if (Math.abs(final.y - GRID_LENGTH / 2) < 0.001) {
+      // +Y face
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        GRID_LENGTH / 2 + margin,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH
+      )
+    } else if (Math.abs(final.y + GRID_LENGTH / 2) < 0.001) {
+      // -Y face
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        -GRID_LENGTH / 2 - margin,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH
+      )
+    } else if (Math.abs(final.z - GRID_LENGTH / 2) < 0.001) {
+      // +Z face
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        GRID_LENGTH / 2 + margin
+      )
     } else {
-      // Z edge
-      rot = BABYLON.Quaternion.RotationAxis(BABYLON.Axis.Y, -Math.PI / 2)
-    }
-    return { pos, rot }
-  }
-
-  // Helper to get numpad-like scan order for a 2D grid
-  function numpadOrder(rows: number, cols: number): [number, number][] {
-    const res: [number, number][] = []
-    for (let j = 0; j < cols; j++) {
-      if (j % 2 === 0) {
-        // Bottom to top
-        for (let i = 0; i < rows; i++) {
-          res.push([i, j])
-        }
-      } else {
-        // Top to bottom
-        for (let i = rows - 1; i >= 0; i--) {
-          res.push([i, j])
-        }
-      }
-    }
-    return res
-  }
-
-  // --- 3D printer style: bottom-to-top, circular per-layer (fixed placement) ---
-  // Generate all cell-level tube instances (including last row/column), ordered for 3D printer effect
-  const cellTubeInstances: BABYLON.InstancedMesh[] = []
-  const cellTubeOrder: BABYLON.InstancedMesh[] = []
-  // For each Y layer, create X and Z edges in numpad order, then Y edges
-  for (let y = 0; y <= GRID_SIZE; y++) {
-    // X edges: build 2D array of valid (i, k)
-    const xEdgeGrid: [number, number][] = []
-    for (let i = 0; i <= GRID_SIZE; i++) {
-      for (let k = 0; k <= GRID_SIZE; k++) {
-        xEdgeGrid.push([i, k])
-      }
-    }
-    // Numpad order for X edges
-    const numpadX = numpadOrder(GRID_SIZE, GRID_SIZE + 1)
-    for (const [si, sk] of numpadX) {
-      // Map numpad index to valid (i, k)
-      const idx = si * (GRID_SIZE + 1) + sk
-      if (idx < xEdgeGrid.length) {
-        const [i, k] = xEdgeGrid[idx]
-        const { pos, rot } = cellSegmentTransform(0, i, y, k, step, GRID_LENGTH)
-        const inst = baseTube.createInstance(`cellTube_X_${i}_${y}_${k}`)
-        inst.position.copyFrom(pos)
-        inst.rotationQuaternion = rot
-        inst.scaling.set(step, 1, 1)
-        inst.isVisible = false
-        cellTubeInstances.push(inst)
-        cellTubeOrder.push(inst)
-      }
-    }
-    // Z edges: build 2D array of valid (i, k)
-    const zEdgeGrid: [number, number][] = []
-    for (let i = 0; i <= GRID_SIZE; i++) {
-      for (let k = 0; k <= GRID_SIZE; k++) {
-        zEdgeGrid.push([i, k])
-      }
-    }
-    // Numpad order for Z edges
-    const numpadZ = numpadOrder(GRID_SIZE + 1, GRID_SIZE)
-    for (const [si, sk] of numpadZ) {
-      const idx = si * (GRID_SIZE + 1) + sk
-      if (idx < zEdgeGrid.length) {
-        const [i, k] = zEdgeGrid[idx]
-        const { pos, rot } = cellSegmentTransform(2, i, y, k, step, GRID_LENGTH)
-        const inst = baseTube.createInstance(`cellTube_Z_${i}_${y}_${k}`)
-        inst.position.copyFrom(pos)
-        inst.rotationQuaternion = rot
-        inst.scaling.set(step, 1, 1)
-        inst.isVisible = false
-        cellTubeInstances.push(inst)
-        cellTubeOrder.push(inst)
-      }
-    }
-    const yEdgeGrid: [number, number][] = []
-    for (let i = 0; i <= GRID_SIZE; i++) {
-      for (let k = 0; k <= GRID_SIZE; k++) {
-        if (y < GRID_SIZE) {
-          yEdgeGrid.push([i, k])
-        }
-      }
-    }
-    // Numpad order for Y edges
-    const numpadY = numpadOrder(GRID_SIZE + 1, GRID_SIZE + 1)
-    for (const [si, sk] of numpadY) {
-      const idx = si * (GRID_SIZE + 1) + sk
-      if (idx < yEdgeGrid.length) {
-        const [i, k] = yEdgeGrid[idx]
-        const { pos, rot } = cellSegmentTransform(1, i, y, k, step, GRID_LENGTH)
-        const inst = baseTube.createInstance(`cellTube_Y_${i}_${y}_${k}`)
-        inst.position.copyFrom(pos)
-        inst.rotationQuaternion = rot
-        inst.scaling.set(step, 1, 1)
-        inst.isVisible = false
-        cellTubeInstances.push(inst)
-        cellTubeOrder.push(inst)
-      }
+      // -Z face
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        -GRID_LENGTH / 2 + Math.random() * GRID_LENGTH,
+        -GRID_LENGTH / 2 - margin
+      )
     }
   }
 
-  // Group cubelets by Y layer
-  const cubeletsByLayer: { [y: number]: number[] } = {}
-  for (let idx = 0; idx < NUM_CUBELETS; idx++) {
-    const j = Math.floor((idx / (GRID_SIZE + 1)) % (GRID_SIZE + 1))
-    if (!cubeletsByLayer[j]) cubeletsByLayer[j] = []
-    cubeletsByLayer[j].push(idx)
+  // Helper: pick a random entry point on the same face as the final position (grid-aligned)
+  function getRandomSurfaceEntry(final: BABYLON.Vector3) {
+    if (Math.abs(final.x - GRID_LENGTH / 2) < 0.001 || Math.abs(final.x + GRID_LENGTH / 2) < 0.001) {
+      return new BABYLON.Vector3(
+        final.x,
+        -GRID_LENGTH / 2 + Math.round(Math.random() * GRID_SIZE) * step,
+        -GRID_LENGTH / 2 + Math.round(Math.random() * GRID_SIZE) * step
+      )
+    } else if (Math.abs(final.y - GRID_LENGTH / 2) < 0.001 || Math.abs(final.y + GRID_LENGTH / 2) < 0.001) {
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 + Math.round(Math.random() * GRID_SIZE) * step,
+        final.y,
+        -GRID_LENGTH / 2 + Math.round(Math.random() * GRID_SIZE) * step
+      )
+    } else {
+      return new BABYLON.Vector3(
+        -GRID_LENGTH / 2 + Math.round(Math.random() * GRID_SIZE) * step,
+        -GRID_LENGTH / 2 + Math.round(Math.random() * GRID_SIZE) * step,
+        final.z
+      )
+    }
   }
 
-  // Animate
+  // Animation timing logic
+  const N = uniquePositions.length
+  const duration = Math.max(1.2, totalDurationSafe * 0.4) // Shorter duration for each cubelet
+  const staggerTime = N > 1 ? ((totalDurationSafe - duration) / (N - 1)) * 4 : 0 // Much longer interval
+
+  uniquePositions.forEach((finalPos, index) => {
+    const flyInStart = getFaceFlyInStart(finalPos)
+    const surfaceEntry = getRandomSurfaceEntry(finalPos)
+    const cubelet = baseCube.createInstance(`cubelet_${index}`)
+    cubelet.material = cubeMat
+    cubelet.scaling.set(CUBELET_SIZE, CUBELET_SIZE, CUBELET_SIZE)
+    cubelet.position.copyFrom(flyInStart)
+    cubelet.isVisible = false
+    cubelets.push(cubelet)
+    cubeletData.push({
+      flyInStart,
+      surfaceEntry,
+      finalPos,
+      startTime: index * staggerTime,
+      duration,
+    })
+  })
+
+  // Animate: fast fly-in, slow grid travel
   let globalTime = 0
   let fps = 60
   scene.onBeforeRenderObservable.add(() => {
@@ -277,69 +386,47 @@ function createAnimatedBlock({
       fps = scene.getEngine().getFps() || 60
     }
     globalTime += 1 / fps
-
-    // --- Cell-level tube animation (instanced, smooth) ---
-    const totalTubes = cellTubeOrder.length
-    const tubesToShow = Math.floor(Math.min(1, globalTime / gridFormationTime) * totalTubes)
-    for (let i = 0; i < totalTubes; i++) {
-      cellTubeOrder[i].isVisible = i < tubesToShow
-    }
-
-    // Only start cubelet animation after grid is fully built
-    if (globalTime < gridFormationTime) return
-    const cubeletTime = globalTime - gridFormationTime
-    for (let y = 0; y <= GRID_SIZE; y++) {
-      if (cubeletsByLayer[y]) {
-        for (const idx of cubeletsByLayer[y]) {
-          const cubelet = cubelets[idx]
-          const data = cubeletData[idx]
-          if (data.arrived) {
-            cubelet.position.copyFrom(data.target)
-            cubelet.scaling.set(CUBELET_SIZE, CUBELET_SIZE, CUBELET_SIZE)
-            cubelet.isVisible = true
-            continue
-          }
-          // Add a small random delay per cubelet within the total cubelet animation time
-          const appearOrder = delays[idx] // 0..1
-          const appearTime = appearOrder * cubeletAnimTime * 0.3 // Use 30% of cubeletAnimTime for appearance
-          if (cubeletTime < appearTime) {
-            cubelet.position.copyFrom(startPositions[idx])
-            cubelet.isVisible = false
-            continue
-          }
-          // Animate along the path
-          const path = paths[idx]
-          if (path.length < 2) {
-            // Path is a single point
-            cubelet.position.copyFrom(data.target)
-            data.arrived = true
-          } else {
-            const totalSegments = path.length - 1
-            const t = Math.min(1, Math.max(0, (cubeletTime - appearTime) / data.travelTime))
-            const segFloat = t * totalSegments
-            let segIdx = Math.floor(segFloat)
-            let segT = segFloat - segIdx
-            // Clamp segIdx to valid range
-            if (segIdx >= totalSegments) {
-              segIdx = totalSegments - 1
-              segT = 1
-            }
-            if (segIdx < 0) {
-              segIdx = 0
-              segT = 0
-            }
-            const a = path[segIdx]
-            const b = path[segIdx + 1]
-            cubelet.position.set(a.x + (b.x - a.x) * segT, a.y + (b.y - a.y) * segT, a.z + (b.z - a.z) * segT)
-            if (t >= 1) {
-              cubelet.position.copyFrom(data.target)
-              data.arrived = true
-            }
-          }
-          cubelet.isVisible = true
+    const animTime = globalTime - delay
+    cubelets.forEach((cubelet, index) => {
+      const data = cubeletData[index]
+      const elapsedTime = animTime - data.startTime
+      if (elapsedTime < 0) {
+        cubelet.isVisible = false
+        return
+      }
+      cubelet.isVisible = true
+      const t = Math.min(elapsedTime / data.duration, 1)
+      if (t < flyInFraction) {
+        // Phase 1: fast fly in to surface entry
+        const tt = t / flyInFraction
+        const ease = 0.5 - 0.5 * Math.cos(Math.PI * tt)
+        cubelet.position.set(
+          data.flyInStart.x + (data.surfaceEntry.x - data.flyInStart.x) * ease,
+          data.flyInStart.y + (data.surfaceEntry.y - data.flyInStart.y) * ease,
+          data.flyInStart.z + (data.surfaceEntry.z - data.flyInStart.z) * ease
+        )
+      } else {
+        // Phase 2: slow grid travel
+        const tt = (t - flyInFraction) / (1 - flyInFraction)
+        const a0 = data.surfaceEntry.clone()
+        const a1 = data.surfaceEntry.clone()
+        const a2 = data.finalPos.clone()
+        if (Math.abs(data.finalPos.x - data.surfaceEntry.x) > 0.001) {
+          a1.x = data.finalPos.x
+        } else if (Math.abs(data.finalPos.y - data.surfaceEntry.y) > 0.001) {
+          a1.y = data.finalPos.y
+        } else {
+          a1.z = data.finalPos.z
+        }
+        if (tt < 0.5) {
+          const ease = 0.5 - 0.5 * Math.cos(Math.PI * (tt / 0.5))
+          cubelet.position.set(a0.x + (a1.x - a0.x) * ease, a0.y + (a1.y - a0.y) * ease, a0.z + (a1.z - a0.z) * ease)
+        } else {
+          const ease = 0.5 - 0.5 * Math.cos(Math.PI * ((tt - 0.5) / 0.5))
+          cubelet.position.set(a1.x + (a2.x - a1.x) * ease, a1.y + (a2.y - a1.y) * ease, a1.z + (a2.z - a1.z) * ease)
         }
       }
-    }
+    })
   })
 }
 
@@ -358,7 +445,7 @@ const Blocks = () => {
       "camera",
       -Math.PI / 2,
       Math.PI / 2.5,
-      60,
+      100,
       new BABYLON.Vector3(0, 0, 0),
       scene
     )
@@ -371,20 +458,30 @@ const Blocks = () => {
     // Glow layer for grid only
     const glowLayer = new BABYLON.GlowLayer("glow", scene)
     glowLayer.intensity = 1
-    glowLayer.blurKernelSize = 32
-    // Call the helper function
+
+    createGridTubes({
+      scene,
+      gridSize: 10,
+      gridLength: 25,
+      tubeRadius: 0.08,
+      tubeColor: new BABYLON.Color3(0.6, 0.4, 1),
+      totalDuration: 5,
+    })
+
+    // Create animated block with reduced parameters
     createAnimatedBlock({
       scene,
-      blockSize: 24,
-      gridCount: 10,
-      cubeletSize: 1.2,
-      totalDuration: 20, // seconds
+      blockSize: 25,
+      gridCount: 10, // Reduced grid count
+      cubeletSize: 1.5,
+      totalDuration: 10,
+      delay: 5,
     })
 
     engine.runRenderLoop(() => {
       setFps(engine.getFps() || 0)
       scene.render()
-      camera.alpha += 0.0005
+      camera.alpha += 0.0002
     })
 
     return () => {
@@ -399,7 +496,8 @@ const Blocks = () => {
         style={{
           position: "absolute",
           top: 8,
-          left: 8,
+          left: "50%",
+          transform: "translateX(-50%)",
           color: "#0ff",
           fontFamily: "monospace",
           fontSize: 14,
