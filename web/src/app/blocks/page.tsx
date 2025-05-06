@@ -10,7 +10,7 @@ const GRID_SIZE = 12 // Number of grid lines per axis (denser)
 const GRID_LENGTH = CUBE_SIZE // Length of the cube/grid
 const GRID_TUBE_RADIUS = 0.06
 const CUBELET_SIZE = 1.3
-const TOTAL_CUBELETS = 2500 // Total number of cubelets independent of grid size
+const TOTAL_CUBELETS = 2000 // Reduced from 2500 while maintaining visual density
 
 const Blocks = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -32,6 +32,8 @@ const Blocks = () => {
       scene
     )
     camera.attachControl(canvasRef.current, true)
+    camera.lowerRadiusLimit = 20 // Prevent camera from getting too close
+    camera.upperRadiusLimit = 200 // Prevent camera from getting too far
 
     // Lighting
     const light = new BABYLON.HemisphericLight("light1", new BABYLON.Vector3(0, 1, 0), scene)
@@ -40,6 +42,7 @@ const Blocks = () => {
     // // Glow layer for grid only
     const glowLayer = new BABYLON.GlowLayer("glow", scene)
     glowLayer.intensity = 1
+    glowLayer.blurKernelSize = 32
 
     // --- Glowing Grid Tubes ---
     const gridMaterial = new BABYLON.StandardMaterial("gridMat", scene)
@@ -53,6 +56,7 @@ const Blocks = () => {
         radius: GRID_TUBE_RADIUS,
         updatable: false,
         sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+        tessellation: 8,
       },
       scene
     )
@@ -66,6 +70,7 @@ const Blocks = () => {
         radius: GRID_TUBE_RADIUS,
         updatable: false,
         sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+        tessellation: 8,
       },
       scene
     )
@@ -79,6 +84,7 @@ const Blocks = () => {
         radius: GRID_TUBE_RADIUS,
         updatable: false,
         sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+        tessellation: 8,
       },
       scene
     )
@@ -123,6 +129,16 @@ const Blocks = () => {
       speed: number
       size: number
     }[] = []
+
+    // Pre-calculate random values for better performance
+    const randomPhases = new Float32Array(TOTAL_CUBELETS)
+    const randomSpeeds = new Float32Array(TOTAL_CUBELETS)
+    const randomSizes = new Float32Array(TOTAL_CUBELETS)
+    for (let i = 0; i < TOTAL_CUBELETS; i++) {
+      randomPhases[i] = Math.random() * Math.PI * 2
+      randomSpeeds[i] = 0.5 + Math.random() * 0.7
+      randomSizes[i] = 0.3 + Math.pow(Math.random(), 2) * 1.2
+    }
 
     // Distribute TOTAL_CUBELETS as evenly as possible across the 6 faces using a grid per face
     let cubeletCount = 0
@@ -189,7 +205,7 @@ const Blocks = () => {
             fixedA = x
             fixedB = y
           }
-          const size = 0.3 + Math.pow(Math.random(), 2) * 1.2
+          const size = randomSizes[cubeletCount]
           const cubelet = baseCube.createInstance(`cubelet_shell_${cubeletCount}`)
           cubelet.material = cubeMat
           cubelet.scaling.set(size, size, size)
@@ -200,8 +216,8 @@ const Blocks = () => {
             axis,
             fixedA,
             fixedB,
-            phase: Math.random() * Math.PI * 2,
-            speed: 0.5 + Math.random() * 0.7,
+            phase: randomPhases[cubeletCount],
+            speed: randomSpeeds[cubeletCount],
             size,
           })
           cubeletCount++
@@ -212,12 +228,14 @@ const Blocks = () => {
       }
       if (cubeletCount >= TOTAL_CUBELETS) break
     }
-    // Animate cubes along their axis
+
+    // Optimize render loop
     engine.runRenderLoop(() => {
-      const t = performance.now() * 0.0001
+      const currentTime = performance.now()
+
       for (let i = 0; i < cubelets.length; i++) {
         const { axis, fixedA, fixedB, phase, speed, size } = cubeletData[i]
-        const progress = Math.sin(t * speed + phase) * 0.5 + 0.5 // oscillate between 0 and 1
+        const progress = Math.sin(currentTime * 0.0001 * speed + phase) * 0.5 + 0.5 // oscillate between 0 and 1
         const pos = -GRID_LENGTH / 2 + progress * GRID_LENGTH
         let x = 0,
           y = 0,

@@ -28,7 +28,7 @@ function createAnimatedBlock({
   const effectiveDuration = totalDuration - bufferTime
 
   // Animation timing fractions
-  const gridFormationFraction = 0.7 // 70% for grid
+  const gridFormationFraction = 0.1 // 70% for grid
   const gridFormationTime = effectiveDuration * gridFormationFraction
   const cubeletAnimTime = effectiveDuration - gridFormationTime
 
@@ -136,6 +136,7 @@ function createAnimatedBlock({
       radius: 0.06,
       updatable: false,
       sideOrientation: BABYLON.Mesh.DOUBLESIDE,
+      tessellation: 8,
     },
     scene
   )
@@ -370,7 +371,7 @@ const Blocks = () => {
     // Glow layer for grid only
     const glowLayer = new BABYLON.GlowLayer("glow", scene)
     glowLayer.intensity = 1
-
+    glowLayer.blurKernelSize = 32
     // Call the helper function
     createAnimatedBlock({
       scene,
