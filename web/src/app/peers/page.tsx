@@ -438,7 +438,7 @@ const Blocks = () => {
     if (!canvasRef.current) return
     const engine = new BABYLON.Engine(canvasRef.current, true, { preserveDrawingBuffer: true }, true)
     const scene = new BABYLON.Scene(engine)
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 0)
+    scene.clearColor = new BABYLON.Color4(9 / 255, 9 / 255, 11 / 255, 1)
 
     // Camera
     const camera = new BABYLON.ArcRotateCamera(
@@ -458,6 +458,7 @@ const Blocks = () => {
     // Glow layer for grid only
     const glowLayer = new BABYLON.GlowLayer("glow", scene)
     glowLayer.intensity = 1
+    glowLayer.blurKernelSize = 32
 
     createGridTubes({
       scene,
