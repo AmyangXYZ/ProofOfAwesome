@@ -118,6 +118,7 @@ export default function AwesomeCom() {
             className="h-24 rounded-16 resize-none rounded-2xl dark:bg-zinc-800 pr-24"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter" && description.trim().length > 0) {
                 e.preventDefault()

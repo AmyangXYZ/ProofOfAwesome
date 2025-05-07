@@ -18,7 +18,7 @@ const SimpleGlowingTubes = () => {
     if (!canvasRef.current) return
     const engine = new BABYLON.Engine(canvasRef.current, true, { preserveDrawingBuffer: true }, true)
     const scene = new BABYLON.Scene(engine)
-    scene.clearColor = new BABYLON.Color4(0, 0, 0, 0)
+    scene.clearColor = new BABYLON.Color4(9 / 255, 9 / 255, 11 / 255, 1)
 
     // Camera - exact settings from original
     const camera = new BABYLON.ArcRotateCamera(

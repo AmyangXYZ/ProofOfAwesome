@@ -18,7 +18,11 @@ function createGridTubes({
   tubeRadius: number
   tubeColor: BABYLON.Color3
   totalDuration?: number
-}): BABYLON.InstancedMesh[] {
+}): BABYLON.Mesh {
+  // Create parent mesh
+  const parentMesh = new BABYLON.Mesh("gridTubesParent", scene)
+  parentMesh.isVisible = true
+
   const step = gridLength / gridSize
   const faceTubes: BABYLON.InstancedMesh[] = []
   const tubeAnimData: {
@@ -47,6 +51,7 @@ function createGridTubes({
   )
   baseTubeX.material = gridMaterial
   baseTubeX.isVisible = false
+  baseTubeX.parent = parentMesh
 
   const baseTubeY = BABYLON.MeshBuilder.CreateTube(
     "baseTubeY",
@@ -60,6 +65,7 @@ function createGridTubes({
   )
   baseTubeY.material = gridMaterial
   baseTubeY.isVisible = false
+  baseTubeY.parent = parentMesh
 
   const baseTubeZ = BABYLON.MeshBuilder.CreateTube(
     "baseTubeZ",
@@ -73,6 +79,7 @@ function createGridTubes({
   )
   baseTubeZ.material = gridMaterial
   baseTubeZ.isVisible = false
+  baseTubeZ.parent = parentMesh
 
   // Helper to get face position (centered on face, not grid)
   function getFacePos(axis: "x" | "y" | "z", finalPos: BABYLON.Vector3) {
@@ -181,6 +188,7 @@ function createGridTubes({
       tube = baseTubeZ.createInstance(`tube_z_${i}`)
     }
     tube.position.copyFrom(tubeData.pos)
+    tube.parent = parentMesh
     faceTubes.push(tube)
     tubeAnimData.push({
       mesh: tube,
@@ -208,7 +216,7 @@ function createGridTubes({
     })
   })
 
-  return faceTubes
+  return parentMesh
 }
 
 function createAnimatedBlock({
@@ -225,14 +233,18 @@ function createAnimatedBlock({
   cubeletSize: number
   totalDuration?: number
   delay?: number
-}) {
+}): BABYLON.Mesh {
+  // Create parent mesh
+  const parentMesh = new BABYLON.Mesh("animatedBlockParent", scene)
+  parentMesh.isVisible = true
+
   const GRID_SIZE = gridCount
   const CUBE_SIZE = blockSize
   const GRID_LENGTH = CUBE_SIZE
   const step = GRID_LENGTH / GRID_SIZE
   const CUBELET_SIZE = cubeletSize
-  const flyInFraction = 0.1 // 10% for fly-in, 90% for grid travel
-  const totalDurationSafe = totalDuration ?? 10
+  const flyInFraction = 0.03 // Reduced from 0.15 to 0.03 (3% for fly-in, 97% for grid travel)
+  const totalDurationSafe = totalDuration ?? 50
 
   // Create base cube
   const baseCube = BABYLON.MeshBuilder.CreateBox("cubelet", { size: CUBELET_SIZE }, scene)
@@ -241,6 +253,7 @@ function createAnimatedBlock({
   cubeMat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.6)
   baseCube.material = cubeMat
   baseCube.isVisible = false
+  baseCube.parent = parentMesh
 
   // Store per-cubelet animation state
   const cubelets: BABYLON.InstancedMesh[] = []
@@ -355,30 +368,33 @@ function createAnimatedBlock({
     }
   }
 
-  // Animation timing logic
+  // Animation timing logic for synchronized arrival
   const N = uniquePositions.length
-  const duration = Math.max(1.2, totalDurationSafe * 0.4) // Shorter duration for each cubelet
-  const staggerTime = N > 1 ? ((totalDurationSafe - duration) / (N - 1)) * 4 : 0 // Much longer interval
+  const globalEndTime = delay + totalDurationSafe
+  const staggerTime = N > 1 ? totalDurationSafe / N : 0 // Increased to 95% of total duration for longer intervals
 
   uniquePositions.forEach((finalPos, index) => {
     const flyInStart = getFaceFlyInStart(finalPos)
     const surfaceEntry = getRandomSurfaceEntry(finalPos)
+    const startTime = delay + index * staggerTime
+    const duration = globalEndTime - startTime
     const cubelet = baseCube.createInstance(`cubelet_${index}`)
     cubelet.material = cubeMat
     cubelet.scaling.set(CUBELET_SIZE, CUBELET_SIZE, CUBELET_SIZE)
     cubelet.position.copyFrom(flyInStart)
     cubelet.isVisible = false
+    cubelet.parent = parentMesh
     cubelets.push(cubelet)
     cubeletData.push({
       flyInStart,
       surfaceEntry,
       finalPos,
-      startTime: index * staggerTime,
+      startTime,
       duration,
     })
   })
 
-  // Animate: fast fly-in, slow grid travel
+  // Animate: fast fly-in, slow grid travel, all arrive together
   let globalTime = 0
   let fps = 60
   scene.onBeforeRenderObservable.add(() => {
@@ -386,16 +402,16 @@ function createAnimatedBlock({
       fps = scene.getEngine().getFps() || 60
     }
     globalTime += 1 / fps
-    const animTime = globalTime - delay
+    const animTime = globalTime
     cubelets.forEach((cubelet, index) => {
       const data = cubeletData[index]
       const elapsedTime = animTime - data.startTime
-      if (elapsedTime < 0) {
+      const t = Math.max(0, Math.min(1, elapsedTime / data.duration))
+      if (t <= 0) {
         cubelet.isVisible = false
         return
       }
       cubelet.isVisible = true
-      const t = Math.min(elapsedTime / data.duration, 1)
       if (t < flyInFraction) {
         // Phase 1: fast fly in to surface entry
         const tt = t / flyInFraction
@@ -428,6 +444,78 @@ function createAnimatedBlock({
       }
     })
   })
+
+  return parentMesh
+}
+
+// Create a large glowing grid plane with big glowing nodes at intersections
+function createGridPlane({
+  scene,
+  gridSize = 20,
+  gridLength = 100,
+  tubeRadius = 0.12,
+  tubeColor = new BABYLON.Color3(0.85, 0.95, 1), // lighter, vibrant blue
+}: {
+  scene: BABYLON.Scene
+  gridSize?: number
+  gridLength?: number
+  tubeRadius?: number
+  tubeColor?: BABYLON.Color3
+}): BABYLON.Mesh {
+  const parentMesh = new BABYLON.Mesh("gridPlaneParent", scene)
+  parentMesh.isVisible = true
+  const step = gridLength / gridSize
+
+  // Glowing material for tubes (lighter color)
+  const tubeMat = new BABYLON.StandardMaterial("gridPlaneTubeMat", scene)
+  tubeMat.emissiveColor = tubeColor
+  tubeMat.disableLighting = true
+  tubeMat.alpha = 0.8
+
+  // Base tube for X axis (horizontal)
+  const baseTubeX = BABYLON.MeshBuilder.CreateTube(
+    "baseTubeX",
+    {
+      path: [new BABYLON.Vector3(-gridLength / 2, 0, 0), new BABYLON.Vector3(gridLength / 2, 0, 0)],
+      radius: tubeRadius,
+      updatable: false,
+    },
+    scene
+  )
+  baseTubeX.material = tubeMat
+  baseTubeX.isVisible = false
+  baseTubeX.parent = parentMesh
+
+  // Base tube for Z axis (vertical)
+  const baseTubeZ = BABYLON.MeshBuilder.CreateTube(
+    "baseTubeZ",
+    {
+      path: [new BABYLON.Vector3(0, 0, -gridLength / 2), new BABYLON.Vector3(0, 0, gridLength / 2)],
+      radius: tubeRadius,
+      updatable: false,
+      tessellation: 128,
+    },
+    scene
+  )
+  baseTubeZ.material = tubeMat
+  baseTubeZ.isVisible = false
+  baseTubeZ.parent = parentMesh
+
+  // Create horizontal tubes (X axis, along Z)
+  for (let i = 0; i <= gridSize; i++) {
+    const z = -gridLength / 2 + i * step
+    const tube = baseTubeX.createInstance(`gridPlaneTubeX_${i}`)
+    tube.position.set(0, 0, z)
+    tube.parent = parentMesh
+  }
+  // Create vertical tubes (Z axis, along X)
+  for (let j = 0; j <= gridSize; j++) {
+    const x = -gridLength / 2 + j * step
+    const tube = baseTubeZ.createInstance(`gridPlaneTubeZ_${j}`)
+    tube.position.set(x, 0, 0)
+    tube.parent = parentMesh
+  }
+  return parentMesh
 }
 
 const Blocks = () => {
@@ -457,32 +545,50 @@ const Blocks = () => {
 
     // Glow layer for grid only
     const glowLayer = new BABYLON.GlowLayer("glow", scene)
-    glowLayer.intensity = 1
-    glowLayer.blurKernelSize = 32
+    glowLayer.intensity = 1.2
 
-    createGridTubes({
+    // Add large grid plane
+    const plane = createGridPlane({
+      scene,
+      gridSize: 10,
+      gridLength: 500,
+      tubeRadius: 0.3,
+      tubeColor: new BABYLON.Color3(0.8, 0.8, 8), // lighter, vibrant blue
+    })
+    // Lay the grid flat as a ground plane (XZ)
+    plane.rotation.y = Math.PI / 2
+    plane.position.y = -20 // Lower the grid below the main block
+    glowLayer.addExcludedMesh(plane)
+    plane.getChildMeshes().forEach((mesh) => glowLayer.addExcludedMesh(mesh as BABYLON.Mesh))
+
+    const cube = createGridTubes({
       scene,
       gridSize: 10,
       gridLength: 25,
       tubeRadius: 0.08,
       tubeColor: new BABYLON.Color3(0.6, 0.4, 1),
-      totalDuration: 5,
+      totalDuration: 2,
     })
 
     // Create animated block with reduced parameters
-    createAnimatedBlock({
+    const cubelets = createAnimatedBlock({
       scene,
       blockSize: 25,
       gridCount: 10, // Reduced grid count
       cubeletSize: 1.5,
-      totalDuration: 10,
-      delay: 5,
+      totalDuration: 30,
+      delay: 2,
     })
+
+    // Example of how to manipulate the parent meshes
+    // gridParent.rotation.x = -Math.PI / 4
+    // blockParent.rotation.x = Math.PI / 6
 
     engine.runRenderLoop(() => {
       setFps(engine.getFps() || 0)
       scene.render()
-      camera.alpha += 0.0002
+      cube.rotation.y += 0.0002
+      cubelets.rotation.y += 0.0002
     })
 
     return () => {
