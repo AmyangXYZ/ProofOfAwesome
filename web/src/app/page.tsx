@@ -11,6 +11,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/ca
 import { motion } from "framer-motion"
 import Greeting from "@/components/greeting"
 import ReviewResult from "@/components/review-result"
+import AnimatingBlock from "@/components/animating-block"
 
 const suggestedAchievements: {
   title: string
@@ -63,6 +64,9 @@ export default function AwesomeCom() {
   return (
     <div className="max-w-3xl mx-auto p-4">
       {!achievement && <Greeting />}
+      <div className="w-full h-[50vh] mt-25 flex justify-center">
+        <AnimatingBlock />
+      </div>
       {achievement && (
         <>
           <AchievementCard achievement={achievement} />
@@ -118,7 +122,6 @@ export default function AwesomeCom() {
             className="h-24 rounded-16 resize-none rounded-2xl dark:bg-zinc-800 pr-24"
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            autoFocus
             onKeyDown={(e) => {
               if (e.key === "Enter" && description.trim().length > 0) {
                 e.preventDefault()
