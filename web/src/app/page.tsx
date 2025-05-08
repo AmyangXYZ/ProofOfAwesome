@@ -7,13 +7,24 @@ import { motion } from "framer-motion"
 import Greeting from "@/components/greeting"
 import AchievementInput from "@/components/achievement-input"
 import { useAwesomeNode } from "@/context/awesome-node-context"
+import { toast } from "sonner"
+
 export default function AwesomeCom() {
   const node = useAwesomeNode()
   const [achievements, setAchievements] = useState<Achievement[]>([])
 
-  node.on("achievement.new", (achievement) => {
-    setAchievements((prev) => [...prev, achievement])
-  })
+  useEffect(() => {
+    const handleNewAchievement = (achievement: Achievement) => {
+      setAchievements((prev) => [...prev, achievement])
+      toast.success(`Achievement ${achievement.signature.slice(0, 10)}... created`)
+    }
+
+    node.on("achievement.new", handleNewAchievement)
+
+    return () => {
+      node.off("achievement.new", handleNewAchievement)
+    }
+  }, [node])
 
   const [, setNow] = useState(Date.now())
 

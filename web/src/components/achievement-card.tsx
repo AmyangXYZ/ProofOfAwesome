@@ -4,14 +4,30 @@ import { Button } from "./ui/button"
 import { ChartNoAxesColumn, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ReviewSheet } from "./review-sheet"
+import { useAwesomeNode } from "@/context/awesome-node-context"
 
 export default function AchievementCard({ achievement }: { achievement: Achievement }) {
   const router = useRouter()
-  const reviewCount = 0
+  const node = useAwesomeNode()
+  const [reviewCount, setReviewCount] = useState(0)
   const averageScore = 0
   const [showReviewDialog, setShowReviewDialog] = useState(false)
+
+  useEffect(() => {
+    const handleNewReview = (review: { achievementSignature: string }) => {
+      if (review.achievementSignature === achievement.signature) {
+        setReviewCount((prev) => prev + 1)
+      }
+    }
+
+    node.on("review.new", handleNewReview)
+
+    return () => {
+      node.off("review.new", handleNewReview)
+    }
+  }, [node, achievement])
 
   // Helper to format relative time
   const formatRelativeTime = (timestamp: number) => {

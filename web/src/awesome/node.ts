@@ -210,6 +210,18 @@ export class AwesomeNodeLight {
     return this.awesomeComStatus
   }
 
+  public getAchievement(signature: string) {
+    return this.pendingAchievements.find((achievement) => achievement.signature === signature)
+  }
+
+  public getReview(signature: string) {
+    return this.pendingReviews.find((review) => review.achievementSignature === signature)
+  }
+
+  public getReviews(achievementSignature: string) {
+    return this.pendingReviews.filter((review) => review.achievementSignature === achievementSignature)
+  }
+
   public isInTPC() {
     return this.inTPC
   }
@@ -276,9 +288,8 @@ export class AwesomeNodeLight {
     }
     achievement.signature = signAchievement(achievement, this.wallet)
 
-    if (this.inTPC) {
-      this.pendingAchievements.push(achievement)
-    }
+    this.pendingAchievements.push(achievement)
+
     this.emit("achievement.new", achievement)
     const message: Message = {
       from: this.identity.address,
@@ -290,7 +301,6 @@ export class AwesomeNodeLight {
     }
 
     this.socket.emit("message.send", message)
-    console.log("Sent achievement to TPC:", message)
     return achievement
   }
 

@@ -5,7 +5,7 @@ import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
 import { motion } from "framer-motion"
 import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Achievement } from "@/awesome/awesome"
 import { useAwesomeNode } from "@/context/awesome-node-context"
 
@@ -50,9 +50,16 @@ export default function AchievementInput() {
     setDescription("")
   }
 
-  node.on("achievement.new", (achievement) => {
-    setAchievements((prev) => [...prev, achievement])
-  })
+  useEffect(() => {
+    const handleNewAchievement = (achievement: Achievement) => {
+      setAchievements((prev) => [...prev, achievement])
+    }
+    node.on("achievement.new", handleNewAchievement)
+
+    return () => {
+      node.off("achievement.new", handleNewAchievement)
+    }
+  }, [node])
 
   return (
     <>

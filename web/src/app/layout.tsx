@@ -5,6 +5,7 @@ import { Analytics } from "@vercel/analytics/next"
 import { AwesomeNodeProvider } from "@/context/awesome-node-context"
 import { ThemeProvider } from "@/components/theme-provider"
 import Header from "@/components/header"
+import { Toaster } from "@/components/ui/sonner"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -73,6 +74,7 @@ export default function RootLayout({
             <Header />
             <div className="flex-1 flex flex-col">
               <main className="flex-1">{children}</main>
+              <Toaster position="top-center" />
             </div>
           </ThemeProvider>
         </AwesomeNodeProvider>

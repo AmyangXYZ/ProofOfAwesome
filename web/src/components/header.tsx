@@ -22,11 +22,15 @@ export default function Header() {
   useEffect(() => {
     const status = node.getAwesomeComStatus()
     setAwesomeComStatus(status)
-  }, [node])
+    const handleAwesomeComStatusUpdated = (status: AwesomeComStatus) => {
+      setAwesomeComStatus(status)
+    }
+    node.on("awesomecom.status.updated", handleAwesomeComStatusUpdated)
 
-  node.on("awesomecom.status.updated", (status) => {
-    setAwesomeComStatus(status)
-  })
+    return () => {
+      node.off("awesomecom.status.updated", handleAwesomeComStatusUpdated)
+    }
+  }, [node])
 
   return (
     <header className="top-0 z-50 w-full">
