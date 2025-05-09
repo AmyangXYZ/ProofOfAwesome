@@ -92,7 +92,7 @@ export function ReviewSheet({
                             value={n}
                             checked={value === n}
                             onChange={() => setValue(n)}
-                            className="accent-blue-500"
+                            className="accent-zinc-500 h-3 w-3"
                           />
                         </TableCell>
                       ))}

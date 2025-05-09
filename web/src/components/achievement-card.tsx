@@ -59,10 +59,10 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
   return (
     <>
       <Card
-        className="py-3 gap-1 bg-zinc-50 text-zinc-950 text-sm cursor-pointer hover:bg-zinc-100 transition"
+        className="py-2 gap-1 bg-zinc-50 text-zinc-950 text-sm cursor-pointer hover:bg-zinc-100 transition"
         onClick={jumpToAchievement}
       >
-        <CardHeader>
+        <CardHeader className="pt-1">
           <CardTitle className="flex items-center gap-2 truncate">
             Achievement
             <span className="truncate max-w-[100px] inline-block align-bottom" title={achievement.signature}>
