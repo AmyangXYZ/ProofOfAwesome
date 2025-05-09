@@ -42,10 +42,10 @@ export default function AwesomeCom() {
   }, [achievements])
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
+    <div className="max-w-3xl mx-auto">
       {achievements.length === 0 && <Greeting />}
 
-      <ScrollArea className="h-[calc(100dvh-12rem)]">
+      <ScrollArea className="h-[calc(100dvh-11rem)] pt-4 px-4">
         <div className="flex flex-col gap-4">
           {achievements.map((achievement) => (
             <motion.div
