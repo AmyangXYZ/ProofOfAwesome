@@ -1,16 +1,18 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import AchievementCard from "@/components/achievement-card"
 import { Achievement } from "@/awesome/awesome"
 import { motion } from "framer-motion"
 import Greeting from "@/components/greeting"
 import AchievementInput from "@/components/achievement-input"
 import { useAwesomeNode } from "@/context/awesome-node-context"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function AwesomeCom() {
   const node = useAwesomeNode()
   const [achievements, setAchievements] = useState<Achievement[]>([])
+  const endOfListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleNewAchievement = (achievement: Achievement) => {
@@ -33,22 +35,31 @@ export default function AwesomeCom() {
     return () => clearInterval(interval)
   }, [])
 
+  useEffect(() => {
+    if (endOfListRef.current) {
+      endOfListRef.current.scrollIntoView({ behavior: "smooth" })
+    }
+  }, [achievements])
+
   return (
     <div className="max-w-3xl mx-auto p-4">
       {achievements.length === 0 && <Greeting />}
 
-      <div className="flex flex-col gap-4">
-        {achievements.map((achievement) => (
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 10 }}
-            key={achievement.signature}
-          >
-            <AchievementCard achievement={achievement} />
-          </motion.div>
-        ))}
-      </div>
+      <ScrollArea className="h-[calc(100dvh-12rem)]">
+        <div className="flex flex-col gap-4">
+          {achievements.map((achievement) => (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              key={achievement.signature}
+            >
+              <AchievementCard achievement={achievement} />
+            </motion.div>
+          ))}
+          <div ref={endOfListRef} />
+        </div>
+      </ScrollArea>
 
       <div className="max-w-3xl mx-auto fixed bottom-0 left-0 right-0 p-4 bg-background">
         <AchievementInput />

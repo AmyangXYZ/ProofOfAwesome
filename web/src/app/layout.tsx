@@ -67,15 +67,13 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className="h-full">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col w-full min-h-screen`}>
         <AwesomeNodeProvider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
             <Header />
-            <div className="flex-1 flex flex-col">
-              <main className="flex-1">{children}</main>
-              <Toaster position="top-center" />
-            </div>
+            <main className="w-full flex-1">{children}</main>
+            <Toaster position="top-center" />
           </ThemeProvider>
         </AwesomeNodeProvider>
       </body>

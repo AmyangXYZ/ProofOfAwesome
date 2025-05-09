@@ -97,6 +97,8 @@ export class AwesomeNodeLight {
   // created or received in the review phase in current edition
   private pendingReviews: Review[] = []
 
+  private targetBlock: number = 0
+
   private chainHead: ChainHead | null = null
   // by height
   private blockHeaders: Map<number, BlockHeader> = new Map()
@@ -107,7 +109,7 @@ export class AwesomeNodeLight {
   // process response only if requestId exists
   private sentRequests: Map<string, boolean> = new Map()
 
-  public inTPC: boolean = false
+  private inTPC: boolean = false
 
   private cleanReceivedMessagesPeriod: number = 30 * 60 * 1000
   private awesomeComStatusUpdatePeriod: number = 500
@@ -303,7 +305,7 @@ export class AwesomeNodeLight {
 
   public createAchievement(description: string): Achievement {
     const achievement: Achievement = {
-      targetBlock: this.awesomeComStatus.edition,
+      targetBlock: this.targetBlock,
       description,
       authorAddress: this.identity.address,
       attachments: [],
@@ -332,7 +334,7 @@ export class AwesomeNodeLight {
 
   public createReview(achievementSignature: string, comment: string, scores: ReviewScores) {
     const review: Review = {
-      targetBlock: this.awesomeComStatus.edition,
+      targetBlock: this.targetBlock,
       achievementSignature,
       comment,
       scores,
@@ -488,9 +490,15 @@ export class AwesomeNodeLight {
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
-      // if (room === this.fullNodesRoom) {
-      //   this.emit("peer.discovered", members)
-      // }
+      if (room === this.fullNodesRoom) {
+        this.emit("peer.discovered", members)
+        if (members.length > 0) {
+          // TODO: request chain heads from multiple full nodes and select the best one or use trusted full node
+          console.log("Setting sync peer", members[0].address)
+          this.setSyncPeer(members[0].address)
+          this.requestChainHead()
+        }
+      }
       if (room === this.allNodesRoom) {
         this.activePeers = members
         this.emit("peer.discovered", members)
@@ -625,6 +633,7 @@ export class AwesomeNodeLight {
       this.emit("block.new", block)
       this.blockHeaders.set(block.header.height, block.header)
       this.blocks.set(block.header.height, block)
+      this.targetBlock = block.header.height + 1
     }
   }
 
@@ -690,6 +699,7 @@ export class AwesomeNodeLight {
 
   private async handleChainHeadResponse(message: Message) {
     const response = message.payload
+    console.log("Received chain head response", response)
     if (!isChainHeadResponse(response) || !this.sentRequests.has(response.requestId)) {
       return
     }
@@ -699,9 +709,12 @@ export class AwesomeNodeLight {
     if (!verifyChainHead(chainHead)) {
       return
     }
+    console.log("Received chain head", chainHead)
 
     if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
       this.chainHead = chainHead
+      this.targetBlock = chainHead.latestBlockHeight + 1
+      console.log("current target block", this.targetBlock)
       this.emit("chain_head.updated", chainHead)
     }
   }

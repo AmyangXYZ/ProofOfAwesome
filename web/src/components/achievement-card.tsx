@@ -4,24 +4,27 @@ import { Button } from "./ui/button"
 import { ChartNoAxesColumn, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import { ReviewSheet } from "./review-sheet"
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { toast } from "sonner"
+import { formatDistanceToNowStrict } from "date-fns"
+import { motion } from "framer-motion"
 
 export default function AchievementCard({ achievement }: { achievement: Achievement }) {
   const router = useRouter()
   const node = useAwesomeNode()
   const [reviewCount, setReviewCount] = useState(0)
   const [medianScore, setMedianScore] = useState(0)
-  const [showReviewDialog, setShowReviewDialog] = useState(false)
+  const [showReviewSheet, setShowReviewSheet] = useState(false)
+  const [isNewReview, setIsNewReview] = useState(false)
+  const prevReviewCount = useRef(reviewCount)
 
   useEffect(() => {
     const handleNewReview = (review: { achievementSignature: string }) => {
       if (review.achievementSignature === achievement.signature) {
         setReviewCount((prev) => prev + 1)
         calculateMedianScore()
-        toast.success(`New review for ${achievement.signature.slice(0, 10)}...`)
+        // toast.success(`New review for ${achievement.signature.slice(0, 10)}...`)
       }
     }
 
@@ -41,15 +44,13 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
     }
   }, [node, achievement])
 
-  // Helper to format relative time
-  const formatRelativeTime = (timestamp: number) => {
-    const now = Date.now()
-    const diff = Math.floor((now - timestamp) / 1000)
-    if (diff < 60) return `${diff}s ago`
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`
-    return `${Math.floor(diff / 86400)}d ago`
-  }
+  useEffect(() => {
+    if (reviewCount > prevReviewCount.current) {
+      setIsNewReview(true)
+      setTimeout(() => setIsNewReview(false), 1000)
+    }
+    prevReviewCount.current = reviewCount
+  }, [reviewCount])
 
   const jumpToAchievement = () => {
     router.push(`/achievement/${achievement.signature}`)
@@ -67,7 +68,10 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
             <span className="truncate max-w-[100px] inline-block align-bottom" title={achievement.signature}>
               {achievement.signature.slice(0, 10)}...
             </span>
-            · {formatRelativeTime(achievement.timestamp)}
+            ·{" "}
+            <span className="text-zinc-500 text-xs font-normal">
+              {formatDistanceToNowStrict(achievement.timestamp)}
+            </span>
           </CardTitle>
           <CardDescription className="text-zinc-500 text-xs">
             {achievement.authorName} ·{" "}
@@ -105,24 +109,48 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
             <span className="text-sm">{medianScore}</span>
           </Button>
 
-          <Button
-            onClick={(e) => {
-              e.preventDefault()
-              e.stopPropagation()
-              setShowReviewDialog(true)
-            }}
-            className="bg-transparent! h-7 hover:bg-zinc-200! hover:text-zinc-950! shadow-sm"
-            variant="outline"
+          <motion.div
+            style={{ position: "relative", display: "inline-block" }}
+            animate={isNewReview ? { scale: [1, 1.1, 1] } : {}}
+            transition={{ duration: 0.5 }}
           >
-            <MessageCircle className="size-3.5" strokeWidth={2.25} />
-            {reviewCount}
-          </Button>
+            <Button
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                setShowReviewSheet(true)
+              }}
+              className="bg-transparent! h-7 hover:bg-zinc-200! hover:text-zinc-950! shadow-sm"
+              variant="outline"
+            >
+              <MessageCircle className="size-3.5" strokeWidth={2.25} />
+              {reviewCount}
+            </Button>
+            {isNewReview && (
+              <motion.span
+                initial={{ opacity: 1, y: 0 }}
+                animate={{ opacity: 0, y: -10 }}
+                transition={{ duration: 1 }}
+                style={{
+                  position: "absolute",
+                  left: "50%",
+                  top: "-1.5em",
+                  transform: "translateX(-50%)",
+                  color: "blue",
+                  fontWeight: "semibold",
+                  pointerEvents: "none",
+                }}
+              >
+                +1
+              </motion.span>
+            )}
+          </motion.div>
         </CardFooter>
       </Card>
       <ReviewSheet
         achievementSignature={achievement.signature}
-        open={showReviewDialog}
-        onOpenChange={setShowReviewDialog}
+        open={showReviewSheet}
+        onOpenChange={setShowReviewSheet}
       />
     </>
   )

@@ -100,6 +100,9 @@ export class AwesomeNode {
   // full nodes maintain the account states
   private accounts: SparseMerkleTree = new SparseMerkleTree()
 
+  // the target block for the current edition
+  private targetBlock: number = 0
+
   private chainHead: ChainHead | null = null
   // created or received in the submission phase in current edition
   private pendingAchievements: Achievement[] = []
@@ -173,7 +176,6 @@ export class AwesomeNode {
   public async start() {
     await waitForGenesis()
     await this.repository.init()
-    this.startAwesomeComStatusUpdate()
 
     this.socket.connect()
 
@@ -189,7 +191,7 @@ export class AwesomeNode {
     if (this.reviewer) {
       this.reviewer.onReviewSubmitted((result: ReviewResult) => {
         const review: Review = {
-          targetBlock: this.awesomeComStatus.edition,
+          targetBlock: this.targetBlock,
           achievementSignature: result.achievementSignature,
           reviewerName: this.identity.name,
           reviewerAddress: this.identity.address,
@@ -216,6 +218,8 @@ export class AwesomeNode {
     }
 
     this.on("awesomecom.submission.started", async () => {
+      this.targetBlock++
+
       this.newBlock = null
       this.stopNewBlockBroadcast()
       this.pendingAchievements = []
@@ -270,7 +274,6 @@ export class AwesomeNode {
 
     this.on("block.added", async () => {})
 
-    this.startChainHeadBroadcast()
     this.startCleanReceivedMessages()
   }
 
@@ -322,14 +325,38 @@ export class AwesomeNode {
     })
 
     this.socket.on("message.received", (message: Message) => {
-      // if (message.from == this.identity.address) {
-      //   return
-      // }
+      if (message.from == this.identity.address) {
+        return
+      }
       this.handleMessage(message)
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
       if (room === this.fullNodesRoom) {
+        if (members.length > 0 && members[0].address == this.identity.address) {
+          console.log("I'm the first full node")
+          const genesisBlock = await this.createBlock()
+          if (genesisBlock) {
+            await this.repository.addBlock(genesisBlock)
+            this.emit("block.added", genesisBlock)
+
+            this.chainHead = {
+              chainId: chainConfig.chainId,
+              latestBlockHeight: genesisBlock.header.height,
+              latestBlockHash: genesisBlock.header.hash,
+              timestamp: Date.now(),
+              nodePublicKey: this.identity.publicKey,
+              signature: "",
+            }
+            this.chainHead.signature = signChainHead(this.chainHead, this.wallet)
+
+            this.startAwesomeComStatusUpdate()
+
+            this.startChainHeadBroadcast()
+
+            return
+          }
+        }
         this.emit("peer.discovered", members)
       }
     })
@@ -450,7 +477,6 @@ export class AwesomeNode {
     }
 
     this.hasReceived.set(chainHead.signature, Date.now())
-
     console.log("Chain head:", chainHead)
   }
 
@@ -459,7 +485,12 @@ export class AwesomeNode {
       return
     }
     const block = message.payload
-    if (!isBlock(block) || this.hasReceived.has(block.header.hash) || !verifyBlock(block)) {
+    if (
+      !isBlock(block) ||
+      this.hasReceived.has(block.header.hash) ||
+      block.header.height != this.targetBlock ||
+      !verifyBlock(block)
+    ) {
       return
     }
     this.hasReceived.set(block.header.hash, Date.now())
@@ -496,7 +527,12 @@ export class AwesomeNode {
       return
     }
     const block = message.payload
-    if (!isBlock(block) || this.hasReceived.has(block.header.hash) || !verifyBlock(block)) {
+    if (
+      !isBlock(block) ||
+      this.hasReceived.has(block.header.hash) ||
+      block.header.height != this.targetBlock ||
+      !verifyBlock(block)
+    ) {
       return
     }
     this.hasReceived.set(block.header.hash, Date.now())
@@ -532,11 +568,16 @@ export class AwesomeNode {
   }
 
   private async handleNewAchievement(message: Message) {
-    // if (this.awesomeComStatus.phase != "Submission") {
-    //   return
-    // }
+    if (this.awesomeComStatus.phase != "Submission") {
+      return
+    }
     const achievement = message.payload
-    if (!isAchievement(achievement) || this.hasReceived.has(achievement.signature) || !verifyAchievement(achievement)) {
+    if (
+      !isAchievement(achievement) ||
+      this.hasReceived.has(achievement.signature) ||
+      achievement.targetBlock != this.targetBlock ||
+      !verifyAchievement(achievement)
+    ) {
       return
     }
     this.hasReceived.set(achievement.signature, Date.now())
@@ -553,7 +594,12 @@ export class AwesomeNode {
       return
     }
     const review = message.payload
-    if (!isReview(review) || this.hasReceived.has(review.signature) || !verifyReview(review)) {
+    if (
+      !isReview(review) ||
+      this.hasReceived.has(review.signature) ||
+      review.targetBlock != this.targetBlock ||
+      !verifyReview(review)
+    ) {
       return
     }
     this.hasReceived.set(review.signature, Date.now())
@@ -608,10 +654,12 @@ export class AwesomeNode {
 
   private async handleChainHeadRequest(message: Message) {
     const request = message.payload
+    console.log("Received chain head request", request)
     if (!isChainHeadRequest(request)) {
       return
     }
     if (!this.chainHead) {
+      console.log("No chain head found")
       return
     }
 
@@ -622,10 +670,11 @@ export class AwesomeNode {
     const msg: Message = {
       from: this.identity.address,
       to: message.from,
-      type: MESSAGE_TYPE.CHAIN_HEAD,
+      type: MESSAGE_TYPE.CHAIN_HEAD_RESPONSE,
       payload: response,
       timestamp: Date.now(),
     }
+    console.log("Sending chain head response", response)
     this.socket.emit("message.send", msg)
   }
 

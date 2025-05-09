@@ -143,17 +143,19 @@ export interface Review {
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
-  scores: {
-    overall: number
-    innovation: number // Evaluates creativity and originality
-    dedication: number // Measures thoroughness and effort invested
-    significance: number // Assesses impact and benefit to others
-    presentation: number // Rates clarity and communication quality
-  }
+  scores: ReviewScores
   comment: string
   reviewerPublicKey: string
   timestamp: number
   signature: string
+}
+
+export type ReviewScores = {
+  overall: number
+  innovation: number
+  dedication: number
+  significance: number
+  presentation: number
 }
 
 export function isAccount(payload: unknown): payload is Account {

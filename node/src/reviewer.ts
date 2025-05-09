@@ -1,15 +1,9 @@
-import { Achievement } from "./awesome"
+import { Achievement, ReviewScores } from "./awesome"
 
 export interface ReviewResult {
   achievementSignature: string
   achievementAuthorAddress: string
-  scores: {
-    overall: number
-    innovation: number
-    dedication: number
-    significance: number
-    presentation: number
-  }
+  scores: ReviewScores
   comment: string
 }
 

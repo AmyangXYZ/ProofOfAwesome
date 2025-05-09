@@ -103,7 +103,7 @@ export function ReviewSheet({
             </div>
 
             <div className="flex items-center gap-2 justify-center">
-              <span className="text-sm font-medium">Overall Recommendation:</span>
+              <span className="text-sm font-medium">Recommendation:</span>
               <Select value={String(overall)} onValueChange={(val) => setOverall(Number(val))}>
                 <SelectTrigger>
                   <SelectValue placeholder="Select score" />

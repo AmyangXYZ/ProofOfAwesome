@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import { Achievement, Block, Review, Transaction } from "./awesome"
+import { Achievement, Block, Review, ReviewScores, Transaction } from "./awesome"
 import { Repository } from "./repository"
 
 interface BlockDocument {
@@ -50,13 +50,7 @@ interface ReviewDocument {
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
-  scores: {
-    overall: number
-    innovation: number
-    dedication: number
-    significance: number
-    presentation: number
-  }
+  scores: ReviewScores
   comment: string
   timestamp: Date
   reviewerPublicKey: string
