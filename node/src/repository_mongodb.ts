@@ -33,7 +33,7 @@ interface TransactionDocument {
 
 interface AchievementDocument {
   _id?: mongoose.Types.ObjectId
-  edition: number
+  targetBlock: number
   authorName: string
   authorAddress: string
   description: string
@@ -46,7 +46,7 @@ interface AchievementDocument {
 
 interface ReviewDocument {
   _id?: mongoose.Types.ObjectId
-  edition: number
+  targetBlock: number
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
@@ -174,7 +174,7 @@ export class MongoDBRepository implements Repository {
 
   private achievementDocToAchievement(achievementDoc: AchievementDocument): Achievement {
     return {
-      edition: achievementDoc.edition,
+      targetBlock: achievementDoc.targetBlock,
       authorName: achievementDoc.authorName,
       authorAddress: achievementDoc.authorAddress,
       description: achievementDoc.description,
@@ -187,7 +187,7 @@ export class MongoDBRepository implements Repository {
 
   private reviewDocToReview(reviewDoc: ReviewDocument): Review {
     return {
-      edition: reviewDoc.edition,
+      targetBlock: reviewDoc.targetBlock,
       achievementSignature: reviewDoc.achievementSignature,
       reviewerName: reviewDoc.reviewerName,
       reviewerAddress: reviewDoc.reviewerAddress,
@@ -216,7 +216,7 @@ export class MongoDBRepository implements Repository {
     const achievementDocs: AchievementDocument[] = await Promise.all(
       block.achievements.map(async (a): Promise<AchievementDocument> => {
         return await this.AchievementModel.create({
-          edition: a.edition,
+          targetBlock: a.targetBlock,
           authorName: a.authorName,
           authorAddress: a.authorAddress,
           description: a.description,
@@ -231,7 +231,7 @@ export class MongoDBRepository implements Repository {
     const reviewDocs: ReviewDocument[] = await Promise.all(
       block.reviews.map(async (r): Promise<ReviewDocument> => {
         return await this.ReviewModel.create({
-          edition: r.edition,
+          targetBlock: r.targetBlock,
           reviewerName: r.reviewerName,
           reviewerAddress: r.reviewerAddress,
           scores: r.scores,

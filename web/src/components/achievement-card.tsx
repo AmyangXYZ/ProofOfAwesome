@@ -7,19 +7,31 @@ import Image from "next/image"
 import { useEffect, useState } from "react"
 import { ReviewSheet } from "./review-sheet"
 import { useAwesomeNode } from "@/context/awesome-node-context"
+import { toast } from "sonner"
 
 export default function AchievementCard({ achievement }: { achievement: Achievement }) {
   const router = useRouter()
   const node = useAwesomeNode()
   const [reviewCount, setReviewCount] = useState(0)
-  const averageScore = 0
+  const [medianScore, setMedianScore] = useState(0)
   const [showReviewDialog, setShowReviewDialog] = useState(false)
 
   useEffect(() => {
     const handleNewReview = (review: { achievementSignature: string }) => {
       if (review.achievementSignature === achievement.signature) {
         setReviewCount((prev) => prev + 1)
+        calculateMedianScore()
+        toast.success(`New review for ${achievement.signature.slice(0, 10)}...`)
       }
+    }
+
+    const calculateMedianScore = () => {
+      const reviews = node.getReviews(achievement.signature)
+      const scores = reviews.map((review) => review.scores.overall)
+      const sortedScores = scores.sort((a, b) => a - b)
+      const medianIndex = Math.floor(sortedScores.length / 2)
+      const medianScore = sortedScores[medianIndex]
+      setMedianScore(medianScore)
     }
 
     node.on("review.new", handleNewReview)
@@ -90,7 +102,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
             variant="ghost"
           >
             <ChartNoAxesColumn className="size-4.5" strokeWidth={2} />
-            <span className="text-sm">{averageScore}</span>
+            <span className="text-sm">{medianScore}</span>
           </Button>
 
           <Button

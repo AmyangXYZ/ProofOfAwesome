@@ -128,7 +128,7 @@ export interface Transaction {
 }
 
 export interface Achievement {
-  edition: number
+  targetBlock: number
   authorName: string
   authorAddress: string
   description: string
@@ -139,21 +139,23 @@ export interface Achievement {
 }
 
 export interface Review {
-  edition: number
+  targetBlock: number
   achievementSignature: string
   reviewerName: string
   reviewerAddress: string
-  scores: {
-    overall: number
-    innovation: number
-    dedication: number
-    significance: number
-    presentation: number
-  }
+  scores: ReviewScores
   comment: string
   reviewerPublicKey: string
   timestamp: number
   signature: string
+}
+
+export interface ReviewScores {
+  overall: number
+  innovation: number
+  dedication: number
+  significance: number
+  presentation: number
 }
 
 export function isAccount(payload: unknown): payload is Account {
@@ -256,8 +258,8 @@ export function isAchievement(payload: unknown): payload is Achievement {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    "edition" in payload &&
-    typeof payload.edition === "number" &&
+    "targetBlock" in payload &&
+    typeof payload.targetBlock === "number" &&
     "authorName" in payload &&
     typeof payload.authorName === "string" &&
     "authorAddress" in payload &&
@@ -280,8 +282,8 @@ export function isReview(payload: unknown): payload is Review {
   return (
     typeof payload === "object" &&
     payload !== null &&
-    "edition" in payload &&
-    typeof payload.edition === "number" &&
+    "targetBlock" in payload &&
+    typeof payload.targetBlock === "number" &&
     "achievementSignature" in payload &&
     typeof payload.achievementSignature === "string" &&
     "reviewerName" in payload &&
@@ -449,6 +451,7 @@ export function verifyTransaction(transaction: Transaction): boolean {
 export function signAchievement(achievement: Achievement, wallet: Wallet): string {
   const hash = sha256(
     [
+      achievement.targetBlock,
       achievement.authorName,
       achievement.authorAddress,
       achievement.description,
@@ -463,6 +466,7 @@ export function signAchievement(achievement: Achievement, wallet: Wallet): strin
 export function verifyAchievement(achievement: Achievement): boolean {
   const hash = sha256(
     [
+      achievement.targetBlock,
       achievement.authorName,
       achievement.authorAddress,
       achievement.description,
@@ -482,6 +486,7 @@ export function verifyAchievement(achievement: Achievement): boolean {
 export function signReview(review: Review, wallet: Wallet): string {
   const hash = sha256(
     [
+      review.targetBlock,
       review.achievementSignature,
       review.reviewerName,
       review.reviewerAddress,
@@ -515,6 +520,7 @@ export function verifyReview(review: Review): boolean {
   }
   const hash = sha256(
     [
+      review.targetBlock,
       review.achievementSignature,
       review.reviewerName,
       review.reviewerAddress,

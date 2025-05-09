@@ -189,7 +189,7 @@ export class AwesomeNode {
     if (this.reviewer) {
       this.reviewer.onReviewSubmitted((result: ReviewResult) => {
         const review: Review = {
-          edition: this.awesomeComStatus.edition,
+          targetBlock: this.awesomeComStatus.edition,
           achievementSignature: result.achievementSignature,
           reviewerName: this.identity.name,
           reviewerAddress: this.identity.address,

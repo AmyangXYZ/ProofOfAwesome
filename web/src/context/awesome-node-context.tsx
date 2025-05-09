@@ -1,6 +1,6 @@
 "use client"
 
-import { createContext, useContext, ReactNode } from "react"
+import { createContext, useContext, ReactNode, useEffect } from "react"
 import { AwesomeNodeLight } from "@/awesome/node"
 
 interface AwesomeNodeContextType {
@@ -11,7 +11,17 @@ const AwesomeNodeContext = createContext<AwesomeNodeContextType | null>(null)
 
 export function AwesomeNodeProvider({ children }: { children: ReactNode }) {
   const node = new AwesomeNodeLight("https://connect.proof-of-awesome.app", "Web Node", "", "")
-  node.start()
+
+  useEffect(() => {
+    node.start()
+
+    // Cleanup function
+    return () => {
+      node.stop()
+      console.log("Node stopped")
+    }
+  })
+
   return <AwesomeNodeContext.Provider value={{ node }}>{children}</AwesomeNodeContext.Provider>
 }
 

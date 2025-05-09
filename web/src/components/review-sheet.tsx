@@ -4,6 +4,7 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from "@
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "./ui/sheet"
+import { useAwesomeNode } from "@/context/awesome-node-context"
 
 const overallLabels = [
   { value: 1, label: "Reject" },
@@ -22,6 +23,8 @@ export function ReviewSheet({
   open: boolean
   onOpenChange: (open: boolean) => void
 }) {
+  const node = useAwesomeNode()
+
   const [innovation, setInnovation] = useState(3)
   const [dedication, setDedication] = useState(3)
   const [significance, setSignificance] = useState(3)
@@ -44,6 +47,19 @@ export function ReviewSheet({
             onSubmit={(e) => {
               e.preventDefault()
               // handle submit here
+              node.createReview(achievementSignature, comment, {
+                overall,
+                innovation,
+                dedication,
+                significance,
+                presentation,
+              })
+              setComment("")
+              setOverall(3)
+              setInnovation(3)
+              setDedication(3)
+              setSignificance(3)
+              setPresentation(3)
               onOpenChange(false)
             }}
           >
@@ -112,7 +128,7 @@ export function ReviewSheet({
                 maxLength={200}
               />
             </label>
-            <Button type="submit" className="w-full mt-2">
+            <Button type="submit" className="w-full mt-2 rounded-full" disabled={!comment}>
               Submit
             </Button>
           </form>

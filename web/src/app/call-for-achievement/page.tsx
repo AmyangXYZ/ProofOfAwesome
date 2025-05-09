@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export default function CallForAchievement() {
   return (
-    <div className="max-w-5xl px-4 mx-auto py-2">
+    <div className="max-w-5xl p-4 mx-auto">
       <header className="mb-8 text-center">
         <h1 className="scroll-m-20 text-3xl font-extrabold tracking-tight lg:text-3xl">Call for Achievements</h1>
       </header>
@@ -91,7 +91,7 @@ export default function CallForAchievement() {
               earning the creator AwesomeCoin rewards and eternal recognition in the network&apos;s history.
             </p>
             <blockquote className="mt-6 border-l-4 pl-4">
-              <h4 className="font-semibold text-blue-400 mb-2 ">The Four Phases in AwesomeCom</h4>
+              <h4 className="font-semibold text-blue-400 mb-2">The Four Phases in AwesomeCom</h4>
               <ul className="list-none pl-4 mt-2 space-y-2 text-sm">
                 <li className="flex items-start items-center">
                   <span className="bg-neutral-800 px-2 rounded mr-2 font-medium">90s</span>

@@ -24,6 +24,8 @@ import {
   Account,
   signAchievement,
   ChainHead,
+  ReviewScores,
+  signReview,
 } from "./awesome"
 import { SparseMerkleTree } from "./merkle"
 import {
@@ -162,6 +164,30 @@ export class AwesomeNodeLight {
     })
   }
 
+  public stop() {
+    // Stop all intervals
+    this.stopAwesomeComStatusUpdate()
+    this.stopCleanReceivedMessages()
+
+    // Disconnect socket
+    if (this.socket.connected) {
+      this.socket.disconnect()
+    }
+
+    // Leave TPC if in it
+    if (this.inTPC) {
+      this.leaveTPC()
+    }
+
+    // Clear all data
+    this.hasReceived.clear()
+    this.sentRequests.clear()
+    this.pendingAchievements = []
+    this.pendingReviews = []
+    this.activePeers = []
+    this.syncPeer = null
+  }
+
   public isConnected() {
     return this.socket.connected
   }
@@ -277,7 +303,7 @@ export class AwesomeNodeLight {
 
   public createAchievement(description: string): Achievement {
     const achievement: Achievement = {
-      edition: this.awesomeComStatus.edition,
+      targetBlock: this.awesomeComStatus.edition,
       description,
       authorAddress: this.identity.address,
       attachments: [],
@@ -302,6 +328,25 @@ export class AwesomeNodeLight {
 
     this.socket.emit("message.send", message)
     return achievement
+  }
+
+  public createReview(achievementSignature: string, comment: string, scores: ReviewScores) {
+    const review: Review = {
+      targetBlock: this.awesomeComStatus.edition,
+      achievementSignature,
+      comment,
+      scores,
+      reviewerAddress: this.identity.address,
+      reviewerName: this.identity.name,
+      reviewerPublicKey: this.identity.publicKey,
+      timestamp: Date.now(),
+      signature: "",
+    }
+    review.signature = signReview(review, this.wallet)
+
+    this.pendingReviews.push(review)
+
+    this.emit("review.new", review)
   }
 
   public requestBlockHeader(height: number) {
@@ -432,6 +477,7 @@ export class AwesomeNodeLight {
     this.socket.on("node.connected", () => {
       this.emit("node.connected", undefined)
       this.socket.emit("room.get_members", this.fullNodesRoom)
+      this.socket.emit("room.get_members", this.allNodesRoom)
     })
 
     this.socket.on("message.received", (message: Message) => {
@@ -442,7 +488,11 @@ export class AwesomeNodeLight {
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
-      if (room === this.fullNodesRoom) {
+      // if (room === this.fullNodesRoom) {
+      //   this.emit("peer.discovered", members)
+      // }
+      if (room === this.allNodesRoom) {
+        this.activePeers = members
         this.emit("peer.discovered", members)
       }
     })

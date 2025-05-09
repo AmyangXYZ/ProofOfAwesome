@@ -152,7 +152,7 @@ export interface AchievementResponse {
 
 export interface AchievementsRequest {
   requestId: string
-  edition?: number
+  targetBlock?: number
   creatorAddress?: string
   theme?: string
   signatures?: string[]
@@ -178,7 +178,7 @@ export interface ReviewResponse {
 export interface ReviewsRequest {
   requestId: string
   achievementSignature?: string
-  edition?: number
+  targetBlock?: number
   reviewerAddress?: string
   signatures?: string[]
   limit?: number
@@ -342,7 +342,7 @@ export function isAchievementsRequest(payload: unknown): payload is Achievements
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
-    ("edition" in payload ||
+    ("targetBlock" in payload ||
       "creatorAddress" in payload ||
       "theme" in payload ||
       "signatures" in payload ||
@@ -381,7 +381,7 @@ export function isReviewsRequest(payload: unknown): payload is ReviewsRequest {
     payload !== null &&
     "requestId" in payload &&
     ("achievementSignature" in payload ||
-      "edition" in payload ||
+      "targetBlock" in payload ||
       "reviewerAddress" in payload ||
       "signatures" in payload ||
       "limit" in payload)
