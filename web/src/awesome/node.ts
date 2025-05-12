@@ -258,6 +258,10 @@ export class AwesomeNodeLight {
     return this.targetBlock
   }
 
+  public getBlock(height: number) {
+    return this.blocks.get(height)
+  }
+
   public isInTPC() {
     return this.inTPC
   }
