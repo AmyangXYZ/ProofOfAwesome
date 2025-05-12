@@ -7,6 +7,7 @@ import { useAwesomeNode } from "@/context/awesome-node-context"
 import { Account } from "@/awesome/awesome"
 import { useEffect, useState } from "react"
 import { Button } from "./ui/button"
+import { Separator } from "./ui/separator"
 
 export default function Header() {
   const pathname = usePathname()
@@ -71,8 +72,12 @@ export default function Header() {
           </Link>
         </nav>
         <div className="hidden md:flex items-center space-x-2 text-muted-foreground">
-          <span>Address: {account?.address}</span>
-          <span>Balance: {account?.balance} </span>
+          <span>
+            Address: <span className="font-mono">{account?.address}</span>
+          </span>
+          <span>
+            Balance: <span className="font-mono">{account?.balance}</span>
+          </span>
         </div>
         <Button variant="ghost" className="md:hidden relative z-50 w-6 h-6" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           <div className="absolute w-5 h-5 flex flex-col justify-center items-center">
@@ -100,6 +105,13 @@ export default function Header() {
         )}
       >
         <div className="fixed inset-x-0 top-10 flex flex-col space-y-4 p-4">
+          <div className="flex flex-col px-4 text-muted-foreground">
+            <span>Address:</span>
+            <span className="text-sm mb-2 font-mono">{account?.address}</span>
+            <span>Balance:</span>
+            <span className="text-sm font-mono">{account?.balance}</span>
+          </div>
+          <Separator className="my-4" />
           <Link
             href="/call-for-achievement"
             className={cn(
@@ -110,7 +122,6 @@ export default function Header() {
           >
             Call for Achievement
           </Link>
-
           <Link
             href="/peers"
             className={cn(
@@ -121,7 +132,6 @@ export default function Header() {
           >
             Peers
           </Link>
-
           <Link
             href="/blocks"
             className={cn(
@@ -132,7 +142,6 @@ export default function Header() {
           >
             Blocks
           </Link>
-
           <Link
             href="https://github.com/AmyangXYZ/ProofOfAwesome"
             className={cn("text-md px-4 transition-colors hover:text-foreground/80", "text-foreground/60")}

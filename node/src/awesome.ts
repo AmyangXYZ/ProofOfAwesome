@@ -6,7 +6,7 @@ import { MerkleTree } from "./merkle"
 
 export const chainConfig = {
   chainId: "Proof-of-Awesome-0.1.0",
-  genesisTime: new Date("2025-05-01T00:00:00Z").getTime(),
+  genesisTime: new Date("2025-03-14T00:00:00Z").getTime(),
 
   awesomeCom: {
     period: 180 * 1000,

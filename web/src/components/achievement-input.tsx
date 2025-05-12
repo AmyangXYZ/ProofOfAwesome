@@ -47,7 +47,7 @@ export default function AchievementInput() {
     editionRemaining: 0,
     phaseRemaining: 0,
   })
-  const [canSubmit, setCanSubmit] = useState(false)
+  const [canSubmit, setCanSubmit] = useState(true)
 
   useEffect(() => {
     setCanSubmit(awesomeComStatus.phase === "Submission")
