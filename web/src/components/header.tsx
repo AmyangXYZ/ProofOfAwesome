@@ -12,6 +12,8 @@ export default function Header() {
   const pathname = usePathname()
   const node = useAwesomeNode()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  // const [targetBlock, setTargetBlock] = useState<number>(0)
+
   const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
     edition: 0,
     phase: "Submission",

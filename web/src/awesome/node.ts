@@ -195,35 +195,35 @@ export class AwesomeNodeLight {
   }
 
   public getIdentity() {
-    return this.identity
+    return { ...this.identity }
   }
 
   public getAccount() {
-    return this.account
+    return { ...this.account }
   }
 
   public getChainHead() {
-    return this.chainHead
+    return { ...this.chainHead }
   }
 
   public getBlockHeaders() {
-    return this.blockHeaders
+    return Array.from(this.blockHeaders.values())
   }
 
   public getBlocks() {
-    return this.blocks
+    return Array.from(this.blocks.values())
   }
 
   public getPendingAchievements() {
-    return this.pendingAchievements
+    return this.pendingAchievements.slice()
   }
 
   public getPendingReviews() {
-    return this.pendingReviews
+    return this.pendingReviews.slice()
   }
 
   public getActivePeers() {
-    return this.activePeers
+    return this.activePeers.slice()
   }
 
   public getSyncPeer() {
@@ -235,11 +235,15 @@ export class AwesomeNodeLight {
   }
 
   public getAwesomeComStatus() {
-    return this.awesomeComStatus
+    return { ...this.awesomeComStatus }
   }
 
   public getAchievement(signature: string) {
     return this.pendingAchievements.find((achievement) => achievement.signature === signature)
+  }
+
+  public getAchievements() {
+    return this.pendingAchievements.slice()
   }
 
   public getReview(signature: string) {
@@ -248,6 +252,10 @@ export class AwesomeNodeLight {
 
   public getReviews(achievementSignature: string) {
     return this.pendingReviews.filter((review) => review.achievementSignature === achievementSignature)
+  }
+
+  public getTargetBlock() {
+    return this.targetBlock
   }
 
   public isInTPC() {

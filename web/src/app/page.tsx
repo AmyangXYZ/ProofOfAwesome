@@ -9,12 +9,14 @@ import AchievementInput from "@/components/achievement-input"
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
 
-export default function AwesomeCom() {
+export default function App() {
   const node = useAwesomeNode()
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const endOfListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
+    setAchievements(node.getAchievements())
+
     const handleNewAchievement = (achievement: Achievement) => {
       setAchievements((prev) => [...prev, achievement])
     }
@@ -26,15 +28,6 @@ export default function AwesomeCom() {
     }
   }, [node])
 
-  const [, setNow] = useState(Date.now())
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setNow(Date.now()) // This will trigger a re-render
-    }, 10000) // Update every 30 seconds
-    return () => clearInterval(interval)
-  }, [])
-
   useEffect(() => {
     if (endOfListRef.current) {
       endOfListRef.current.scrollIntoView({ behavior: "smooth" })
@@ -43,16 +36,16 @@ export default function AwesomeCom() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      {achievements.length === 0 && <Greeting />}
+      {!achievements.length && <Greeting />}
 
       <ScrollArea className="h-[calc(100dvh-11rem)] pt-4 px-4">
         <div className="flex flex-col gap-4">
-          {achievements.map((achievement) => (
+          {achievements.map((achievement, index) => (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              key={achievement.signature}
+              key={index}
             >
               <AchievementCard achievement={achievement} />
             </motion.div>

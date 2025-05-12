@@ -5,9 +5,10 @@ import { Button } from "./ui/button"
 import { Textarea } from "./ui/textarea"
 import { motion } from "framer-motion"
 import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card"
-import { useEffect, useState } from "react"
-import { Achievement } from "@/awesome/awesome"
+
 import { useAwesomeNode } from "@/context/awesome-node-context"
+import { useState, useEffect } from "react"
+import { Achievement } from "@/awesome/awesome"
 
 const suggestedAchievements: {
   title: string
@@ -39,32 +40,30 @@ const suggestedAchievements: {
 
 export default function AchievementInput() {
   const node = useAwesomeNode()
-
-  const [description, setDescription] = useState("")
-
   const [achievements, setAchievements] = useState<Achievement[]>([])
 
-  const createAchievement = (description: string) => {
-    const achievement = node.createAchievement(description)
-    setAchievements((prev) => [...prev, achievement])
-    setDescription("")
-  }
-
   useEffect(() => {
+    setAchievements(node.getAchievements())
     const handleNewAchievement = (achievement: Achievement) => {
       setAchievements((prev) => [...prev, achievement])
     }
     node.on("achievement.new", handleNewAchievement)
-
     return () => {
       node.off("achievement.new", handleNewAchievement)
     }
   }, [node])
 
+  const [description, setDescription] = useState("")
+
+  const createAchievement = (description: string) => {
+    node.createAchievement(description)
+    setDescription("")
+  }
+
   return (
     <>
       <div className="relative">
-        {achievements.length === 0 && (
+        {!achievements.length && (
           <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
             {suggestedAchievements.map((ach, i) => (
               <motion.div

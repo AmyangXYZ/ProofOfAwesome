@@ -2,6 +2,7 @@
 
 import { createContext, useContext, ReactNode, useEffect } from "react"
 import { AwesomeNodeLight } from "@/awesome/node"
+import { generateMnemonic } from "bip39"
 
 interface AwesomeNodeContextType {
   node: AwesomeNodeLight
@@ -10,7 +11,20 @@ interface AwesomeNodeContextType {
 const AwesomeNodeContext = createContext<AwesomeNodeContextType | null>(null)
 
 export function AwesomeNodeProvider({ children }: { children: ReactNode }) {
-  const node = new AwesomeNodeLight("https://connect.proof-of-awesome.app", "Web Node", "", "")
+  // Generate and store new mnemonic if none exists
+  let mnemonic = ""
+  let passphrase = ""
+
+  if (typeof window !== "undefined") {
+    mnemonic = localStorage.getItem("mnemonic") || ""
+    if (!mnemonic) {
+      mnemonic = generateMnemonic()
+      localStorage.setItem("mnemonic", mnemonic)
+    }
+    passphrase = localStorage.getItem("passphrase") || ""
+  }
+
+  const node = new AwesomeNodeLight("https://connect.proof-of-awesome.app", "Web Node", mnemonic, passphrase)
 
   useEffect(() => {
     node.start()
@@ -18,7 +32,6 @@ export function AwesomeNodeProvider({ children }: { children: ReactNode }) {
     // Cleanup function
     return () => {
       node.stop()
-      console.log("Node stopped")
     }
   })
 
