@@ -24,7 +24,7 @@ export default function Peers() {
   }, [node])
 
   return (
-    <div className="max-w-3xl mx-auto p-4">
+    <div className="max-w-3xl w-full mx-auto p-4">
       <div className="text-sm text-zinc-500 mb-2 text-center">{peers.length} peers connected</div>
       <div className="overflow-x-auto">
         <Table>

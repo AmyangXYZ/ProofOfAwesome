@@ -35,26 +35,31 @@ export default function App() {
   }, [achievements])
 
   return (
-    <div className="max-w-3xl mx-auto">
-      {!achievements.length && <Greeting />}
-
-      <ScrollArea className="h-[calc(100dvh-11rem)] pt-4 px-4">
-        <div className="flex flex-col gap-4">
-          {achievements.map((achievement, index) => (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: 10 }}
-              key={index}
-            >
-              <AchievementCard achievement={achievement} />
-            </motion.div>
-          ))}
-          <div ref={endOfListRef} />
-        </div>
+    <div className="max-w-3xl w-full h-[calc(100dvh-40px)] mx-auto min-w-0 flex-1 flex flex-col">
+      <ScrollArea className="flex flex-col px-4 min-w-0 flex-1 overflow-y-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {!achievements.length ? (
+          <div className="flex flex-col justify-center items-center h-full -mx-4 mt-[25dvh]">
+            <Greeting />
+          </div>
+        ) : (
+          <div>
+            {achievements.map((achievement, index) => (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 10 }}
+                key={index}
+                className="mt-4"
+              >
+                <AchievementCard achievement={achievement} />
+              </motion.div>
+            ))}
+            <div ref={endOfListRef} />
+          </div>
+        )}
       </ScrollArea>
 
-      <div className="max-w-3xl mx-auto fixed bottom-0 left-0 right-0 p-4 bg-background">
+      <div className="max-w-3xl mx-auto flex p-4 bg-background w-full">
         <AchievementInput />
       </div>
     </div>

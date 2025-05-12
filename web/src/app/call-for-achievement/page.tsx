@@ -86,9 +86,9 @@ export default function CallForAchievement() {
               [Weak-Accept].
             </p>
             <p>
-              AwesomeCom implements this system through periodic blockchain events, each with its own unique theme and
-              precisely timed phases. When an achievement is accepted, it becomes a permanent part of the blockchain,
-              earning the creator AwesomeCoin rewards and eternal recognition in the network&apos;s history.
+              AwesomeCom implements this system through periodic blockchain events, each with precisely timed phases.
+              When an achievement is accepted, it becomes a permanent part of the blockchain, earning the creator
+              AwesomeCoin rewards and eternal recognition in the network&apos;s history.
             </p>
             <blockquote className="mt-6 border-l-4 pl-4">
               <h4 className="font-semibold text-blue-400 mb-2">The Four Phases in AwesomeCom</h4>

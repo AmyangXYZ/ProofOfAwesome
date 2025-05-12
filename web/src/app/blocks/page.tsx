@@ -1,5 +1,9 @@
 "use client"
 
 export default function Blocks() {
-  return <div className="relative w-full h-full">blocks</div>
+  return (
+    <div className="max-w-3xl w-full mx-auto p-4">
+      <div className="">Blocks</div>
+    </div>
+  )
 }

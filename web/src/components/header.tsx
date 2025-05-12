@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { AwesomeComStatus } from "@/awesome/awesome"
+import { Account } from "@/awesome/awesome"
 import { useEffect, useState } from "react"
 import { Button } from "./ui/button"
 
@@ -12,31 +12,24 @@ export default function Header() {
   const pathname = usePathname()
   const node = useAwesomeNode()
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  // const [targetBlock, setTargetBlock] = useState<number>(0)
-
-  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
-    edition: 0,
-    phase: "Submission",
-    editionRemaining: 0,
-    phaseRemaining: 0,
-  })
+  const [account, setAccount] = useState<Account | null>(null)
 
   useEffect(() => {
-    const status = node.getAwesomeComStatus()
-    setAwesomeComStatus(status)
-    const handleAwesomeComStatusUpdated = (status: AwesomeComStatus) => {
-      setAwesomeComStatus(status)
+    const account = node.getAccount()
+    setAccount(account)
+    const handleAccountUpdated = (account: Account) => {
+      setAccount(account)
     }
-    node.on("awesomecom.status.updated", handleAwesomeComStatusUpdated)
+    node.on("account.updated", handleAccountUpdated)
 
     return () => {
-      node.off("awesomecom.status.updated", handleAwesomeComStatusUpdated)
+      node.off("account.updated", handleAccountUpdated)
     }
   }, [node])
 
   return (
     <header className="top-0 z-50 w-full">
-      <div className=" flex h-10 w-full items-center px-4 justify-between md:text-sm">
+      <div className="flex h-10 w-full items-center px-4 justify-between md:text-sm">
         <nav className="flex space-x-4 items-center">
           <Link href="/" className="mr-6 flex space-between space-x-2 z-50">
             <span className="font-bold">Proof of Awesome</span>
@@ -77,9 +70,9 @@ export default function Header() {
             Github
           </Link>
         </nav>
-        <div className="hidden md:flex items-center space-x-2">
-          {awesomeComStatus.phase} for block #{awesomeComStatus.edition} ending in{" "}
-          {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
+        <div className="hidden md:flex items-center space-x-2 text-muted-foreground">
+          <span>Address: {account?.address}</span>
+          <span>Balance: {account?.balance} </span>
         </div>
         <Button variant="ghost" className="md:hidden relative z-50 w-6 h-6" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           <div className="absolute w-5 h-5 flex flex-col justify-center items-center">

@@ -8,7 +8,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card"
 
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { useState, useEffect, useRef } from "react"
-import { Achievement } from "@/awesome/awesome"
+import { Achievement, AwesomeComStatus } from "@/awesome/awesome"
 
 const suggestedAchievements: {
   title: string
@@ -41,6 +41,17 @@ const suggestedAchievements: {
 export default function AchievementInput() {
   const node = useAwesomeNode()
   const [achievements, setAchievements] = useState<Achievement[]>([])
+  const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
+    edition: 0,
+    phase: "Submission",
+    editionRemaining: 0,
+    phaseRemaining: 0,
+  })
+  const [canSubmit, setCanSubmit] = useState(false)
+
+  useEffect(() => {
+    setCanSubmit(awesomeComStatus.phase === "Submission")
+  }, [awesomeComStatus])
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
@@ -49,9 +60,18 @@ export default function AchievementInput() {
     const handleNewAchievement = (achievement: Achievement) => {
       setAchievements((prev) => [...prev, achievement])
     }
+    const status = node.getAwesomeComStatus()
+    setAwesomeComStatus(status)
+    const handleAwesomeComStatusUpdated = (status: AwesomeComStatus) => {
+      setAwesomeComStatus(status)
+    }
+
     node.on("achievement.new", handleNewAchievement)
+    node.on("awesomecom.status.updated", handleAwesomeComStatusUpdated)
+
     return () => {
       node.off("achievement.new", handleNewAchievement)
+      node.off("awesomecom.status.updated", handleAwesomeComStatusUpdated)
     }
   }, [node])
 
@@ -85,8 +105,8 @@ export default function AchievementInput() {
   return (
     <>
       <div className="relative w-full flex flex-col gap-4">
-        {!achievements.length && (
-          <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
+        {!achievements.length && canSubmit && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {suggestedAchievements.map((ach, i) => (
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
@@ -115,6 +135,10 @@ export default function AchievementInput() {
           </div>
         )}
 
+        <span className="text-sm text-muted-foreground w-full text-center -mb-1">
+          {awesomeComStatus.phase} for block #{awesomeComStatus.edition} is ending in{" "}
+          {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
+        </span>
         <Textarea
           ref={textareaRef}
           className="max-h-[calc(75dvh)] min-h-[24px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700"
@@ -129,10 +153,11 @@ export default function AchievementInput() {
               createAchievement(description)
             }
           }}
+          disabled={!canSubmit}
           placeholder="I am thrilled to announce that ..."
         />
         <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-          <Button size="icon" variant="ghost">
+          <Button size="icon" variant="ghost" disabled={!canSubmit}>
             <Paperclip className="size-4.5" />
           </Button>
         </div>
@@ -140,7 +165,7 @@ export default function AchievementInput() {
           <Button
             size="icon"
             className="rounded-full h-fit w-fit p-1"
-            disabled={description.length === 0}
+            disabled={description.length === 0 || !canSubmit}
             onClick={() => createAchievement(description)}
           >
             <ArrowUp className="size-5" />

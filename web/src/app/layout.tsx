@@ -68,11 +68,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col w-full min-h-dvh`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased `}>
         <AwesomeNodeProvider>
           <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
-            <Header />
-            <main className="w-full flex-1">{children}</main>
+            <main className="w-full flex flex-col h-dvh">
+              <Header />
+              {children}
+            </main>
             <Toaster position="top-center" />
           </ThemeProvider>
         </AwesomeNodeProvider>
