@@ -104,18 +104,20 @@ export default function Header() {
           isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         )}
       >
-        <div className="fixed inset-x-0 top-10 flex flex-col space-y-4 p-4">
-          <div className="flex flex-col px-4 text-muted-foreground">
+        <div className="fixed inset-x-0 top-10 flex flex-col space-y-4 px-8 pt-4">
+          <div className="flex flex-col text-muted-foreground">
             <span>Address:</span>
-            <span className="text-sm mb-2 font-mono">{account?.address}</span>
+            <span className="mb-2 font-mono break-all" style={{ fontSize: "0.79rem" }}>
+              {account?.address}
+            </span>
             <span>Balance:</span>
             <span className="text-sm font-mono">{account?.balance}</span>
           </div>
-          <Separator className="my-4" />
+          <Separator />
           <Link
             href="/call-for-achievement"
             className={cn(
-              "text-md px-4 transition-colors hover:text-foreground/80",
+              "text-md transition-colors hover:text-foreground/80",
               pathname === "/call-for-achievement" ? "text-foreground" : "text-foreground/60"
             )}
             onClick={() => setIsMenuOpen(false)}
@@ -125,7 +127,7 @@ export default function Header() {
           <Link
             href="/peers"
             className={cn(
-              "text-md px-4 transition-colors hover:text-foreground/80",
+              "text-md transition-colors hover:text-foreground/80",
               pathname === "/peers" ? "text-foreground" : "text-foreground/60"
             )}
             onClick={() => setIsMenuOpen(false)}
@@ -135,7 +137,7 @@ export default function Header() {
           <Link
             href="/blocks"
             className={cn(
-              "text-md px-4 transition-colors hover:text-foreground/80",
+              "text-md transition-colors hover:text-foreground/80",
               pathname === "/blocks" ? "text-foreground" : "text-foreground/60"
             )}
             onClick={() => setIsMenuOpen(false)}
@@ -144,7 +146,7 @@ export default function Header() {
           </Link>
           <Link
             href="https://github.com/AmyangXYZ/ProofOfAwesome"
-            className={cn("text-md px-4 transition-colors hover:text-foreground/80", "text-foreground/60")}
+            className={cn("text-md  transition-colors hover:text-foreground/80", "text-foreground/60")}
             onClick={() => setIsMenuOpen(false)}
           >
             Github

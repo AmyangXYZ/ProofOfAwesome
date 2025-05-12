@@ -38,7 +38,7 @@ export default function App() {
     <div className="max-w-3xl w-full h-[calc(100dvh-40px)] mx-auto min-w-0 flex-1 flex flex-col">
       <ScrollArea className="flex flex-col px-4 min-w-0 flex-1 overflow-y-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {!achievements.length ? (
-          <div className="flex flex-col justify-center items-center h-full -mx-4 mt-[25dvh]">
+          <div className="flex flex-col justify-center items-center h-full -mx-4 mt-[18dvh] md:mt-[25dvh]">
             <Greeting />
           </div>
         ) : (
