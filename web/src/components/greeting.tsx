@@ -49,7 +49,7 @@ export default function Greeting() {
           Get recognized on blockchain.
         </motion.div>
         <div className="my-12" />
-        <div className="flex justify-center">
+        <div className="flex justify-center md:text-lg">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
@@ -57,12 +57,12 @@ export default function Greeting() {
             transition={{ delay: 0.9 }}
             className="bg-zinc-900/70 rounded-lg px-6 py-4 shadow-lg flex flex-col gap-1 max-w-md"
           >
-            <div className="text-xl font-semibold text-blue-300 flex items-center gap-2">
+            <div className="font-semibold text-blue-300 flex items-center gap-2">
               <span>Current Target Block:</span>
               <span className="font-bold text-blue-400 font-mono">#{node.getTargetBlock()}</span>
             </div>
-            <div className="text-lg mt-1">
-              <span className="font-semibold text-green-400 text-xl">{awesomeComStatus.phase}</span>
+            <div className="mt-1">
+              <span className="font-semibold text-green-400">{awesomeComStatus.phase}</span>
               <span className="text-zinc-400"> ending in </span>
               <span className="px-2 py-1 rounded bg-zinc-800 text-yellow-400 font-semibold font-mono">
                 {Math.floor(awesomeComStatus.phaseRemaining / 1000)}s

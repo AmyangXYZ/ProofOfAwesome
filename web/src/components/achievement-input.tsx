@@ -7,7 +7,7 @@ import { motion } from "framer-motion"
 import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card"
 
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Achievement } from "@/awesome/awesome"
 
 const suggestedAchievements: {
@@ -42,6 +42,8 @@ export default function AchievementInput() {
   const node = useAwesomeNode()
   const [achievements, setAchievements] = useState<Achievement[]>([])
 
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
+
   useEffect(() => {
     setAchievements(node.getAchievements())
     const handleNewAchievement = (achievement: Achievement) => {
@@ -58,11 +60,31 @@ export default function AchievementInput() {
   const createAchievement = (description: string) => {
     node.createAchievement(description)
     setDescription("")
+    resetHeight()
   }
 
+  useEffect(() => {
+    if (textareaRef.current) {
+      adjustHeight()
+    }
+  }, [])
+
+  const adjustHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = `${textareaRef.current.scrollHeight + 2}px`
+    }
+  }
+
+  const resetHeight = () => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto"
+      textareaRef.current.style.height = "98px"
+    }
+  }
   return (
     <>
-      <div className="relative">
+      <div className="relative w-full flex flex-col gap-4">
         {!achievements.length && (
           <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-2">
             {suggestedAchievements.map((ach, i) => (
@@ -94,9 +116,13 @@ export default function AchievementInput() {
         )}
 
         <Textarea
-          className="h-24 rounded-16 resize-none rounded-2xl dark:bg-zinc-800 pr-24"
+          ref={textareaRef}
+          className="max-h-[calc(75dvh)] min-h-[24px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700"
           value={description}
-          onChange={(e) => setDescription(e.target.value)}
+          onChange={(e) => {
+            setDescription(e.target.value)
+            adjustHeight()
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter" && description.trim().length > 0) {
               e.preventDefault()
@@ -105,12 +131,12 @@ export default function AchievementInput() {
           }}
           placeholder="I am thrilled to announce that ..."
         />
-        <div className="absolute bottom-2 left-2">
+        <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
           <Button size="icon" variant="ghost">
-            <Paperclip className="size-4" />
+            <Paperclip className="size-4.5" />
           </Button>
         </div>
-        <div className="absolute bottom-2 right-2">
+        <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
           <Button
             size="icon"
             className="rounded-full h-fit w-fit p-1"

@@ -39,7 +39,9 @@ export default function Peers() {
             {peers.map((peer) => (
               <TableRow key={peer.address} className="text-sm">
                 <TableCell className="font-medium font-mono">
-                  <div className="truncate max-w-[160px] md:max-w-[400px]">{peer.address}</div>
+                  <div className="truncate max-w-[160px] md:max-w-[400px]" title={peer.address}>
+                    {peer.address}
+                  </div>
                 </TableCell>
                 <TableCell>{peer.name}</TableCell>
                 <TableCell>{peer.nodeType}</TableCell>
