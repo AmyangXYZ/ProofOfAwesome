@@ -30,7 +30,7 @@ export default function Peers() {
         <Table>
           <TableHeader>
             <TableRow className="text-sm">
-              <TableHead className="w-[160px] md:w-[400px]">Peer</TableHead>
+              <TableHead className="w-[100px] md:w-[400px]">Peer</TableHead>
               <TableHead>Name</TableHead>
               <TableHead>Type</TableHead>
             </TableRow>
@@ -39,7 +39,7 @@ export default function Peers() {
             {peers.map((peer) => (
               <TableRow key={peer.address} className="text-sm">
                 <TableCell className="font-medium font-mono">
-                  <div className="truncate max-w-[160px] md:max-w-[400px]" title={peer.address}>
+                  <div className="truncate max-w-[100px] md:max-w-[400px]" title={peer.address}>
                     {peer.address}
                   </div>
                 </TableCell>

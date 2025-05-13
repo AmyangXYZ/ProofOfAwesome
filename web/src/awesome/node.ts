@@ -60,11 +60,13 @@ interface EventMap {
   "awesomecom.review.started": void
   "awesomecom.consensus.started": void
   "awesomecom.announcement.started": void
+  "target_block.updated": number
   "account.updated": Account
   "block.new": Block
   "block.fetched": Block
   "block_header.new": BlockHeader
   "block_header.fetched": BlockHeader
+  "block_headers.fetched": BlockHeader[]
   "achievement.new": Achievement
   "review.new": Review
   "transaction.new": Transaction
@@ -159,6 +161,7 @@ export class AwesomeNodeLight {
 
     this.on("awesomecom.submission.started", async () => {
       this.pendingAchievements = []
+      this.targetBlock++
     })
 
     this.on("awesomecom.review.started", async () => {
@@ -206,12 +209,20 @@ export class AwesomeNodeLight {
     return { ...this.chainHead }
   }
 
+  public getBlockHeader(height: number) {
+    return this.blockHeaders.get(height)
+  }
+
   public getBlockHeaders() {
     return Array.from(this.blockHeaders.values())
   }
 
+  public getBlock(height: number) {
+    return this.blocks.get(height)
+  }
+
   public getBlocks() {
-    return Array.from(this.blocks.values())
+    return Array.from(this.blocks.values()).sort((a, b) => b.header.height - a.header.height)
   }
 
   public getPendingAchievements() {
@@ -256,10 +267,6 @@ export class AwesomeNodeLight {
 
   public getTargetBlock() {
     return this.targetBlock
-  }
-
-  public getBlock(height: number) {
-    return this.blocks.get(height)
   }
 
   public isInTPC() {
@@ -506,7 +513,6 @@ export class AwesomeNodeLight {
         this.emit("peer.discovered", members)
         if (members.length > 0) {
           // TODO: request chain heads from multiple full nodes and select the best one or use trusted full node
-          console.log("Setting sync peer", members[0].address)
           this.setSyncPeer(members[0].address)
           this.requestChainHead()
         }
@@ -627,7 +633,7 @@ export class AwesomeNodeLight {
   }
 
   private async handleNewBlock(message: Message) {
-    if (this.awesomeComStatus.phase != "Announcement" || this.identity.nodeType != "light") {
+    if (this.awesomeComStatus.phase != "Announcement") {
       return
     }
     const block = message.payload
@@ -642,10 +648,12 @@ export class AwesomeNodeLight {
       block.header.height > this.chainHead.latestBlockHeight &&
       block.header.previousHash == this.chainHead.latestBlockHash
     ) {
+      this.emit("block_header.new", block.header)
       this.emit("block.new", block)
       this.blockHeaders.set(block.header.height, block.header)
       this.blocks.set(block.header.height, block)
       this.targetBlock = block.header.height + 1
+      this.emit("target_block.updated", this.targetBlock)
     }
   }
 
@@ -711,7 +719,6 @@ export class AwesomeNodeLight {
 
   private async handleChainHeadResponse(message: Message) {
     const response = message.payload
-    console.log("Received chain head response", response)
     if (!isChainHeadResponse(response) || !this.sentRequests.has(response.requestId)) {
       return
     }
@@ -721,13 +728,14 @@ export class AwesomeNodeLight {
     if (!verifyChainHead(chainHead)) {
       return
     }
-    console.log("Received chain head", chainHead)
 
     if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
       this.chainHead = chainHead
       this.targetBlock = chainHead.latestBlockHeight + 1
-      console.log("current target block", this.targetBlock)
+      this.emit("target_block.updated", this.targetBlock)
       this.emit("chain_head.updated", chainHead)
+
+      this.requestBlockHeaders(this.chainHead.latestBlockHeight - 10, this.chainHead.latestBlockHeight)
     }
   }
 
@@ -750,9 +758,9 @@ export class AwesomeNodeLight {
     this.sentRequests.delete(response.requestId)
 
     for (const blockHeader of response.blockHeaders) {
-      this.emit("block_header.fetched", blockHeader)
       this.blockHeaders.set(blockHeader.height, blockHeader)
     }
+    this.emit("block_headers.fetched", response.blockHeaders)
   }
 
   private async handleBlockResponse(message: Message) {

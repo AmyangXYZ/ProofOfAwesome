@@ -105,6 +105,9 @@ export interface BlockHeader {
   transactionsRoot: string
   achievementsRoot: string
   reviewsRoot: string
+  transactionsCount: number
+  achievementsCount: number
+  reviewsCount: number
   timestamp: number
   hash: string
 }
@@ -207,6 +210,12 @@ export function isBlockHeader(payload: unknown): payload is BlockHeader {
     typeof payload.achievementsRoot === "string" &&
     "reviewsRoot" in payload &&
     typeof payload.reviewsRoot === "string" &&
+    "transactionsCount" in payload &&
+    typeof payload.transactionsCount === "number" &&
+    "achievementsCount" in payload &&
+    typeof payload.achievementsCount === "number" &&
+    "reviewsCount" in payload &&
+    typeof payload.reviewsCount === "number" &&
     "timestamp" in payload &&
     typeof payload.timestamp === "number" &&
     "hash" in payload &&
@@ -340,6 +349,9 @@ export function hashBlockHeader(blockHeader: BlockHeader) {
       blockHeader.transactionsRoot,
       blockHeader.achievementsRoot,
       blockHeader.reviewsRoot,
+      blockHeader.transactionsCount,
+      blockHeader.achievementsCount,
+      blockHeader.reviewsCount,
       blockHeader.timestamp,
     ].join("_")
   )
@@ -355,6 +367,15 @@ export function verifyBlockHeader(blockHeader: BlockHeader): boolean {
 
 export function verifyBlock(block: Block): boolean {
   if (!verifyBlockHeader(block.header)) {
+    return false
+  }
+  if (block.header.transactionsCount !== block.transactions.length) {
+    return false
+  }
+  if (block.header.achievementsCount !== block.achievements.length) {
+    return false
+  }
+  if (block.header.reviewsCount !== block.reviews.length) {
     return false
   }
   if (

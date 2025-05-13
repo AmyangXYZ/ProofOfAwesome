@@ -32,7 +32,7 @@ export default function Header() {
     <header className="top-0 z-50 w-full">
       <div className="flex h-10 w-full items-center px-4 justify-between md:text-sm">
         <nav className="flex space-x-4 items-center">
-          <Link href="/" className="mr-6 flex space-between space-x-2 z-50">
+          <Link href="/" className="mr-6 flex space-between space-x-2 z-50" onClick={() => setIsMenuOpen(false)}>
             <span className="font-bold">Proof of Awesome</span>
           </Link>
           <Link

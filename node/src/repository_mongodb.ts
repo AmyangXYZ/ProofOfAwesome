@@ -11,6 +11,9 @@ interface BlockDocument {
     transactionsRoot: string
     achievementsRoot: string
     reviewsRoot: string
+    transactionsCount: number
+    achievementsCount: number
+    reviewsCount: number
     timestamp: Date
     hash: string
   }
@@ -72,9 +75,13 @@ export class MongoDBRepository implements Repository {
         header: {
           height: { type: Number, index: true },
           previousHash: String,
+          accountsRoot: String,
           transactionsRoot: String,
           achievementsRoot: String,
           reviewsRoot: String,
+          transactionsCount: Number,
+          achievementsCount: Number,
+          reviewsCount: Number,
           timestamp: Date,
           hash: String,
         },
@@ -145,6 +152,9 @@ export class MongoDBRepository implements Repository {
         transactionsRoot: blockDoc.header.transactionsRoot,
         achievementsRoot: blockDoc.header.achievementsRoot,
         reviewsRoot: blockDoc.header.reviewsRoot,
+        transactionsCount: blockDoc.header.transactionsCount,
+        achievementsCount: blockDoc.header.achievementsCount,
+        reviewsCount: blockDoc.header.reviewsCount,
         timestamp: blockDoc.header.timestamp.getTime(),
         hash: blockDoc.header.hash,
       },
@@ -245,6 +255,9 @@ export class MongoDBRepository implements Repository {
         transactionsRoot: block.header.transactionsRoot,
         achievementsRoot: block.header.achievementsRoot,
         reviewsRoot: block.header.reviewsRoot,
+        transactionsCount: block.header.transactionsCount,
+        achievementsCount: block.header.achievementsCount,
+        reviewsCount: block.header.reviewsCount,
         timestamp: new Date(block.header.timestamp),
         hash: block.header.hash,
       },

@@ -19,6 +19,8 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
   const [isNewReview, setIsNewReview] = useState(false)
   const prevReviewCount = useRef(reviewCount)
 
+  const [canReview, setCanReview] = useState(true)
+
   useEffect(() => {
     const handleNewReview = (review: { achievementSignature: string }) => {
       if (review.achievementSignature === achievement.signature) {
@@ -27,6 +29,10 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
         // toast.success(`New review for ${achievement.signature.slice(0, 10)}...`)
       }
     }
+    node.on("review.new", handleNewReview)
+
+    const awesomeComStatus = node.getAwesomeComStatus()
+    setCanReview(awesomeComStatus.phase === "Submission" || awesomeComStatus.phase === "Review")
 
     const calculateMedianScore = () => {
       const reviews = node.getReviews(achievement.signature)
@@ -37,10 +43,19 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
       setMedianScore(medianScore)
     }
 
-    node.on("review.new", handleNewReview)
+    const handleSubmissionStarted = () => {
+      setCanReview(true)
+    }
+    const handleConsensusStarted = () => {
+      setCanReview(false)
+    }
+    node.on("awesomecom.submission.started", handleSubmissionStarted)
+    node.on("awesomecom.consensus.started", handleConsensusStarted)
 
     return () => {
       node.off("review.new", handleNewReview)
+      node.off("awesomecom.submission.started", handleSubmissionStarted)
+      node.off("awesomecom.consensus.started", handleConsensusStarted)
     }
   }, [node, achievement])
 
@@ -70,7 +85,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
             </span>
             ·{" "}
             <span className="text-zinc-500 text-xs font-normal">
-              {formatDistanceToNowStrict(achievement.timestamp)}
+              {formatDistanceToNowStrict(achievement.timestamp, { addSuffix: true })}
             </span>
           </CardTitle>
           <CardDescription className="text-zinc-500 text-xs">
@@ -95,11 +110,10 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
             </div>
           )}
         </CardContent>
-        <CardFooter className="gap-4 mt-1">
+        <CardFooter className="gap-4">
           <Button
             onClick={(e) => {
               e.preventDefault()
-              // setShowQuickReview(true)
               e.stopPropagation()
             }}
             className="shadow-sm h-7 hover:bg-zinc-200! hover:text-zinc-950!"
@@ -118,8 +132,11 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
               onClick={(e) => {
                 e.preventDefault()
                 e.stopPropagation()
-                setShowReviewSheet(true)
+                if (canReview) {
+                  setShowReviewSheet(true)
+                }
               }}
+              disabled={!canReview}
               className="bg-transparent! h-7 hover:bg-zinc-200! hover:text-zinc-950! shadow-sm"
               variant="outline"
             >

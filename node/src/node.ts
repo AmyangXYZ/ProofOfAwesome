@@ -339,6 +339,7 @@ export class AwesomeNode {
           if (genesisBlock) {
             await this.repository.addBlock(genesisBlock)
             this.emit("block.added", genesisBlock)
+            this.targetBlock++
 
             this.chainHead = {
               chainId: chainConfig.chainId,
@@ -582,7 +583,6 @@ export class AwesomeNode {
     }
     this.hasReceived.set(achievement.signature, Date.now())
 
-    console.log("New achievement:", achievement)
     this.pendingAchievements.push(achievement)
     if (this.reviewer) {
       this.reviewer.assignAchievement(achievement)
@@ -604,7 +604,6 @@ export class AwesomeNode {
     }
     this.hasReceived.set(review.signature, Date.now())
 
-    console.log("New review:", review)
     this.pendingReviews.push(review)
   }
 
@@ -654,7 +653,6 @@ export class AwesomeNode {
 
   private async handleChainHeadRequest(message: Message) {
     const request = message.payload
-    console.log("Received chain head request", request)
     if (!isChainHeadRequest(request)) {
       return
     }
@@ -674,7 +672,6 @@ export class AwesomeNode {
       payload: response,
       timestamp: Date.now(),
     }
-    console.log("Sending chain head response", response)
     this.socket.emit("message.send", msg)
   }
 
@@ -690,9 +687,7 @@ export class AwesomeNode {
       return
     }
 
-    console.log("Chain head:", chainHead)
     if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
-      console.log("Updating chain head:", chainHead)
       this.chainHead = chainHead
     }
   }
@@ -948,6 +943,9 @@ export class AwesomeNode {
       transactionsRoot: MerkleTree.calculateRoot(transactions.map((t) => t.signature)),
       achievementsRoot: MerkleTree.calculateRoot(acceptedAchievements.map((a) => a.signature)),
       reviewsRoot: MerkleTree.calculateRoot(reviewsForAcceptedAchievements.map((r) => r.signature)),
+      transactionsCount: transactions.length,
+      achievementsCount: acceptedAchievements.length,
+      reviewsCount: reviewsForAcceptedAchievements.length,
       timestamp: Date.now(),
       hash: "",
     }
@@ -977,7 +975,7 @@ export class AwesomeNode {
   private updateAwesomeComStatus() {
     const status = getAwesomeComStatus()
     if (status.edition !== this.awesomeComStatus.edition || status.phase !== this.awesomeComStatus.phase) {
-      console.log(`[${status.edition}th AwesomeCom)] Entering ${status.phase} phase`)
+      console.log(`${status.phase} for block #${this.targetBlock} starts`)
       this.awesomeComStatus = status
 
       switch (status.phase) {

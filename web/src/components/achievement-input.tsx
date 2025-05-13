@@ -47,6 +47,7 @@ export default function AchievementInput() {
     editionRemaining: 0,
     phaseRemaining: 0,
   })
+  const [targetBlock, setTargetBlock] = useState<number>(0)
   const [canSubmit, setCanSubmit] = useState(true)
 
   useEffect(() => {
@@ -56,22 +57,28 @@ export default function AchievementInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
+    setTargetBlock(node.getTargetBlock())
     setAchievements(node.getAchievements())
     const handleNewAchievement = (achievement: Achievement) => {
       setAchievements((prev) => [...prev, achievement])
     }
-    const status = node.getAwesomeComStatus()
-    setAwesomeComStatus(status)
+    node.on("achievement.new", handleNewAchievement)
+
+    setAwesomeComStatus(node.getAwesomeComStatus())
     const handleAwesomeComStatusUpdated = (status: AwesomeComStatus) => {
       setAwesomeComStatus(status)
     }
-
-    node.on("achievement.new", handleNewAchievement)
     node.on("awesomecom.status.updated", handleAwesomeComStatusUpdated)
+
+    const handleNewTargetBlock = (block: number) => {
+      setTargetBlock(block)
+    }
+    node.on("target_block.updated", handleNewTargetBlock)
 
     return () => {
       node.off("achievement.new", handleNewAchievement)
       node.off("awesomecom.status.updated", handleAwesomeComStatusUpdated)
+      node.off("target_block.updated", handleNewTargetBlock)
     }
   }, [node])
 
@@ -136,7 +143,7 @@ export default function AchievementInput() {
         )}
 
         <span className="text-sm text-muted-foreground w-full text-center -mb-1">
-          {awesomeComStatus.phase} for block #{awesomeComStatus.edition} is ending in{" "}
+          {awesomeComStatus.phase} for block #{targetBlock} is ending in{" "}
           {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
         </span>
         <Textarea
@@ -154,7 +161,7 @@ export default function AchievementInput() {
             }
           }}
           disabled={!canSubmit}
-          placeholder="I am thrilled to announce that ..."
+          placeholder={canSubmit ? "I am thrilled to announce that ..." : "Submission is closed for the current block"}
         />
         <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
           <Button size="icon" variant="ghost" disabled={!canSubmit}>
