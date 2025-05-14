@@ -34,23 +34,16 @@ import {
   ChainHeadResponse,
   isChainHeadRequest,
   isChainHeadResponse,
-  isReviewsResponse,
-  isReviewsRequest,
   MESSAGE_TYPE,
   isReviewRequest,
-  isAchievementsResponse,
-  isReviewResponse,
   isAchievementsRequest,
   isBlockRequest,
   isBlockResponse,
   isBlocksRequest,
   isBlocksResponse,
   isTransactionRequest,
-  isTransactionResponse,
   isTransactionsRequest,
-  isTransactionsResponse,
   isAchievementRequest,
-  isAchievementResponse,
   isAccountRequest,
   AccountResponse,
   isAccountResponse,
@@ -60,6 +53,12 @@ import {
   isBlockHeadersResponse,
   BlockHeaderResponse,
   BlockHeadersResponse,
+  BlockResponse,
+  BlocksResponse,
+  TransactionResponse,
+  AchievementResponse,
+  TransactionsResponse,
+  isReviewsRequest,
 } from "./message"
 import { Reviewer, ReviewResult } from "./reviewer"
 
@@ -396,9 +395,6 @@ export class AwesomeNode {
       case MESSAGE_TYPE.ACCOUNT_REQUEST:
         this.handleAccountRequest(message)
         break
-      case MESSAGE_TYPE.ACCOUNT_RESPONSE:
-        this.handleAccountResponse(message)
-        break
       case MESSAGE_TYPE.CHAIN_HEAD_REQUEST:
         this.handleChainHeadRequest(message)
         break
@@ -432,38 +428,20 @@ export class AwesomeNode {
       case MESSAGE_TYPE.TRANSACTION_REQUEST:
         this.handleTransactionRequest(message)
         break
-      case MESSAGE_TYPE.TRANSACTION_RESPONSE:
-        this.handleTransactionResponse(message)
-        break
       case MESSAGE_TYPE.TRANSACTIONS_REQUEST:
         this.handleTransactionsRequest(message)
-        break
-      case MESSAGE_TYPE.TRANSACTIONS_RESPONSE:
-        this.handleTransactionsResponse(message)
         break
       case MESSAGE_TYPE.ACHIEVEMENT_REQUEST:
         this.handleAchievementRequest(message)
         break
-      case MESSAGE_TYPE.ACHIEVEMENT_RESPONSE:
-        this.handleAchievementResponse(message)
-        break
       case MESSAGE_TYPE.ACHIEVEMENTS_REQUEST:
         this.handleAchievementsRequest(message)
-        break
-      case MESSAGE_TYPE.ACHIEVEMENTS_RESPONSE:
-        this.handleAchievementsResponse(message)
         break
       case MESSAGE_TYPE.REVIEW_REQUEST:
         this.handleReviewRequest(message)
         break
-      case MESSAGE_TYPE.REVIEW_RESPONSE:
-        this.handleReviewResponse(message)
-        break
       case MESSAGE_TYPE.REVIEWS_REQUEST:
         this.handleReviewsRequest(message)
-        break
-      case MESSAGE_TYPE.REVIEWS_RESPONSE:
-        this.handleReviewsResponse(message)
         break
       default:
         console.log("Unknown message type:", message.from, message.type, message.timestamp)
@@ -697,13 +675,13 @@ export class AwesomeNode {
     if (!isBlockHeaderRequest(request)) {
       return
     }
-    const block = await this.repository.getBlock(request.height)
-    if (!block) {
+    const header = await this.repository.getBlockHeader(request.height)
+    if (!header) {
       return
     }
     const response: BlockHeaderResponse = {
       requestId: request.requestId,
-      blockHeader: block.header,
+      blockHeader: header,
     }
     const msg: Message = {
       from: this.identity.address,
@@ -730,10 +708,10 @@ export class AwesomeNode {
     if (!isBlockHeadersRequest(request)) {
       return
     }
-    const blocks = await this.repository.getBlocks(request.fromHeight, request.toHeight)
+    const headers = await this.repository.getBlockHeaders(request.fromHeight, request.toHeight)
     const response: BlockHeadersResponse = {
       requestId: request.requestId,
-      blockHeaders: blocks.map((block) => block.header),
+      blockHeaders: headers,
     }
     const msg: Message = {
       from: this.identity.address,
@@ -760,6 +738,22 @@ export class AwesomeNode {
     if (!isBlockRequest(request)) {
       return
     }
+    const block = await this.repository.getBlock(request.height)
+    if (!block) {
+      return
+    }
+    const response: BlockResponse = {
+      requestId: request.requestId,
+      block,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.BLOCK_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleBlockResponse(message: Message) {
@@ -777,6 +771,19 @@ export class AwesomeNode {
     if (!isBlocksRequest(request)) {
       return
     }
+    const blocks = await this.repository.getBlocks(request.fromHeight, request.toHeight)
+    const response: BlocksResponse = {
+      requestId: request.requestId,
+      blocks,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.BLOCKS_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleBlocksResponse(message: Message) {
@@ -794,16 +801,22 @@ export class AwesomeNode {
     if (!isTransactionRequest(request)) {
       return
     }
-  }
-
-  private async handleTransactionResponse(message: Message) {
-    const response = message.payload
-    if (!isTransactionResponse(response) || !this.sentRequests.has(response.requestId)) {
+    const transaction = await this.repository.getTransactionBySignature(request.signature)
+    if (!transaction) {
       return
     }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New transaction:", response.transaction)
+    const response: TransactionResponse = {
+      requestId: request.requestId,
+      transaction,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.TRANSACTION_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleTransactionsRequest(message: Message) {
@@ -811,16 +824,25 @@ export class AwesomeNode {
     if (!isTransactionsRequest(request)) {
       return
     }
-  }
-
-  private async handleTransactionsResponse(message: Message) {
-    const response = message.payload
-    if (!isTransactionsResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
+    let transactions: Transaction[] = []
+    if (request.senderAddress) {
+      transactions = await this.repository.getTransactionsBySender(request.senderAddress)
+    } else if (request.recipientAddress) {
+      transactions = await this.repository.getTransactionsByRecipient(request.recipientAddress)
     }
-    this.sentRequests.delete(response.requestId)
 
-    console.log("New transactions:", response.transactions)
+    const response: TransactionsResponse = {
+      requestId: request.requestId,
+      transactions,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.TRANSACTIONS_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleAchievementRequest(message: Message) {
@@ -828,16 +850,22 @@ export class AwesomeNode {
     if (!isAchievementRequest(request)) {
       return
     }
-  }
-
-  private async handleAchievementResponse(message: Message) {
-    const response = message.payload
-    if (!isAchievementResponse(response) || !this.sentRequests.has(response.requestId)) {
+    const achievement = await this.repository.getAchievementBySignature(request.signature)
+    if (!achievement) {
       return
     }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New achievement:", response.achievement)
+    const response: AchievementResponse = {
+      requestId: request.requestId,
+      achievement,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.ACHIEVEMENT_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleAchievementsRequest(message: Message) {
@@ -847,31 +875,11 @@ export class AwesomeNode {
     }
   }
 
-  private async handleAchievementsResponse(message: Message) {
-    const response = message.payload
-    if (!isAchievementsResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New achievements:", response.achievements)
-  }
-
   private async handleReviewRequest(message: Message) {
     const request = message.payload
     if (!isReviewRequest(request)) {
       return
     }
-  }
-
-  private async handleReviewResponse(message: Message) {
-    const response = message.payload
-    if (!isReviewResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New review:", response.review)
   }
 
   private async handleReviewsRequest(message: Message) {
@@ -881,20 +889,10 @@ export class AwesomeNode {
     }
   }
 
-  private async handleReviewsResponse(message: Message) {
-    const response = message.payload
-    if (!isReviewsResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New reviews:", response.reviews)
-  }
-
   private async createBlock(): Promise<Block | null> {
     let previousHash = ""
     let previousHeight = -1
-    const transactions = await this.repository.getPendingTransactions()
+    const transactions = await this.repository.getTransactionsByBlockHeight(-1)
     const achievements = this.pendingAchievements
     const reviews = this.pendingReviews
     const previousBlock = await this.repository.getLatestBlock()

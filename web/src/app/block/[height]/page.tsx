@@ -58,6 +58,13 @@ export default function BlockPage({ params }: { params: Promise<{ height: number
             <span className="text-sm text-muted-foreground">Loading...</span>
           </div>
         )}
+        {block && (
+          <div className="flex flex-row gap-2">
+            <span className="text-sm text-muted-foreground">{block.transactions.length} transactions</span>
+            <span className="text-sm text-muted-foreground">{block.achievements.length} achievements</span>
+            <span className="text-sm text-muted-foreground">{block.reviews.length} reviews</span>
+          </div>
+        )}
       </div>
     </div>
   )

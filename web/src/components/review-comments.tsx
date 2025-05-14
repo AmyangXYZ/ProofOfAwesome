@@ -26,7 +26,7 @@ export default function ReviewComments({ review }: { review: Review }) {
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 my-2 text-sm">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-2 my-2 text-sm pl-12">
           <div>
             <span className="text-muted-foreground">Innovation: </span>
             <span className="font-medium">{review.scores.innovation}</span>

@@ -14,23 +14,22 @@ import {
   BlockHeader,
   isBlockHeader,
 } from "./awesome"
-import { isSparseMerkleProof, MerkleProof, SparseMerkleProof } from "./merkle"
+import { isSparseMerkleProof, SparseMerkleProof } from "./merkle"
 
 export enum MESSAGE_TYPE {
   // periodically broadcasted by full nodes
   CHAIN_HEAD = "CHAIN_HEAD",
-  // exchanged among full nodes in the consensus phase
+  // broadcasted among full nodes in the consensus phase
   CANDIDATE_BLOCK = "CANDIDATE_BLOCK",
-  // full nodes broadcasted to light nodes in the announcement phase
+  // broadcasted to light nodes in the announcement phase
   NEW_BLOCK = "NEW_BLOCK",
+  // broadcasted to full nodes from any node in any phase
   NEW_TRANSACTION = "NEW_TRANSACTION",
-  // broadcasted to tpc members in the submission phase
+  // broadcasted to all nodes in the submission phase
   NEW_ACHIEVEMENT = "NEW_ACHIEVEMENT",
-  // exchanged among tpc members in the review phase
+  // broadcasted to all nodes in the review phase
   NEW_REVIEW = "NEW_REVIEW",
   // data queries
-  ACCOUNT_REQUEST = "ACCOUNT_REQUEST",
-  ACCOUNT_RESPONSE = "ACCOUNT_RESPONSE",
   CHAIN_HEAD_REQUEST = "CHAIN_HEAD_REQUEST",
   CHAIN_HEAD_RESPONSE = "CHAIN_HEAD_RESPONSE",
   BLOCK_HEADER_REQUEST = "BLOCK_HEADER_REQUEST",
@@ -41,6 +40,9 @@ export enum MESSAGE_TYPE {
   BLOCK_RESPONSE = "BLOCK_RESPONSE",
   BLOCKS_REQUEST = "BLOCKS_REQUEST",
   BLOCKS_RESPONSE = "BLOCKS_RESPONSE",
+  // data queries from light nodes only
+  ACCOUNT_REQUEST = "ACCOUNT_REQUEST",
+  ACCOUNT_RESPONSE = "ACCOUNT_RESPONSE",
   TRANSACTION_REQUEST = "TRANSACTION_REQUEST",
   TRANSACTION_RESPONSE = "TRANSACTION_RESPONSE",
   TRANSACTIONS_REQUEST = "TRANSACTIONS_REQUEST",
@@ -131,7 +133,6 @@ export interface TransactionsRequest {
   requestId: string
   senderAddress?: string
   recipientAddress?: string
-  signatures?: string[]
   limit?: number
 }
 
@@ -154,8 +155,6 @@ export interface AchievementsRequest {
   requestId: string
   targetBlock?: number
   creatorAddress?: string
-  theme?: string
-  signatures?: string[]
   limit?: number
 }
 
@@ -172,15 +171,13 @@ export interface ReviewRequest {
 export interface ReviewResponse {
   requestId: string
   review: Review
-  proof: MerkleProof
 }
 
 export interface ReviewsRequest {
   requestId: string
-  achievementSignature?: string
   targetBlock?: number
+  achievementSignature?: string
   reviewerAddress?: string
-  signatures?: string[]
   limit?: number
 }
 
@@ -190,7 +187,14 @@ export interface ReviewsResponse {
 }
 
 export function isAccountRequest(payload: unknown): payload is AccountRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload && "address" in payload
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "address" in payload &&
+    typeof payload.address === "string"
+  )
 }
 
 export function isAccountResponse(payload: unknown): payload is AccountResponse {
@@ -198,6 +202,7 @@ export function isAccountResponse(payload: unknown): payload is AccountResponse 
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "account" in payload &&
     isAccount(payload.account) &&
     "proof" in payload &&
@@ -206,7 +211,9 @@ export function isAccountResponse(payload: unknown): payload is AccountResponse 
 }
 
 export function isChainHeadRequest(payload: unknown): payload is ChainHeadRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload
+  return (
+    typeof payload === "object" && payload !== null && "requestId" in payload && typeof payload.requestId === "string"
+  )
 }
 
 export function isChainHeadResponse(payload: unknown): payload is ChainHeadResponse {
@@ -214,13 +221,21 @@ export function isChainHeadResponse(payload: unknown): payload is ChainHeadRespo
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "chainHead" in payload &&
     isChainHead(payload.chainHead)
   )
 }
 
 export function isBlockHeaderRequest(payload: unknown): payload is BlockHeaderRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload && "height" in payload
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "height" in payload &&
+    typeof payload.height === "number"
+  )
 }
 
 export function isBlockHeaderResponse(payload: unknown): payload is BlockHeaderResponse {
@@ -228,6 +243,7 @@ export function isBlockHeaderResponse(payload: unknown): payload is BlockHeaderR
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "blockHeader" in payload &&
     isBlockHeader(payload.blockHeader)
   )
@@ -238,8 +254,11 @@ export function isBlockHeadersRequest(payload: unknown): payload is BlockHeaders
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "fromHeight" in payload &&
-    "toHeight" in payload
+    typeof payload.fromHeight === "number" &&
+    "toHeight" in payload &&
+    typeof payload.toHeight === "number"
   )
 }
 
@@ -248,6 +267,7 @@ export function isBlockHeadersResponse(payload: unknown): payload is BlockHeader
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "blockHeaders" in payload &&
     Array.isArray(payload.blockHeaders) &&
     payload.blockHeaders.every((blockHeader) => isBlockHeader(blockHeader))
@@ -255,7 +275,14 @@ export function isBlockHeadersResponse(payload: unknown): payload is BlockHeader
 }
 
 export function isBlockRequest(payload: unknown): payload is BlockRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload && "height" in payload
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "height" in payload &&
+    typeof payload.height === "number"
+  )
 }
 
 export function isBlockResponse(payload: unknown): payload is BlockResponse {
@@ -263,6 +290,7 @@ export function isBlockResponse(payload: unknown): payload is BlockResponse {
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "block" in payload &&
     isBlock(payload.block)
   )
@@ -273,8 +301,11 @@ export function isBlocksRequest(payload: unknown): payload is BlocksRequest {
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "fromHeight" in payload &&
-    "toHeight" in payload
+    typeof payload.fromHeight === "number" &&
+    "toHeight" in payload &&
+    typeof payload.toHeight === "number"
   )
 }
 
@@ -283,6 +314,7 @@ export function isBlocksResponse(payload: unknown): payload is BlocksResponse {
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "blocks" in payload &&
     Array.isArray(payload.blocks) &&
     payload.blocks.every((block) => isBlock(block))
@@ -290,7 +322,14 @@ export function isBlocksResponse(payload: unknown): payload is BlocksResponse {
 }
 
 export function isTransactionRequest(payload: unknown): payload is TransactionRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload && "signature" in payload
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
+  )
 }
 
 export function isTransactionResponse(payload: unknown): payload is TransactionResponse {
@@ -298,6 +337,7 @@ export function isTransactionResponse(payload: unknown): payload is TransactionR
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "transaction" in payload &&
     isTransaction(payload.transaction)
   )
@@ -308,7 +348,8 @@ export function isTransactionsRequest(payload: unknown): payload is Transactions
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
-    ("senderAddress" in payload || "recipientAddress" in payload || "signatures" in payload || "limit" in payload)
+    typeof payload.requestId === "string" &&
+    ("senderAddress" in payload || "recipientAddress" in payload || "limit" in payload)
   )
 }
 
@@ -317,6 +358,7 @@ export function isTransactionsResponse(payload: unknown): payload is Transaction
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "transactions" in payload &&
     Array.isArray(payload.transactions) &&
     payload.transactions.every((transaction) => isTransaction(transaction))
@@ -324,7 +366,14 @@ export function isTransactionsResponse(payload: unknown): payload is Transaction
 }
 
 export function isAchievementRequest(payload: unknown): payload is AchievementRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload && "signature" in payload
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
+  )
 }
 
 export function isAchievementResponse(payload: unknown): payload is AchievementResponse {
@@ -332,6 +381,7 @@ export function isAchievementResponse(payload: unknown): payload is AchievementR
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "achievement" in payload &&
     isAchievement(payload.achievement)
   )
@@ -342,11 +392,8 @@ export function isAchievementsRequest(payload: unknown): payload is Achievements
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
-    ("targetBlock" in payload ||
-      "creatorAddress" in payload ||
-      "theme" in payload ||
-      "signatures" in payload ||
-      "limit" in payload)
+    typeof payload.requestId === "string" &&
+    ("targetBlock" in payload || "creatorAddress" in payload || "limit" in payload)
   )
 }
 
@@ -355,6 +402,7 @@ export function isAchievementsResponse(payload: unknown): payload is Achievement
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "achievements" in payload &&
     Array.isArray(payload.achievements) &&
     payload.achievements.every((achievement) => isAchievement(achievement))
@@ -362,7 +410,14 @@ export function isAchievementsResponse(payload: unknown): payload is Achievement
 }
 
 export function isReviewRequest(payload: unknown): payload is ReviewRequest {
-  return typeof payload === "object" && payload !== null && "requestId" in payload && "signature" in payload
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "signature" in payload &&
+    typeof payload.signature === "string"
+  )
 }
 
 export function isReviewResponse(payload: unknown): payload is ReviewResponse {
@@ -370,6 +425,7 @@ export function isReviewResponse(payload: unknown): payload is ReviewResponse {
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "review" in payload &&
     isReview(payload.review)
   )
@@ -380,10 +436,10 @@ export function isReviewsRequest(payload: unknown): payload is ReviewsRequest {
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     ("achievementSignature" in payload ||
       "targetBlock" in payload ||
       "reviewerAddress" in payload ||
-      "signatures" in payload ||
       "limit" in payload)
   )
 }
@@ -393,6 +449,7 @@ export function isReviewsResponse(payload: unknown): payload is ReviewsResponse 
     typeof payload === "object" &&
     payload !== null &&
     "requestId" in payload &&
+    typeof payload.requestId === "string" &&
     "reviews" in payload &&
     Array.isArray(payload.reviews) &&
     payload.reviews.every((review) => isReview(review))

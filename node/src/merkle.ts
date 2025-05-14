@@ -233,6 +233,9 @@ export class SparseMerkleTree {
   }
 }
 
+export function isMerkleProof(proof: unknown): proof is MerkleProof {
+  return typeof proof === "object" && proof !== null && "index" in proof && "hashes" in proof
+}
 export function isSparseMerkleProof(proof: unknown): proof is SparseMerkleProof {
   return Array.isArray(proof) && proof.every((item) => typeof item === "string")
 }

@@ -7,12 +7,13 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
+import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function Blocks() {
   const node = useAwesomeNode()
   const [headers, setHeaders] = useState<BlockHeader[]>([])
   const [targetHeight, setTargetHeight] = useState<string>("")
-  const [showAllBlocks, setShowAllBlocks] = useState(true)
+  const [showEmptyBlocks, setShowEmptyBlocks] = useState(true)
 
   useEffect(() => {
     setHeaders(node.getBlockHeaders())
@@ -34,11 +35,11 @@ export default function Blocks() {
 
   return (
     <div className="max-w-3xl w-full mx-auto p-4">
-      <div className="flex flex-col gap-4 ">
+      <div className="flex flex-row gap-4 items-center justify-between mb-2">
         <Input
           type="number"
           placeholder="Jump to height..."
-          className="w-40"
+          className="w-38 text-sm"
           value={targetHeight}
           onChange={(e) => setTargetHeight(e.target.value)}
           onKeyDown={(e) => {
@@ -51,21 +52,24 @@ export default function Blocks() {
             }
           }}
         />
-        <div className="flex items-center gap-2">
+        <div className="flex items-center space-x-2">
           <Checkbox
             id="show-empty-blocks"
-            checked={showAllBlocks}
-            onCheckedChange={(checked) => setShowAllBlocks(checked as boolean)}
+            checked={showEmptyBlocks}
+            onCheckedChange={(checked) => setShowEmptyBlocks(checked as boolean)}
           />
-          <label htmlFor="show-empty-blocks" className="text-sm text-zinc-600 cursor-pointer">
+          <label
+            htmlFor="show-empty-blocks"
+            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+          >
             Show empty blocks
           </label>
         </div>
       </div>
-      <div className="flex flex-col gap-4">
+      <ScrollArea className="flex-1 h-[calc(100vh-120px)]">
         {headers
           .sort((a, b) => b.height - a.height)
-          .filter((header) => showAllBlocks || header.achievementsRoot?.length > 0)
+          .filter((header) => showEmptyBlocks || header.achievementsCount > 0)
           .map((header) => (
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -73,11 +77,12 @@ export default function Blocks() {
               exit={{ opacity: 0, y: 10 }}
               key={header.height}
               id={`block-${header.height}`}
+              className="w-full py-2"
             >
               <BlockHeaderCard header={header} />
             </motion.div>
           ))}
-      </div>
+      </ScrollArea>
     </div>
   )
 }

@@ -48,6 +48,7 @@ import {
   ChainHeadRequest,
   BlockHeaderRequest,
   BlockRequest,
+  AchievementsRequest,
 } from "./message"
 import { io, Socket } from "socket.io-client"
 
@@ -73,6 +74,7 @@ interface EventMap {
   "transaction.fetched": Transaction
   "chain_head.updated": ChainHead
   "achievement.fetched": Achievement
+  "achievements.fetched": Achievement[]
   "review.fetched": Review
 }
 
@@ -114,7 +116,7 @@ export class AwesomeNodeLight {
   private inTPC: boolean = false
 
   private cleanReceivedMessagesPeriod: number = 30 * 60 * 1000
-  private awesomeComStatusUpdatePeriod: number = 500
+  private awesomeComStatusUpdatePeriod: number = 100
 
   private awesomeComStatusUpdateInterval: NodeJS.Timeout | null = null
   private cleanReceivedMessagesInterval: NodeJS.Timeout | null = null
@@ -209,7 +211,7 @@ export class AwesomeNodeLight {
     return { ...this.chainHead }
   }
 
-  public getBlockHeader(height: number) {
+  public getBlockHeader(height: number): BlockHeader | undefined {
     return this.blockHeaders.get(height)
   }
 
@@ -217,8 +219,12 @@ export class AwesomeNodeLight {
     return Array.from(this.blockHeaders.values())
   }
 
-  public getBlock(height: number) {
-    return this.blocks.get(height)
+  public getBlock(height: number): Block | undefined {
+    if (this.blocks.has(height)) {
+      return this.blocks.get(height)
+    }
+    this.requestBlock(height)
+    return undefined
   }
 
   public getBlocks() {
@@ -446,6 +452,27 @@ export class AwesomeNodeLight {
       from: this.identity.address,
       to: this.syncPeer,
       type: MESSAGE_TYPE.BLOCKS_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public requestPendingAchievements() {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: AchievementsRequest = {
+      requestId,
+      targetBlock: this.targetBlock,
+      creatorAddress: this.identity.address,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.ACHIEVEMENTS_REQUEST,
       payload: request,
       timestamp: Date.now(),
     })
@@ -735,7 +762,9 @@ export class AwesomeNodeLight {
       this.emit("target_block.updated", this.targetBlock)
       this.emit("chain_head.updated", chainHead)
 
-      this.requestBlockHeaders(this.chainHead.latestBlockHeight - 10, this.chainHead.latestBlockHeight)
+      // quick sync
+      this.requestBlockHeaders(this.chainHead.latestBlockHeight - 20, this.chainHead.latestBlockHeight)
+      this.requestPendingAchievements()
     }
   }
 
@@ -831,6 +860,7 @@ export class AwesomeNodeLight {
     for (const achievement of response.achievements) {
       this.emit("achievement.fetched", achievement)
     }
+    this.emit("achievements.fetched", response.achievements)
   }
 
   private async handleReviewResponse(message: Message) {

@@ -1,5 +1,5 @@
 import mongoose from "mongoose"
-import { Achievement, Block, Review, ReviewScores, Transaction } from "./awesome"
+import { Achievement, Block, BlockHeader, Review, ReviewScores, Transaction } from "./awesome"
 import { Repository } from "./repository"
 
 interface BlockDocument {
@@ -31,7 +31,7 @@ interface TransactionDocument {
   nonce: number
   timestamp: Date
   signature: string
-  pending: boolean
+  blockHeight: number
 }
 
 interface AchievementDocument {
@@ -100,7 +100,7 @@ export class MongoDBRepository implements Repository {
         amount: Number,
         timestamp: Date,
         signature: { type: String, index: true },
-        pending: { type: Boolean, default: true, index: true },
+        blockHeight: { type: Number, index: true },
       })
     )
 
@@ -143,21 +143,25 @@ export class MongoDBRepository implements Repository {
     connection.connection.db?.dropDatabase()
   }
 
+  private blockDocToBlockHeader(blockDoc: BlockDocument): BlockHeader {
+    return {
+      height: blockDoc.header.height,
+      previousHash: blockDoc.header.previousHash,
+      timestamp: blockDoc.header.timestamp.getTime(),
+      accountsRoot: blockDoc.header.accountsRoot,
+      transactionsRoot: blockDoc.header.transactionsRoot,
+      achievementsRoot: blockDoc.header.achievementsRoot,
+      reviewsRoot: blockDoc.header.reviewsRoot,
+      transactionsCount: blockDoc.header.transactionsCount,
+      achievementsCount: blockDoc.header.achievementsCount,
+      reviewsCount: blockDoc.header.reviewsCount,
+      hash: blockDoc.header.hash,
+    }
+  }
+
   private blockDocToBlock(blockDoc: BlockDocument): Block {
     return {
-      header: {
-        height: blockDoc.header.height,
-        previousHash: blockDoc.header.previousHash,
-        accountsRoot: blockDoc.header.accountsRoot,
-        transactionsRoot: blockDoc.header.transactionsRoot,
-        achievementsRoot: blockDoc.header.achievementsRoot,
-        reviewsRoot: blockDoc.header.reviewsRoot,
-        transactionsCount: blockDoc.header.transactionsCount,
-        achievementsCount: blockDoc.header.achievementsCount,
-        reviewsCount: blockDoc.header.reviewsCount,
-        timestamp: blockDoc.header.timestamp.getTime(),
-        hash: blockDoc.header.hash,
-      },
+      header: this.blockDocToBlockHeader(blockDoc),
       transactions: blockDoc.transactions.map((t) => this.transactionDocToTransaction(t as TransactionDocument)),
       achievements: blockDoc.achievements.map((a) => this.achievementDocToAchievement(a as AchievementDocument)),
       reviews: blockDoc.reviews.map((r) => this.reviewDocToReview(r as ReviewDocument)),
@@ -173,6 +177,7 @@ export class MongoDBRepository implements Repository {
       nonce: transactionDoc.nonce,
       timestamp: transactionDoc.timestamp.getTime(),
       signature: transactionDoc.signature,
+      blockHeight: transactionDoc.blockHeight,
     }
   }
 
@@ -268,6 +273,18 @@ export class MongoDBRepository implements Repository {
     await this.BlockModel.create(blockDoc)
   }
 
+  async getBlockHeader(height: number): Promise<BlockHeader | null> {
+    const blockDoc = await this.BlockModel.findOne({ "header.height": height }).lean()
+
+    if (!blockDoc) return null
+    return this.blockDocToBlockHeader(blockDoc)
+  }
+
+  async getBlockHeaders(fromHeight: number, toHeight: number): Promise<BlockHeader[]> {
+    const blockDocs = await this.BlockModel.find({ "header.height": { $gte: fromHeight, $lte: toHeight } }).lean()
+    return Promise.all(blockDocs.map((b) => this.blockDocToBlockHeader(b)))
+  }
+
   async getLatestBlock(): Promise<Block | null> {
     const blockDoc = await this.BlockModel.findOne({})
       .sort({ "header.height": -1 })
@@ -324,13 +341,13 @@ export class MongoDBRepository implements Repository {
     return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
   }
 
-  async getPendingTransactions(): Promise<Transaction[]> {
-    const transactionDocs = await this.TransactionModel.find({ pending: true })
+  async getTransactionsByBlockHeight(blockHeight: number): Promise<Transaction[]> {
+    const transactionDocs = await this.TransactionModel.find({ blockHeight })
     return Promise.all(transactionDocs.map((t) => this.transactionDocToTransaction(t)))
   }
 
-  async updateTransactionStatus(signature: string, pending: boolean): Promise<void> {
-    await this.TransactionModel.updateOne({ signature }, { $set: { pending } })
+  async updateTransactionBlockHeight(signature: string, blockHeight: number): Promise<void> {
+    await this.TransactionModel.updateOne({ signature }, { $set: { blockHeight } })
   }
 
   async addAchievement(achievement: Achievement): Promise<void> {
@@ -345,11 +362,6 @@ export class MongoDBRepository implements Repository {
 
   async getAchievementsByAuthor(author: string): Promise<Achievement[]> {
     const achievementDocs = await this.AchievementModel.find({ authorAddress: author })
-    return Promise.all(achievementDocs.map((a) => this.achievementDocToAchievement(a)))
-  }
-
-  async getAchievementsByTheme(theme: string): Promise<Achievement[]> {
-    const achievementDocs = await this.AchievementModel.find({ theme })
     return Promise.all(achievementDocs.map((a) => this.achievementDocToAchievement(a)))
   }
 
@@ -372,27 +384,4 @@ export class MongoDBRepository implements Repository {
     const reviewDocs = await this.ReviewModel.find({ reviewerAddress: reviewer })
     return Promise.all(reviewDocs.map((r) => this.reviewDocToReview(r)))
   }
-}
-
-const main = async () => {
-  const repo = new MongoDBRepository("mongodb://localhost:27017/awesome")
-  await repo.init()
-  await repo.addTransaction(
-    {
-      senderPublicKey: "0x123",
-      senderAddress: "0x123",
-      recipientAddress: "0x456",
-      amount: 100,
-      nonce: 0,
-      timestamp: Date.now(),
-      signature: "0x123",
-    },
-    true
-  )
-  console.log(await repo.getTransactionBySignature("0x123"))
-  await repo.updateTransactionStatus("0x123", true)
-  console.log(await repo.getPendingTransactions())
-}
-if (require.main === module) {
-  main()
 }

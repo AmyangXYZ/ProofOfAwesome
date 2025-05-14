@@ -10,8 +10,8 @@ export const chainConfig = {
 
   awesomeCom: {
     period: 180 * 1000,
-    submissionPhase: [0, 90 * 1000],
-    reviewPhase: [90 * 1000, 150 * 1000],
+    submissionPhase: [0, 120 * 1000],
+    reviewPhase: [120 * 1000, 150 * 1000],
     consensusPhase: [150 * 1000, 170 * 1000],
     announcementPhase: [170 * 1000, 180 * 1000],
   },
@@ -128,6 +128,7 @@ export interface Transaction {
   timestamp: number
   senderPublicKey: string
   signature: string
+  blockHeight: number
 }
 
 export interface Achievement {
@@ -259,7 +260,10 @@ export function isTransaction(payload: unknown): payload is Transaction {
     "senderPublicKey" in payload &&
     typeof payload.senderPublicKey === "string" &&
     "signature" in payload &&
-    typeof payload.signature === "string"
+    typeof payload.signature === "string" &&
+    "blockHeight" in payload &&
+    typeof payload.blockHeight === "number" &&
+    (payload.blockHeight === -1 || payload.blockHeight >= 1)
   )
 }
 
