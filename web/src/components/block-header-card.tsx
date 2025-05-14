@@ -36,7 +36,7 @@ export default function BlockHeaderCard({ header }: { header: BlockHeader }) {
         </CardHeader>
         <CardContent className="font-medium gap-4 flex items-center">
           <Badge variant="outline" className="text-zinc-950 shadow-sm gap-2 flex items-center">
-            <Trophy />
+            <Trophy className="w-6 h-6" />
             {header.achievementsCount}
           </Badge>
           <Badge variant="outline" className="text-zinc-950 shadow-sm gap-2 flex items-center">
