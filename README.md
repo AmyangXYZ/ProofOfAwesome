@@ -1,6 +1,6 @@
 # Proof of Awesome
 
-Proof of Awesome transforms blockchain mining from solving computational puzzles to validating real-world achievements. This blockchain system combines scholarly peer review with blockchain consensus mechanisms to create verifiable digital assets from personal accomplishments. The system operates in 15-minute cycles, "AwesomeCom" event, where users submit achievements, review others' work, and create blocks that record accepted achievements.
+Proof of Awesome presents a novel blockchain consensus mechanism that replaces computational puzzles with real-world achievements. This system combines AI-assisted scholarly peer review with blockchain technology to create verifiable digital assets from personal accomplishments.
 
 ## Project Vision
 
@@ -9,8 +9,8 @@ Proof of Awesome reimagines blockchain technology by aligning it with human valu
 - **Mining through meaningful accomplishment** - Replace abstract computation with personal achievements
 - **Community-validated accomplishments** - Transform personal milestones into digital assets with social validation
 - **Accessible blockchain experience** - Make blockchain concepts tangible through everyday activities
-- **Themed achievement cycles** - Each AwesomeCom session focuses on a specific theme
-- **Simple reward system** - AwesomeCoin rewards for contributions
+- **Open achievement system** - Each AwesomeCom session accepts any form of achievements
+- **Tiered reward system** - AwesomeCoin rewards based on achievement review scores
 
 The platform aims to bridge the gap between technical blockchain innovation and meaningful human experience, creating a system where blockchain validation serves to recognize and reward real-world accomplishments.
 
@@ -22,71 +22,53 @@ The platform aims to bridge the gap between technical blockchain innovation and 
 
    - Chain of blocks containing accepted achievements and reviews
    - Each block references previous block hash
-   - Blocks include achievement references and theme information
-   - State (balances) stored separately but referenced in blocks
+   - Blocks include achievement references and review information
+   - State (balances) stored using sparse merkle trees in full nodes
 
 2. **Storage Architecture**
 
    - **Blockchain DB**: Stores blocks with minimal reference data
-   - **State DB**: Stores AwesomeCoin balances
+   - **State DB**: Stores AwesomeCoin balances using sparse merkle trees
    - **Achievement DB**: Stores full achievement content
    - **Review DB**: Stores review details
-   - **Checkpoint System**: Periodic state snapshots for efficient synchronization
 
 3. **AwesomeConnect Server**
 
    - Provides message relay for peer-to-peer communication
    - Delivers network time synchronization
    - Broadcasts official AwesomeCom session announcements
-   - Maintains theme selection for each session
 
-### Theme System
+### Mining with Achievements
 
-- Each AwesomeCom session has a specific theme (gaming, fitness, houshold, art...)
-- Themes are rotated deterministically based on edition number
-- Achievements must align with the session's theme
+Traditional blockchain mining systems, while technically impressive, remain abstract for most individuals. Mining through real-world achievements offers a complementary approach that brings blockchain into everyday life. Each validated achievement becomes a permanent record of human accomplishment, creating value through both network security and meaningful social recognition.
 
 ### Reward System
 
-- **Achievement Acceptance**: 50 AwesomeCoin
-- **Best Achievement Creator**: 75 AwesomeCoin
-- **Quality Reviews**: 10 AwesomeCoin each
-- Rewards distributed automatically upon block acceptance
+- **Tiered Achievement Rewards**:
+  - Score 5 (Strong Accept): 3 AwesomeCoin
+  - Score 4 (Accept): 2 AwesomeCoin
+  - Score 3 (Weak Accept): 1 AwesomeCoin
+- Rewards distributed automatically upon block creation
 
 ## Consensus Mechanism
 
 Proof of Awesome implements a hybrid consensus approach combining peer review with blockchain validation:
 
-### Technical Program Committee (TPC)
+### Review Process
 
-- **Committee Structure**:
-
-  - Composed of full nodes and qualified light nodes
-  - Light nodes can join TPC after having accepted reviews in past AwesomeCom events
-  - Responsible for achievement review and validation
-  - Maintains quality standards through membership requirements
-
-- **Review Process**:
-  - Reviews are only broadcast among TPC members
-  - Reduces network traffic while maintaining review quality
-  - Each review must be signed by eligible TPC members
-  - Minimum number of reviews required for achievement acceptance
-
-### Achievement Validation
-
-- Achievements must be reviewed by TPC members
+- Anyone can submit reviews during both submission and review phases
 - Each review includes:
   - Score and comments
   - Reviewer signature
   - Timestamp within review window
 - Achievement acceptance requires:
   - Minimum number of valid reviews
-  - Meeting score threshold
-  - All reviews from eligible TPC members
+  - Meeting score threshold (median score >= 3)
+  - All reviews from valid participants
 
 ### Block Creation and Selection
 
-- Any full node can create blocks
+- Only full nodes participate in consensus phase
 - Blocks must contain:
   - All accepted achievements
   - Their corresponding reviews
@@ -94,8 +76,7 @@ Proof of Awesome implements a hybrid consensus approach combining peer review wi
   - Timestamp within creation window
 - Block selection criteria:
   - Must include all known achievements
-  - Among valid blocks, choose one with highest-scored achievement
-  - If same score, use earliest timestamp
+  - Among valid blocks, choose one with earliest timestamp
 - Invalid blocks are discarded if:
   - Missing known achievements
   - Contains invalid reviews
@@ -103,52 +84,71 @@ Proof of Awesome implements a hybrid consensus approach combining peer review wi
 
 ## AwesomeCom Session Process
 
-Each 15-minute AwesomeCom session follows an 8-4-2-1 principle for efficient operation:
+Each 3-minute AwesomeCom session follows a precise timing for efficient operation, with all nodes using the same genesis time to determine phase transitions:
 
-### 1. Submission and TPC Formation Phase (0:00-8:00)
+### 1. Submission Phase (0:00-2:00)
 
-- Light nodes submit achievements to TPC members
-- TPC formation and membership verification
+- Users submit achievements
+- Anyone can submit reviews
 - Each submission includes:
   - Description and evidence
   - Creator signature
   - Timestamp
-- TPC members maintain registry of submissions
 
-### 2. Review Phase (8:00-12:00)
+### 2. Review Phase (2:00-2:30)
 
-- TPC members review submissions
-- Reviews are only broadcast among TPC members
-- Each review includes:
+- Users continue submitting reviews
+- Reviews include:
   - Score and comments
   - Reviewer signature
   - Timestamp
 - After review phase:
-  - TPC members broadcast accepted achievement reviews to all nodes
-  - Rejected achievement reviews sent only to creators
   - All nodes maintain registry of accepted achievements
 
-### 3. Block Creation Phase (12:00-14:00)
+### 3. Consensus Phase (2:30-2:50)
 
-- Each full node:
-  - Creates block with accepted achievements and reviews
-  - Computes merkle roots
-  - Broadcasts to all nodes
+- Full nodes:
+  - Create block with accepted achievements and reviews
+  - Compute merkle roots
+  - Broadcast to all nodes
 - All nodes:
   - Verify received blocks
-  - Keep block with highest-scored achievement
+  - Keep block with earliest timestamp
   - Discard invalid or incomplete blocks
 - Network converges on block with:
   - All known achievements
-  - Highest-scored achievement
   - Valid reviews and signatures
 
-### 4. Wrap-up and Break Phase (14:00-15:00)
+### 4. Announcement Phase (2:50-3:00)
 
 - Network finalizes block acceptance
 - Nodes prepare for next session
-- System announcements and notifications
-- Brief break before next AwesomeCom session
+- System announcements
+
+## Network Architecture
+
+Peer-to-peer communication is achieved through a Socket.IO-based relay system, AwesomeConnect, connecting full nodes that maintain blockchain history with light nodes that need verified data. Full nodes serve this data through Merkle Patricia Trees and participate in consensus to reach agreement on accepted achievements, with some providing automated reviews through AI models. Light nodes focus on achievement submission and review, fetching verified chain data as needed.
+
+AwesomeCom implements this system through periodic blockchain events, each with precisely timed phases synchronized to a hard-coded genesis time (March 14, 2025). This ensures all nodes in the network operate in the same phase of the cycle, with each phase transition occurring at exact intervals from genesis.
+
+### Node Types
+
+- **AwesomeConnect**
+
+  - Socket.IO-based relay
+  - Enable P2P and node discovery
+  - Independent of chain state
+
+- **Full Node**
+
+  - Backend service nodes
+  - AI-assisted reviewer
+  - Complete chain history
+
+- **Light Node**
+  - Client-side applications
+  - Achievement creator
+  - Fetch data as needed
 
 ## Synchronization and Recovery
 
@@ -156,25 +156,18 @@ Each 15-minute AwesomeCom session follows an 8-4-2-1 principle for efficient ope
 
 1. Connect to multiple peers
 2. Download block headers to identify consensus chain
-3. Get latest state snapshot with verification proof
+3. Get latest state from full nodes
 4. Verify state against latest block's state root hash
-5. Download full blocks as needed (or from checkpoint)
-6. Apply any blocks after checkpoint to reach current state
+5. Download full blocks as needed
+6. Apply blocks to reach current state
 
 ### Recovery After Data Loss
 
 1. Connect to trusted peers
 2. Identify consensus chain through block headers
-3. Get verified state snapshot
-4. Apply any blocks after snapshot state
+3. Get verified state from full nodes
+4. Apply any blocks after state
 5. Resume normal operation
-
-### Checkpoint System
-
-- Periodic snapshots of full state
-- Includes balances and token holdings
-- Enables efficient synchronization
-- Verified through state root hashes in blocks
 
 ## User Experience Flow
 
@@ -187,37 +180,10 @@ Each 15-minute AwesomeCom session follows an 8-4-2-1 principle for efficient ope
 
 ### Participation Loop
 
-1. Check current AwesomeCom theme
-2. Submit achievement during submission phase
-3. Review others' submissions during review phase
-4. Receive AwesomeCoin rewards for contributions
-5. Repeat in next AwesomeCom session
-
-### Chain Creation
-
-- Users can create specialized achievement chains
-- Define validation rules and criteria
-- Set reward structures
-- Establish liquidity reserve requirements
-- Customize for specific community needs (fitness, creative projects, etc.)
-
-## Notifications and Announcements
-
-### Personal Notifications
-
-- Achievement acceptance/rejection notifications
-- Review received notifications
-- Block acceptance confirmations
-- AwesomeCoin reward notifications
-
-### AwesomeCom Announcements
-
-- Current session theme
-- Official session results
-- List of accepted achievements
-- Best achievement creator recognition
-- Outstanding reviewer acknowledgments
-- Next session timing and theme
+1. Submit achievement during submission phase
+2. Review others' submissions during submission and review phases
+3. Receive AwesomeCoin rewards for accepted achievements
+4. Repeat in next AwesomeCom session
 
 ## Security Considerations
 
@@ -226,7 +192,7 @@ Each 15-minute AwesomeCom session follows an 8-4-2-1 principle for efficient ope
 - All achievements and reviews cryptographically signed
 - Consensus rules enforced by all nodes
 - State verification through merkle root hashes
-- Checkpoints for additional verification points
+- Sparse merkle trees for efficient state management
 
 ### User Authentication
 
@@ -238,7 +204,7 @@ Each 15-minute AwesomeCom session follows an 8-4-2-1 principle for efficient ope
 
 - Multiple full nodes ensure continuity
 - Peer-to-peer communication through AwesomeConnect
-- Checkpoint system for efficient recovery
+- Efficient state management through sparse merkle trees
 
 ## Implementation Notes
 
@@ -249,27 +215,6 @@ Each 15-minute AwesomeCom session follows an 8-4-2-1 principle for efficient ope
 - Verify submission is within time window
 - Ensure one achievement per user per session
 
-### Review Processing
-
-- Verify reviewer signatures
-- Ensure reviewers haven't reviewed own work
-- Calculate weighted consensus score
-- Determine final acceptance status
-
-### Block Creation
-
-- Verify creator has accepted achievement
-- Ensure all accepted achievements included
-- Verify timestamps and references
-- Apply selection rules when multiple valid blocks
-
-### Network Time Synchronization
-
-- AwesomeConnect server provides authoritative time
-- Regular time broadcasts to all nodes
-- Time synchronization protocol accounts for network latency
-- Cycle phases strictly enforced based on network time
-
 ## Technical Implementation
 
 Proof of Awesome combines modern web technologies with blockchain concepts:
@@ -279,113 +224,6 @@ Proof of Awesome combines modern web technologies with blockchain concepts:
 - **Client Options**: Next.js Web interface and native iOS app
 - **Connectivity**: AwesomeConnect for peer-to-peer messaging
 - **Cryptography**: Standard blockchain cryptographic primitives
+- **Time Synchronization**: Genesis-based phase determination (March 14, 2025)
 
 The implementation focuses on accessibility while maintaining blockchain integrity, allowing users without technical blockchain knowledge to participate fully.
-
-## Example AwesomeCom Session
-
-See the example announcement and notification formats below for a complete illustration of the AwesomeCom session flow and user experience.
-
-### User Notification Example
-
-```
-🎊 Congratulations! 🎊
-
-Your achievement "Implementing Gradient Boosting for Predictive Maintenance" has been ACCEPTED in the current AwesomeCom session!
-
-• You have received 50 tokens as reward for your accepted achievement
-• All accepted achievements in this session have met our quality standards
-
-📦 BLOCK CREATION OPPORTUNITY
-
-You are now eligible to create a block for this AwesomeCom session. All members with accepted achievements can submit blocks to the network.
-
-⏰ Block Creation Window: Opens in 5 minutes (14:55 UTC)
-                         Closes at 15:00 UTC
-
-Block Selection Process:
-• The block from the highest-ranked achievement creator will be selected
-• Creating the accepted block earns an additional 75 tokens
-• If no eligible member creates a block, a fallback block will be generated
-
-[ Create My Block ]   [ Skip Block Creation ]
-
-We encourage you to participate in block creation to further contribute to the blockchain's development.
-```
-
-### AwesomeCom Announcement Example
-
-```
-╔══════════════════════════════════════════════════════════════╗
-║                                                              ║
-║  AwesomeCom Proceedings: Machine Learning Chain              ║
-║  Block #347 | June 15, 2023 | 14:30 UTC                      ║
-║                                                              ║
-╚══════════════════════════════════════════════════════════════╝
-
-Dear esteemed community members,
-
-As Chair of this AwesomeCom session, I am pleased to present the proceedings of our most recent academic blockchain cycle.
-
-📊 SESSION STATISTICS
-• Submissions: 17 achievements
-• Reviews conducted: 53
-• Acceptance rate: 41.2% (7 accepted achievements)
-• Average review score: 7.4/10
-• Review participation rate: 82% of eligible members
-
-✅ ACCEPTED ACHIEVEMENTS (50 tokens each)
-• "Implementing Gradient Boosting for Predictive Maintenance" by Dr. Sarah Chen
-• "Transfer Learning Applications in Medical Imaging" by James Wilson
-• "Optimizing CNN Architecture for Edge Devices" by Aisha Patel
-• "Reinforcement Learning for Resource Allocation" by Michael Okonjo
-• "Federated Learning Privacy Guarantees" by Emma Rodriguez
-• "Explainable AI in Credit Scoring Models" by David Kim
-• "Time Series Forecasting with Attention Mechanisms" by Priya Sharma
-
-🧱 BLOCK CONTRIBUTION
-Block #347 created by Dr. Sarah Chen
-Reward: 75 tokens
-
-👏 OUTSTANDING REVIEWERS (10 tokens each)
-• Elena Vasquez (5 quality reviews)
-• Raj Patel (4 quality reviews)
-• Thomas Mueller (3 quality reviews)
-• Liu Wei (3 quality reviews)
-• + 9 other reviewers
-
-💰 TOTAL REWARDS DISTRIBUTED: 545 tokens
-
-The committee commends all participants for their valuable contributions to our academic blockchain. Each accepted achievement demonstrates excellent quality and advances our community's knowledge.
-
-The next AwesomeCom session is now open for submissions. We encourage all members to participate in this ongoing scholarly discourse.
-
-Respectfully,
-The AwesomeCom Chair
-Machine Learning Chain
-
-╔══════════════════════════════════════════════════════════════╗
-║ Next submission deadline: 14:50 UTC                          ║
-║ Review phase begins: 14:50 UTC                               ║
-╚══════════════════════════════════════════════════════════════╝
-```
-
-## Future Considerations
-
-- Enhanced reputation systems based on contribution history
-- Advanced AMM features for better liquidity
-- Cross-chain achievement references
-- Meta-achievements spanning multiple chains
-- Delegate roles for specialized functions
-- Enhanced mobile experience optimization
-- Advanced analytics on achievement and review patterns
-- Full transition to community-based peer review
-- Enhanced governance mechanisms for community direction
-
-## Join the Achievement Revolution
-
-Proof of Awesome reimagines blockchain technology by aligning it with human values and achievement. By replacing abstract computation with meaningful accomplishment as the basis for consensus, we create a platform that generates authentic utility through community-validated human achievement.
-
----
-
-This document serves as a comprehensive reference for the Proof of Awesome blockchain system, outlining all major components, processes, and design decisions. It is intended primarily as a technical note and reference guide.

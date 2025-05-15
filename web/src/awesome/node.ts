@@ -81,10 +81,10 @@ interface EventMap {
 // light web node
 export class AwesomeNodeLight {
   private awesomeComStatus: AwesomeComStatus = {
-    edition: 0,
+    session: 0,
     phase: "Announcement",
     phaseRemaining: 0,
-    editionRemaining: 0,
+    sessionRemaining: 0,
   }
   private socket: Socket<ClientEvents, ServerEvents>
   private wallet: Wallet
@@ -96,9 +96,9 @@ export class AwesomeNodeLight {
   private activePeers: Identity[] = []
   private syncPeer: string | null = null
 
-  // created or received in the submission phase in current edition
+  // created or received in the submission phase in current session
   private pendingAchievements: Achievement[] = []
-  // created or received in the review phase in current edition
+  // created or received in the review phase in current session
   private pendingReviews: Review[] = []
 
   private targetBlock: number = 0
@@ -566,8 +566,8 @@ export class AwesomeNodeLight {
 
   private updateAwesomeComStatus() {
     const status = getAwesomeComStatus()
-    if (status.edition !== this.awesomeComStatus.edition || status.phase !== this.awesomeComStatus.phase) {
-      // console.log(`[${status.edition}th AwesomeCom (Theme: ${status.theme})] Entering ${status.phase} phase`)
+    if (status.session !== this.awesomeComStatus.session || status.phase !== this.awesomeComStatus.phase) {
+      // console.log(`[${status.session}th AwesomeCom (Theme: ${status.theme})] Entering ${status.phase} phase`)
       switch (status.phase) {
         case "Submission":
           this.emit("awesomecom.submission.started", undefined)

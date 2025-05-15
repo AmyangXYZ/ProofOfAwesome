@@ -32,9 +32,9 @@ export const chainConfig = {
 } as const
 
 export interface AwesomeComStatus {
-  edition: number
+  session: number
   phase: "Submission" | "Review" | "Consensus" | "Announcement"
-  editionRemaining: number
+  sessionRemaining: number
   phaseRemaining: number
 }
 
@@ -55,13 +55,13 @@ export function getAwesomeComStatus(): AwesomeComStatus {
   const now = Date.now()
   const timeSinceGenesis = now - chainConfig.genesisTime
 
-  const edition = Math.floor(timeSinceGenesis / chainConfig.awesomeCom.period)
-  const editionElapsedTime = timeSinceGenesis % chainConfig.awesomeCom.period
+  const session = Math.floor(timeSinceGenesis / chainConfig.awesomeCom.period)
+  const sessionElapsedTime = timeSinceGenesis % chainConfig.awesomeCom.period
 
   const status: AwesomeComStatus = {
-    edition,
+    session,
     phase: "Announcement",
-    editionRemaining: chainConfig.awesomeCom.period - editionElapsedTime,
+    sessionRemaining: chainConfig.awesomeCom.period - sessionElapsedTime,
     phaseRemaining: 0,
   }
 
@@ -73,9 +73,9 @@ export function getAwesomeComStatus(): AwesomeComStatus {
   ] as const
 
   for (const { name, window } of phases) {
-    if (editionElapsedTime < window[1]) {
+    if (sessionElapsedTime < window[1]) {
       status.phase = name
-      status.phaseRemaining = window[1] - editionElapsedTime
+      status.phaseRemaining = window[1] - sessionElapsedTime
       break
     }
   }

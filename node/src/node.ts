@@ -81,10 +81,10 @@ interface EventMap {
 // full node
 export class AwesomeNode {
   private awesomeComStatus: AwesomeComStatus = {
-    edition: 0,
+    session: 0,
     phase: "Announcement",
     phaseRemaining: 0,
-    editionRemaining: 0,
+    sessionRemaining: 0,
   }
   private socket: Socket<ClientEvents, ServerEvents>
   private wallet: Wallet
@@ -99,17 +99,17 @@ export class AwesomeNode {
   // full nodes maintain the account states
   private accounts: SparseMerkleTree = new SparseMerkleTree()
 
-  // the target block for the current edition
+  // the target block for the current session
   private targetBlock: number = 0
 
   private chainHead: ChainHead | null = null
-  // created or received in the submission phase in current edition
+  // created or received in the submission phase in current session
   private pendingAchievements: Achievement[] = []
-  // created or received in the review phase in current edition
+  // created or received in the review phase in current session
   private pendingReviews: Review[] = []
-  // created or received in the consensus phase in current edition
+  // created or received in the consensus phase in current session
   private candidateBlock: Block | null = null
-  // created or received in the announcement phase in current edition
+  // created or received in the announcement phase in current session
   private newBlock: Block | null = null
 
   // de-duplication of messages by data hash or signature
@@ -972,7 +972,7 @@ export class AwesomeNode {
 
   private updateAwesomeComStatus() {
     const status = getAwesomeComStatus()
-    if (status.edition !== this.awesomeComStatus.edition || status.phase !== this.awesomeComStatus.phase) {
+    if (status.session !== this.awesomeComStatus.session || status.phase !== this.awesomeComStatus.phase) {
       console.log(`${status.phase} for block #${this.targetBlock} starts`)
       this.awesomeComStatus = status
 

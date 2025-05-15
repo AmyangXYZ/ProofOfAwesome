@@ -86,19 +86,22 @@ export default function CallForAchievement() {
               [Weak-Accept].
             </p>
             <p>
-              AwesomeCom implements this system through periodic blockchain events, each with precisely timed phases.
-              When an achievement is accepted, it becomes a permanent part of the blockchain, earning the creator
-              AwesomeCoin rewards and eternal recognition in the network&apos;s history.
+              AwesomeCom implements this system through periodic blockchain events, each with precisely timed phases
+              synchronized to a hard-coded genesis time of March 14, 2025, when this project was first envisioned. Every
+              node in the network calculates its current phase based on the time elapsed since genesis, ensuring
+              deterministic phase transitions across the entire network. When an achievement is accepted, it becomes a
+              permanent part of the blockchain, earning the creator AwesomeCoin rewards and eternal recognition in the
+              network&apos;s history.
             </p>
             <blockquote className="mt-6 border-l-4 pl-4">
               <h4 className="font-semibold text-blue-400 mb-2">The Four Phases in AwesomeCom</h4>
               <ul className="list-none pl-4 mt-2 space-y-2 text-sm">
                 <li className="flex items-start items-center">
-                  <span className="bg-neutral-800 px-2 rounded mr-2 font-medium">90s</span>
+                  <span className="bg-neutral-800 px-2 rounded mr-2 font-medium">120s</span>
                   <span className="">Achievement Submission</span>
                 </li>
                 <li className="flex items-start items-center">
-                  <span className="bg-neutral-800 px-2 rounded mr-2 font-medium">60s</span>
+                  <span className="bg-neutral-800 px-2 rounded mr-2 font-medium">30s</span>
                   <span className="">Peer Review</span>
                 </li>
                 <li className="flex items-start items-center">

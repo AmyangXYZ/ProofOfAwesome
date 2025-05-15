@@ -42,9 +42,9 @@ export default function AchievementInput() {
   const node = useAwesomeNode()
   const [achievements, setAchievements] = useState<Achievement[]>([])
   const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
-    edition: 0,
+    session: 0,
     phase: "Submission",
-    editionRemaining: 0,
+    sessionRemaining: 0,
     phaseRemaining: 0,
   })
   const [targetBlock, setTargetBlock] = useState<number>(0)
