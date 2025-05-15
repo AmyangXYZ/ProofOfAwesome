@@ -1,21 +1,24 @@
 import OpenAI from "openai"
 import { AwesomeNode } from "./node"
-import { AI_API_KEYS } from "./ai_api_keys"
 import { AIReviewer } from "./reviewer_ai"
 import { MongoDBRepository } from "./repository_mongodb"
 
 const node = new AwesomeNode(
   "https://connect.proof-of-awesome.app",
-  "Full Node w/ GPT-4o Mini",
-  "",
-  "",
-  new MongoDBRepository("mongodb://localhost:27017/awesome"),
+  process.env.NODE_NAME || "Full Node",
+  process.env.MNEMONIC || "",
+  process.env.PASSPHRASE || "",
+  new MongoDBRepository(
+    `mongodb://admin:password123@mongodb:27017/awesome_${process.env.NODE_NAME?.replaceAll(" ", "_")}?authSource=admin`
+  ),
+  // new MongoDBRepository(`mongodb://localhost:27017/awesome`),
   new AIReviewer(
     new OpenAI({
-      apiKey: AI_API_KEYS.OPENAI,
+      apiKey: process.env.AI_API_KEY || "",
+      baseURL: process.env.AI_API_BASE_URL || "https://api.openai.com/v1",
     }),
-    "gpt-4o-mini",
-    true
+    process.env.AI_MODEL || "gpt-4o-mini",
+    process.env.AI_MODEL_SUPPORT_IMAGE_INPUT === "true"
   )
 )
 node.start()

@@ -303,7 +303,6 @@ export class AIReviewer implements Reviewer {
       })
 
       const aiResponse = JSON.parse(response.choices[0]?.message?.content ?? "{}")
-      console.log(aiResponse)
       // Validate response structure
       if (
         !(

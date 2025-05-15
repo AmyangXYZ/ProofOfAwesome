@@ -154,7 +154,7 @@ export interface AchievementResponse {
 export interface AchievementsRequest {
   requestId: string
   targetBlock?: number
-  creatorAddress?: string
+  authorAddress?: string
   limit?: number
 }
 
@@ -393,7 +393,7 @@ export function isAchievementsRequest(payload: unknown): payload is Achievements
     payload !== null &&
     "requestId" in payload &&
     typeof payload.requestId === "string" &&
-    ("targetBlock" in payload || "creatorAddress" in payload || "limit" in payload)
+    ("targetBlock" in payload || "authorAddress" in payload || "limit" in payload)
   )
 }
 

@@ -46,7 +46,6 @@ import {
   isAchievementRequest,
   isAccountRequest,
   AccountResponse,
-  isAccountResponse,
   isBlockHeaderResponse,
   isBlockHeaderRequest,
   isBlockHeadersRequest,
@@ -59,13 +58,15 @@ import {
   AchievementResponse,
   TransactionsResponse,
   isReviewsRequest,
+  AchievementsResponse,
+  ReviewsResponse,
+  ReviewResponse,
 } from "./message"
 import { Reviewer, ReviewResult } from "./reviewer"
 
 interface EventMap {
   "node.connected": void
   "node.disconnected": void
-  "peer.discovered": Identity[]
   "awesomecom.status.updated": AwesomeComStatus
   "awesomecom.submission.started": void
   "awesomecom.review.started": void
@@ -95,6 +96,7 @@ export class AwesomeNode {
 
   // address of the full node that this node is syncing with
   private syncPeer: string | null = null
+  private isSyncing: boolean = false
 
   // full nodes maintain the account states
   private accounts: SparseMerkleTree = new SparseMerkleTree()
@@ -118,10 +120,10 @@ export class AwesomeNode {
   private sentRequests: Map<string, boolean> = new Map()
 
   private chainHeadBroadcastPeriod: number = 1 * 60 * 1000
-  private candidateBlockBroadcastPeriod: number = 30 * 1000
-  private newBlockBroadcastPeriod: number = 10 * 1000
-  private cleanReceivedMessagesPeriod: number = 30 * 60 * 1000
-  private awesomeComStatusUpdatePeriod: number = 500
+  private candidateBlockBroadcastPeriod: number = 5 * 1000
+  private newBlockBroadcastPeriod: number = 3 * 1000
+  private cleanReceivedMessagesPeriod: number = 2 * 180 * 1000
+  private awesomeComStatusUpdatePeriod: number = 100
 
   private awesomeComStatusUpdateInterval: NodeJS.Timeout | null = null
   private chainHeadBroadcastInterval: NodeJS.Timeout | null = null
@@ -178,15 +180,6 @@ export class AwesomeNode {
 
     this.socket.connect()
 
-    this.on("peer.discovered", (peers: Identity[]) => {
-      if (peers.length > 0) {
-        this.selectSyncPeer(peers)
-        // if (this.syncPeer) {
-        //   this.syncWith(this.syncPeer)
-        // }
-      }
-    })
-
     if (this.reviewer) {
       this.reviewer.onReviewSubmitted((result: ReviewResult) => {
         const review: Review = {
@@ -203,22 +196,20 @@ export class AwesomeNode {
         review.signature = signReview(review, this.wallet)
         this.pendingReviews.push(review)
 
-        // first reply to the authors
+        // broadacst review
         const message: Message = {
           from: this.identity.address,
-          to: result.achievementAuthorAddress,
+          to: "*",
+          room: this.allNodesRoom,
           type: MESSAGE_TYPE.NEW_REVIEW,
           payload: review,
           timestamp: Date.now(),
         }
-        console.log("Sending review to author:", message)
         this.socket.emit("message.send", message)
       })
     }
 
     this.on("awesomecom.submission.started", async () => {
-      this.targetBlock++
-
       this.newBlock = null
       this.stopNewBlockBroadcast()
       this.pendingAchievements = []
@@ -307,10 +298,6 @@ export class AwesomeNode {
     return `${chainConfig.chainId}:nodes`
   }
 
-  get tpcRoom() {
-    return `${chainConfig.chainId}:tpc`
-  }
-
   private setupSocket() {
     this.socket.on("connect", () => {
       this.socket.emit("node.connect", this.identity)
@@ -319,8 +306,6 @@ export class AwesomeNode {
     this.socket.on("node.connected", () => {
       console.log("Connected to AwesomeConnect")
       this.socket.emit("room.get_members", this.fullNodesRoom)
-
-      this.socket.emit("room.join", this.tpcRoom)
     })
 
     this.socket.on("message.received", (message: Message) => {
@@ -338,7 +323,6 @@ export class AwesomeNode {
           if (genesisBlock) {
             await this.repository.addBlock(genesisBlock)
             this.emit("block.added", genesisBlock)
-            this.targetBlock++
 
             this.chainHead = {
               chainId: chainConfig.chainId,
@@ -357,7 +341,6 @@ export class AwesomeNode {
             return
           }
         }
-        this.emit("peer.discovered", members)
       }
     })
   }
@@ -456,7 +439,8 @@ export class AwesomeNode {
     }
 
     this.hasReceived.set(chainHead.signature, Date.now())
-    console.log("Chain head:", chainHead)
+    // TODO: handle actively broadcasted chain heads
+    // console.log("Chain head:", chainHead)
   }
 
   private async handleCandidateBlock(message: Message) {
@@ -516,7 +500,6 @@ export class AwesomeNode {
     }
     this.hasReceived.set(block.header.hash, Date.now())
 
-    console.log("New block:", block)
     if (this.newBlock == null || block.header.height > this.newBlock.header.height) {
       this.newBlock = block
       await this.repository.addBlock(block)
@@ -530,8 +513,6 @@ export class AwesomeNode {
       return
     }
     this.hasReceived.set(transaction.signature, Date.now())
-
-    console.log("New transaction:", transaction)
 
     const { account: sender } = this.accounts.get(transaction.senderAddress)
     const { account: recipient } = this.accounts.get(transaction.recipientAddress)
@@ -568,7 +549,7 @@ export class AwesomeNode {
   }
 
   private async handleNewReview(message: Message) {
-    if (this.awesomeComStatus.phase != "Review") {
+    if (this.awesomeComStatus.phase != "Submission" && this.awesomeComStatus.phase != "Review") {
       return
     }
     const review = message.payload
@@ -608,25 +589,6 @@ export class AwesomeNode {
       timestamp: Date.now(),
     }
     this.socket.emit("message.send", msg)
-  }
-
-  private async handleAccountResponse(message: Message) {
-    const response = message.payload
-    if (!isAccountResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("Account:", response.account)
-    const latestBlock = await this.repository.getLatestBlock()
-    if (!latestBlock) {
-      return
-    }
-    const verified = SparseMerkleTree.verifyProof(response.account, response.proof, latestBlock.header.accountsRoot)
-    if (verified) {
-      this.accounts.insert(response.account)
-      this.emit("account.updated", response.account)
-    }
   }
 
   private async handleChainHeadRequest(message: Message) {
@@ -873,6 +835,34 @@ export class AwesomeNode {
     if (!isAchievementsRequest(request)) {
       return
     }
+    if (this.targetBlock == request.targetBlock) {
+      const response: AchievementsResponse = {
+        requestId: request.requestId,
+        achievements: this.pendingAchievements,
+      }
+      const msg: Message = {
+        from: this.identity.address,
+        to: message.from,
+        type: MESSAGE_TYPE.ACHIEVEMENTS_RESPONSE,
+        payload: response,
+        timestamp: Date.now(),
+      }
+      this.socket.emit("message.send", msg)
+    } else if (request.authorAddress != undefined) {
+      const achievements = await this.repository.getAchievementsByAuthor(request.authorAddress)
+      const response: AchievementsResponse = {
+        requestId: request.requestId,
+        achievements,
+      }
+      const msg: Message = {
+        from: this.identity.address,
+        to: message.from,
+        type: MESSAGE_TYPE.ACHIEVEMENTS_RESPONSE,
+        payload: response,
+        timestamp: Date.now(),
+      }
+      this.socket.emit("message.send", msg)
+    }
   }
 
   private async handleReviewRequest(message: Message) {
@@ -880,12 +870,56 @@ export class AwesomeNode {
     if (!isReviewRequest(request)) {
       return
     }
+    const review = await this.repository.getReviewBySignature(request.signature)
+    if (!review) {
+      return
+    }
+    const response: ReviewResponse = {
+      requestId: request.requestId,
+      review,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.REVIEW_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async handleReviewsRequest(message: Message) {
     const request = message.payload
     if (!isReviewsRequest(request)) {
       return
+    }
+    if (this.targetBlock == request.targetBlock) {
+      const response: ReviewsResponse = {
+        requestId: request.requestId,
+        reviews: this.pendingReviews,
+      }
+      const msg: Message = {
+        from: this.identity.address,
+        to: message.from,
+        type: MESSAGE_TYPE.REVIEWS_RESPONSE,
+        payload: response,
+        timestamp: Date.now(),
+      }
+      this.socket.emit("message.send", msg)
+    } else if (request.achievementSignature != undefined) {
+      const reviews = await this.repository.getReviewsByAchievement(request.achievementSignature)
+      const response: ReviewsResponse = {
+        requestId: request.requestId,
+        reviews,
+      }
+      const msg: Message = {
+        from: this.identity.address,
+        to: message.from,
+        type: MESSAGE_TYPE.REVIEWS_RESPONSE,
+        payload: response,
+        timestamp: Date.now(),
+      }
+      this.socket.emit("message.send", msg)
     }
   }
 
@@ -973,11 +1007,11 @@ export class AwesomeNode {
   private updateAwesomeComStatus() {
     const status = getAwesomeComStatus()
     if (status.session !== this.awesomeComStatus.session || status.phase !== this.awesomeComStatus.phase) {
-      console.log(`${status.phase} for block #${this.targetBlock} starts`)
       this.awesomeComStatus = status
 
       switch (status.phase) {
         case "Submission":
+          this.targetBlock++
           this.emit("awesomecom.submission.started", undefined)
           break
         case "Review":
@@ -990,6 +1024,7 @@ export class AwesomeNode {
           this.emit("awesomecom.announcement.started", undefined)
           break
       }
+      console.log(`${status.phase} for block #${this.targetBlock} starts`)
     }
     this.awesomeComStatus = status
     this.emit("awesomecom.status.updated", status)

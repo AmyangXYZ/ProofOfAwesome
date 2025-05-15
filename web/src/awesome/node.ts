@@ -49,6 +49,7 @@ import {
   BlockHeaderRequest,
   BlockRequest,
   AchievementsRequest,
+  ReviewsRequest,
 } from "./message"
 import { io, Socket } from "socket.io-client"
 
@@ -76,6 +77,7 @@ interface EventMap {
   "achievement.fetched": Achievement
   "achievements.fetched": Achievement[]
   "review.fetched": Review
+  "reviews.fetched": Review[]
 }
 
 // light web node
@@ -112,8 +114,6 @@ export class AwesomeNodeLight {
   private hasReceived: Map<string, number> = new Map()
   // process response only if requestId exists
   private sentRequests: Map<string, boolean> = new Map()
-
-  private inTPC: boolean = false
 
   private cleanReceivedMessagesPeriod: number = 30 * 60 * 1000
   private awesomeComStatusUpdatePeriod: number = 100
@@ -179,11 +179,6 @@ export class AwesomeNodeLight {
     // Disconnect socket
     if (this.socket.connected) {
       this.socket.disconnect()
-    }
-
-    // Leave TPC if in it
-    if (this.inTPC) {
-      this.leaveTPC()
     }
 
     // Clear all data
@@ -275,20 +270,6 @@ export class AwesomeNodeLight {
     return this.targetBlock
   }
 
-  public isInTPC() {
-    return this.inTPC
-  }
-
-  public async joinTPC() {
-    this.inTPC = true
-    this.socket.emit("room.join", this.tpcRoom)
-  }
-
-  public async leaveTPC() {
-    this.inTPC = false
-    this.socket.emit("room.leave", this.tpcRoom)
-  }
-
   public requestAccount(address: string) {
     if (!this.syncPeer) {
       console.error("No sync peer")
@@ -340,14 +321,15 @@ export class AwesomeNodeLight {
       signature: "",
     }
     achievement.signature = signAchievement(achievement, this.wallet)
-
+    console.log("New achievement:", achievement)
+    console.log(verifyAchievement(achievement))
     this.pendingAchievements.push(achievement)
 
     this.emit("achievement.new", achievement)
     const message: Message = {
       from: this.identity.address,
       to: "*",
-      room: this.tpcRoom,
+      room: this.allNodesRoom,
       type: MESSAGE_TYPE.NEW_ACHIEVEMENT,
       payload: achievement,
       timestamp: Date.now(),
@@ -370,6 +352,16 @@ export class AwesomeNodeLight {
       signature: "",
     }
     review.signature = signReview(review, this.wallet)
+
+    const message: Message = {
+      from: this.identity.address,
+      to: "*",
+      room: this.allNodesRoom,
+      type: MESSAGE_TYPE.NEW_REVIEW,
+      payload: review,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", message)
 
     this.pendingReviews.push(review)
 
@@ -467,12 +459,31 @@ export class AwesomeNodeLight {
     const request: AchievementsRequest = {
       requestId,
       targetBlock: this.targetBlock,
-      creatorAddress: this.identity.address,
     }
     this.socket.emit("message.send", {
       from: this.identity.address,
       to: this.syncPeer,
       type: MESSAGE_TYPE.ACHIEVEMENTS_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public requestPendingReviews() {
+    if (!this.syncPeer) {
+      console.error("No sync peer")
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: ReviewsRequest = {
+      requestId,
+      targetBlock: this.targetBlock,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.REVIEWS_REQUEST,
       payload: request,
       timestamp: Date.now(),
     })
@@ -508,10 +519,6 @@ export class AwesomeNodeLight {
 
   get allNodesRoom() {
     return `${chainConfig.chainId}:nodes`
-  }
-
-  get tpcRoom() {
-    return `${chainConfig.chainId}:tpc`
   }
 
   private setupSocket() {
@@ -653,10 +660,7 @@ export class AwesomeNodeLight {
     }
 
     this.hasReceived.set(chainHead.signature, Date.now())
-    if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
-      this.chainHead = chainHead
-      this.emit("chain_head.updated", chainHead)
-    }
+    // TODO: handle actively broadcasted chain heads
   }
 
   private async handleNewBlock(message: Message) {
@@ -679,8 +683,6 @@ export class AwesomeNodeLight {
       this.emit("block.new", block)
       this.blockHeaders.set(block.header.height, block.header)
       this.blocks.set(block.header.height, block)
-      this.targetBlock = block.header.height + 1
-      this.emit("target_block.updated", this.targetBlock)
     }
   }
 
@@ -695,9 +697,6 @@ export class AwesomeNodeLight {
   }
 
   private async handleNewAchievement(message: Message) {
-    if (this.awesomeComStatus.phase != "Submission" || !this.inTPC) {
-      return
-    }
     const achievement = message.payload
     if (!isAchievement(achievement) || this.hasReceived.has(achievement.signature) || !verifyAchievement(achievement)) {
       return
@@ -709,9 +708,9 @@ export class AwesomeNodeLight {
   }
 
   private async handleNewReview(message: Message) {
-    // if (this.awesomeComStatus.phase != "Review") {
-    //   return
-    // }
+    if (this.awesomeComStatus.phase != "Submission" && this.awesomeComStatus.phase != "Review") {
+      return
+    }
     const review = message.payload
     if (!isReview(review) || this.hasReceived.has(review.signature) || !verifyReview(review)) {
       return

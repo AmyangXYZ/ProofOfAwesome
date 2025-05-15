@@ -75,10 +75,16 @@ export default function AchievementInput() {
     }
     node.on("target_block.updated", handleNewTargetBlock)
 
+    const handleAchievementsFetched = (achievements: Achievement[]) => {
+      setAchievements(achievements)
+    }
+    node.on("achievements.fetched", handleAchievementsFetched)
+
     return () => {
       node.off("achievement.new", handleNewAchievement)
       node.off("awesomecom.status.updated", handleAwesomeComStatusUpdated)
       node.off("target_block.updated", handleNewTargetBlock)
+      node.off("achievements.fetched", handleAchievementsFetched)
     }
   }, [node])
 

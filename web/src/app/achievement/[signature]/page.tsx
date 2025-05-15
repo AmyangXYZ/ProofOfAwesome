@@ -19,31 +19,44 @@ export default function Page({ params }: { params: Promise<{ signature: string }
   const [showReviewSheet, setShowReviewSheet] = useState(false)
 
   useEffect(() => {
-    const achievement = node.getAchievement(signature)
-    const reviews = node.getReviews(signature)
-    setAchievement(achievement)
-    setReviews(reviews)
+    const scores = reviews.map((review) => review.scores.overall)
+    const sortedScores = scores.sort((a, b) => a - b)
+    const medianIndex = Math.floor(sortedScores.length / 2)
+    const medianScore = sortedScores[medianIndex]
+    setMedianScore(medianScore)
+  }, [reviews])
+
+  useEffect(() => {
+    const cachedAchievement = node.getAchievement(signature)
+    const cachedReviews = node.getReviews(signature)
+    setAchievement(cachedAchievement)
+    setReviews(cachedReviews)
 
     const handleNewReview = (review: Review) => {
-      setReviews((prevReviews) => [...prevReviews, review])
       if (review.achievementSignature === signature) {
-        calculateMedianScore()
+        setReviews((prevReviews) => [...prevReviews, review])
       }
     }
-
-    const calculateMedianScore = () => {
-      const reviews = node.getReviews(signature)
-      const scores = reviews.map((review) => review.scores.overall)
-      const sortedScores = scores.sort((a, b) => a - b)
-      const medianIndex = Math.floor(sortedScores.length / 2)
-      const medianScore = sortedScores[medianIndex]
-      setMedianScore(medianScore)
-    }
-
     node.on("review.new", handleNewReview)
+
+    const handleAchievementFetched = (achievement: Achievement) => {
+      if (achievement.signature === signature) {
+        setAchievement(achievement)
+      }
+    }
+    node.on("achievement.fetched", handleAchievementFetched)
+
+    const handleReviewsFetched = (reviews: Review[]) => {
+      if (reviews.some((review) => review.achievementSignature === signature)) {
+        setReviews(reviews)
+      }
+    }
+    node.on("reviews.fetched", handleReviewsFetched)
 
     return () => {
       node.off("review.new", handleNewReview)
+      node.off("achievement.fetched", handleAchievementFetched)
+      node.off("reviews.fetched", handleReviewsFetched)
     }
   }, [node, signature])
 

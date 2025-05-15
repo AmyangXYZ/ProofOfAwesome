@@ -22,6 +22,6 @@
     /* Other */
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "wallet.ts"],
   "exclude": ["node_modules", "dist"]
 }
