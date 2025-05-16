@@ -15,7 +15,7 @@ export default function App() {
   const endOfListRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    setAchievements(node.getAchievements())
+    setAchievements(node.getPendingAchievements())
 
     const handleNewAchievement = (achievement: Achievement) => {
       setAchievements((prev) => [...prev, achievement])
@@ -23,7 +23,6 @@ export default function App() {
     node.on("achievement.new", handleNewAchievement)
 
     const handleAchievementsFetched = (achievements: Achievement[]) => {
-      console.log("Achievements fetched:", achievements)
       setAchievements(achievements)
     }
     node.on("achievements.fetched", handleAchievementsFetched)

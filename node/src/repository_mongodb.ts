@@ -107,6 +107,7 @@ export class MongoDBRepository implements Repository {
     this.AchievementModel = mongoose.model<AchievementDocument>(
       "Achievement",
       new mongoose.Schema<AchievementDocument>({
+        targetBlock: Number,
         authorName: String,
         authorAddress: String,
         description: String,
@@ -121,6 +122,8 @@ export class MongoDBRepository implements Repository {
     this.ReviewModel = mongoose.model<ReviewDocument>(
       "Review",
       new mongoose.Schema<ReviewDocument>({
+        targetBlock: Number,
+        achievementSignature: String,
         reviewerName: String,
         reviewerAddress: String,
         scores: {
@@ -241,6 +244,7 @@ export class MongoDBRepository implements Repository {
       block.reviews.map(async (r): Promise<ReviewDocument> => {
         return await this.ReviewModel.create({
           targetBlock: r.targetBlock,
+          achievementSignature: r.achievementSignature,
           reviewerName: r.reviewerName,
           reviewerAddress: r.reviewerAddress,
           scores: r.scores,
@@ -248,7 +252,6 @@ export class MongoDBRepository implements Repository {
           timestamp: new Date(r.timestamp),
           reviewerPublicKey: r.reviewerPublicKey,
           signature: r.signature,
-          achievementSignature: r.achievementSignature,
         })
       })
     )

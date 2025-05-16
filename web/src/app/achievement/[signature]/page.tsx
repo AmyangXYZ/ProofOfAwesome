@@ -28,8 +28,9 @@ export default function Page({ params }: { params: Promise<{ signature: string }
 
   useEffect(() => {
     const cachedAchievement = node.getAchievement(signature)
-    const cachedReviews = node.getReviews(signature)
+    const cachedReviews = node.getReviewsByAchievementSignature(signature)
     setAchievement(cachedAchievement)
+
     setReviews(cachedReviews)
 
     const handleNewReview = (review: Review) => {
@@ -152,10 +153,7 @@ export default function Page({ params }: { params: Promise<{ signature: string }
         </div>
       ) : (
         <div>
-          <h2 className="text-xl md:text-2xl font-bold mb-2">Achievement Not Found</h2>
-          <p className="text-muted-foreground">
-            The achievement with signature {signature.slice(0, 10)}... could not be found.
-          </p>
+          <p className="text-muted-foreground">Loading achievement {signature.slice(0, 10)}...</p>
         </div>
       )}
     </div>

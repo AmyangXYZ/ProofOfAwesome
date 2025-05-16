@@ -792,10 +792,21 @@ export class AwesomeNode {
     if (!isAchievementRequest(request)) {
       return
     }
-    const achievement = await this.repository.getAchievementBySignature(request.signature)
+    let achievement: Achievement | null | undefined = null
+
+    // first check if the achievement is in the pending list
+    achievement = this.pendingAchievements.find((a) => a.signature == request.signature)
+
+    // if not, check if the achievement is in the repository
+    if (!achievement) {
+      achievement = await this.repository.getAchievementBySignature(request.signature)
+    }
+
+    // if still not found, return
     if (!achievement) {
       return
     }
+
     const response: AchievementResponse = {
       requestId: request.requestId,
       achievement,
@@ -873,34 +884,34 @@ export class AwesomeNode {
     if (!isReviewsRequest(request)) {
       return
     }
+    let reviews: Review[] = []
+
     if (this.targetBlock == request.targetBlock) {
-      const response: ReviewsResponse = {
-        requestId: request.requestId,
-        reviews: this.pendingReviews,
-      }
-      const msg: Message = {
-        from: this.identity.address,
-        to: message.from,
-        type: MESSAGE_TYPE.REVIEWS_RESPONSE,
-        payload: response,
-        timestamp: Date.now(),
-      }
-      this.socket.emit("message.send", msg)
+      // if asking for all pending reviews
+      reviews = this.pendingReviews
     } else if (request.achievementSignature != undefined) {
-      const reviews = await this.repository.getReviewsByAchievement(request.achievementSignature)
-      const response: ReviewsResponse = {
-        requestId: request.requestId,
-        reviews,
+      // if achievement is still pending, also find the reviews in the pending list
+      const achievement = this.pendingAchievements.find((a) => a.signature == request.achievementSignature)
+      if (achievement) {
+        reviews = this.pendingReviews.filter((r) => r.achievementSignature == request.achievementSignature)
       }
-      const msg: Message = {
-        from: this.identity.address,
-        to: message.from,
-        type: MESSAGE_TYPE.REVIEWS_RESPONSE,
-        payload: response,
-        timestamp: Date.now(),
+      // if achievement is not pending, fetch reviews from the repository
+      if (reviews.length == 0) {
+        reviews = await this.repository.getReviewsByAchievement(request.achievementSignature)
       }
-      this.socket.emit("message.send", msg)
     }
+    const response: ReviewsResponse = {
+      requestId: request.requestId,
+      reviews: reviews,
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.REVIEWS_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
   }
 
   private async createChainHead(): Promise<ChainHead> {
@@ -958,9 +969,7 @@ export class AwesomeNode {
         }
       }
     }
-    console.log("Pending achievements:", achievements)
-    console.log("Pending reviews:", reviews)
-    console.log("Accepted achievements:", acceptedAchievements)
+
     transactions.sort((a, b) => b.timestamp - a.timestamp)
     acceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
     reviewsForAcceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)

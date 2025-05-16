@@ -31,7 +31,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
   }, [reviews])
 
   useEffect(() => {
-    setReviews(node.getReviews(achievement.signature))
+    setReviews(node.getReviewsByAchievementSignature(achievement.signature))
 
     const handleNewReview = (review: Review) => {
       if (review.achievementSignature === achievement.signature) {
@@ -116,11 +116,11 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
               e.preventDefault()
               e.stopPropagation()
             }}
-            className="shadow-sm h-7 hover:bg-zinc-200! hover:text-zinc-950!"
+            className="shadow-sm h-5 hover:bg-zinc-200! hover:text-zinc-950!"
             variant="ghost"
           >
-            <ChartNoAxesColumn className="size-4.5" strokeWidth={2} />
-            <span className="text-sm">{medianScore}</span>
+            <ChartNoAxesColumn className="size-3.5" strokeWidth={2} />
+            <span className="text-xs">{medianScore}</span>
           </Button>
 
           <motion.div
@@ -137,11 +137,11 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
                 }
               }}
               disabled={!canReview}
-              className="bg-transparent! h-7 hover:bg-zinc-200! hover:text-zinc-950! shadow-sm"
+              className="bg-transparent! h-5 hover:bg-zinc-200! hover:text-zinc-950! shadow-sm"
               variant="outline"
             >
-              <MessageCircle className="size-3.5" strokeWidth={2.25} />
-              {reviews.length}
+              <MessageCircle className="size-3" strokeWidth={2.25} />
+              <span className="text-xs">{reviews.length}</span>
             </Button>
             {isNewReview && (
               <motion.span
