@@ -101,10 +101,8 @@ export class AwesomeNode {
   // full nodes maintain the account states
   private accounts: SparseMerkleTree = new SparseMerkleTree()
 
-  // the target block for the current session
-  private targetBlock: number = 0
+  private latestBlockHeight: number = 0
 
-  private chainHead: ChainHead | null = null
   // created or received in the submission phase in current session
   private pendingAchievements: Achievement[] = []
   // created or received in the review phase in current session
@@ -213,11 +211,10 @@ export class AwesomeNode {
       this.newBlock = null
       this.stopNewBlockBroadcast()
       this.pendingAchievements = []
-    })
-
-    this.on("awesomecom.review.started", async () => {
       this.pendingReviews = []
     })
+
+    this.on("awesomecom.review.started", async () => {})
 
     this.on("awesomecom.consensus.started", async () => {
       this.candidateBlock = null
@@ -236,17 +233,8 @@ export class AwesomeNode {
         console.log("new block header:", this.newBlock.header)
         this.candidateBlock = null
 
-        this.chainHead = {
-          chainId: chainConfig.chainId,
-          latestBlockHeight: this.newBlock.header.height,
-          latestBlockHash: this.newBlock.header.hash,
-          timestamp: Date.now(),
-          nodePublicKey: this.identity.publicKey,
-          signature: "",
-        }
-        this.chainHead.signature = signChainHead(this.chainHead, this.wallet)
-
         await this.repository.addBlock(this.newBlock)
+        this.latestBlockHeight = this.newBlock.header.height
         this.emit("block.added", this.newBlock)
         this.startNewBlockBroadcast()
 
@@ -298,6 +286,10 @@ export class AwesomeNode {
     return `${chainConfig.chainId}:nodes`
   }
 
+  get targetBlock() {
+    return this.latestBlockHeight + 1
+  }
+
   private setupSocket() {
     this.socket.on("connect", () => {
       this.socket.emit("node.connect", this.identity)
@@ -323,16 +315,6 @@ export class AwesomeNode {
           if (genesisBlock) {
             await this.repository.addBlock(genesisBlock)
             this.emit("block.added", genesisBlock)
-
-            this.chainHead = {
-              chainId: chainConfig.chainId,
-              latestBlockHeight: genesisBlock.header.height,
-              latestBlockHash: genesisBlock.header.hash,
-              timestamp: Date.now(),
-              nodePublicKey: this.identity.publicKey,
-              signature: "",
-            }
-            this.chainHead.signature = signChainHead(this.chainHead, this.wallet)
 
             this.startAwesomeComStatusUpdate()
 
@@ -596,14 +578,11 @@ export class AwesomeNode {
     if (!isChainHeadRequest(request)) {
       return
     }
-    if (!this.chainHead) {
-      console.log("No chain head found")
-      return
-    }
+    const chainHead = await this.createChainHead()
 
     const response: ChainHeadResponse = {
       requestId: request.requestId,
-      chainHead: this.chainHead,
+      chainHead,
     }
     const msg: Message = {
       from: this.identity.address,
@@ -627,8 +606,9 @@ export class AwesomeNode {
       return
     }
 
-    if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
-      this.chainHead = chainHead
+    // TODO: sync with the peer
+    if (chainHead.latestBlockHeight > this.latestBlockHeight) {
+      this.latestBlockHeight = chainHead.latestBlockHeight
     }
   }
 
@@ -923,6 +903,21 @@ export class AwesomeNode {
     }
   }
 
+  private async createChainHead(): Promise<ChainHead> {
+    const latestBlock = await this.repository.getLatestBlockHeader()
+
+    const chainHead: ChainHead = {
+      chainId: chainConfig.chainId,
+      latestBlockHeight: latestBlock?.height ?? 0,
+      latestBlockHash: latestBlock?.hash ?? "",
+      timestamp: Date.now(),
+      nodePublicKey: this.identity.publicKey,
+      signature: "",
+    }
+    chainHead.signature = signChainHead(chainHead, this.wallet)
+    return chainHead
+  }
+
   private async createBlock(): Promise<Block | null> {
     let previousHash = ""
     let previousHeight = -1
@@ -963,7 +958,9 @@ export class AwesomeNode {
         }
       }
     }
-
+    console.log("Pending achievements:", achievements)
+    console.log("Pending reviews:", reviews)
+    console.log("Accepted achievements:", acceptedAchievements)
     transactions.sort((a, b) => b.timestamp - a.timestamp)
     acceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
     reviewsForAcceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
@@ -1011,7 +1008,6 @@ export class AwesomeNode {
 
       switch (status.phase) {
         case "Submission":
-          this.targetBlock++
           this.emit("awesomecom.submission.started", undefined)
           break
         case "Review":
@@ -1031,17 +1027,16 @@ export class AwesomeNode {
   }
 
   private async broadcastChainHead() {
-    if (this.chainHead) {
-      console.log("Broadcasting chain head:", this.chainHead)
-      this.socket.emit("message.send", {
-        from: this.identity.address,
-        to: "*",
-        room: this.allNodesRoom,
-        type: MESSAGE_TYPE.CHAIN_HEAD,
-        payload: this.chainHead,
-        timestamp: Date.now(),
-      })
-    }
+    const chainHead = await this.createChainHead()
+    console.log("Broadcasting chain head:", chainHead)
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: "*",
+      room: this.allNodesRoom,
+      type: MESSAGE_TYPE.CHAIN_HEAD,
+      payload: chainHead,
+      timestamp: Date.now(),
+    })
   }
 
   private async startChainHeadBroadcast() {

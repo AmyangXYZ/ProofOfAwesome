@@ -285,6 +285,12 @@ export class MongoDBRepository implements Repository {
     return Promise.all(blockDocs.map((b) => this.blockDocToBlockHeader(b)))
   }
 
+  async getLatestBlockHeader(): Promise<BlockHeader | null> {
+    const blockDoc = await this.BlockModel.findOne({}).sort({ "header.height": -1 }).lean()
+    if (!blockDoc) return null
+    return this.blockDocToBlockHeader(blockDoc)
+  }
+
   async getLatestBlock(): Promise<Block | null> {
     const blockDoc = await this.BlockModel.findOne({})
       .sort({ "header.height": -1 })

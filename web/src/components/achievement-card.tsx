@@ -1,10 +1,10 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { Achievement } from "@/awesome/awesome"
+import { Achievement, Review } from "@/awesome/awesome"
 import { Button } from "./ui/button"
 import { ChartNoAxesColumn, MessageCircle } from "lucide-react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
-import { useEffect, useState, useRef } from "react"
+import { useEffect, useState } from "react"
 import { ReviewSheet } from "./review-sheet"
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { formatDistanceToNowStrict } from "date-fns"
@@ -13,35 +13,37 @@ import { motion } from "framer-motion"
 export default function AchievementCard({ achievement }: { achievement: Achievement }) {
   const router = useRouter()
   const node = useAwesomeNode()
-  const [reviewCount, setReviewCount] = useState(0)
+  const [reviews, setReviews] = useState<Review[]>([])
   const [medianScore, setMedianScore] = useState(0)
   const [showReviewSheet, setShowReviewSheet] = useState(false)
   const [isNewReview, setIsNewReview] = useState(false)
-  const prevReviewCount = useRef(reviewCount)
 
   const [canReview, setCanReview] = useState(true)
 
   useEffect(() => {
-    const handleNewReview = (review: { achievementSignature: string }) => {
+    const scores = reviews.map((review) => review.scores.overall)
+    const sortedScores = scores.sort((a, b) => a - b)
+    const medianIndex = Math.floor(sortedScores.length / 2)
+    const medianScore = sortedScores[medianIndex]
+    if (medianScore) {
+      setMedianScore(medianScore)
+    }
+  }, [reviews])
+
+  useEffect(() => {
+    setReviews(node.getReviews(achievement.signature))
+
+    const handleNewReview = (review: Review) => {
       if (review.achievementSignature === achievement.signature) {
-        setReviewCount((prev) => prev + 1)
-        calculateMedianScore()
-        // toast.success(`New review for ${achievement.signature.slice(0, 10)}...`)
+        setReviews((prev) => [...prev, review])
+        setIsNewReview(true)
+        setTimeout(() => setIsNewReview(false), 1000)
       }
     }
     node.on("review.new", handleNewReview)
 
     const awesomeComStatus = node.getAwesomeComStatus()
     setCanReview(awesomeComStatus.phase === "Submission" || awesomeComStatus.phase === "Review")
-
-    const calculateMedianScore = () => {
-      const reviews = node.getReviews(achievement.signature)
-      const scores = reviews.map((review) => review.scores.overall)
-      const sortedScores = scores.sort((a, b) => a - b)
-      const medianIndex = Math.floor(sortedScores.length / 2)
-      const medianScore = sortedScores[medianIndex]
-      setMedianScore(medianScore)
-    }
 
     const handleSubmissionStarted = () => {
       setCanReview(true)
@@ -52,20 +54,18 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
     node.on("awesomecom.submission.started", handleSubmissionStarted)
     node.on("awesomecom.consensus.started", handleConsensusStarted)
 
+    const handleReviewsFetched = (reviews: Review[]) => {
+      setReviews(reviews.filter((review) => review.achievementSignature === achievement.signature))
+    }
+    node.on("reviews.fetched", handleReviewsFetched)
+
     return () => {
       node.off("review.new", handleNewReview)
       node.off("awesomecom.submission.started", handleSubmissionStarted)
       node.off("awesomecom.consensus.started", handleConsensusStarted)
+      node.off("reviews.fetched", handleReviewsFetched)
     }
   }, [node, achievement])
-
-  useEffect(() => {
-    if (reviewCount > prevReviewCount.current) {
-      setIsNewReview(true)
-      setTimeout(() => setIsNewReview(false), 1000)
-    }
-    prevReviewCount.current = reviewCount
-  }, [reviewCount])
 
   const jumpToAchievement = () => {
     router.push(`/achievement/${achievement.signature}`)
@@ -141,7 +141,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
               variant="outline"
             >
               <MessageCircle className="size-3.5" strokeWidth={2.25} />
-              {reviewCount}
+              {reviews.length}
             </Button>
             {isNewReview && (
               <motion.span

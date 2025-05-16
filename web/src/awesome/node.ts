@@ -103,9 +103,8 @@ export class AwesomeNodeLight {
   // created or received in the review phase in current session
   private pendingReviews: Review[] = []
 
-  private targetBlock: number = 0
+  private latestBlockHeight: number = 0
 
-  private chainHead: ChainHead | null = null
   // by height
   private blockHeaders: Map<number, BlockHeader> = new Map()
   private blocks: Map<number, Block> = new Map()
@@ -163,7 +162,7 @@ export class AwesomeNodeLight {
 
     this.on("awesomecom.submission.started", async () => {
       this.pendingAchievements = []
-      this.targetBlock++
+      this.emit("target_block.updated", this.targetBlock)
     })
 
     this.on("awesomecom.review.started", async () => {
@@ -202,8 +201,8 @@ export class AwesomeNodeLight {
     return { ...this.account }
   }
 
-  public getChainHead() {
-    return { ...this.chainHead }
+  public getLatestBlockHeight() {
+    return this.latestBlockHeight
   }
 
   public getBlockHeader(height: number): BlockHeader | undefined {
@@ -266,10 +265,6 @@ export class AwesomeNodeLight {
     return this.pendingReviews.filter((review) => review.achievementSignature === achievementSignature)
   }
 
-  public getTargetBlock() {
-    return this.targetBlock
-  }
-
   public requestAccount(address: string) {
     if (!this.syncPeer) {
       console.error("No sync peer")
@@ -321,8 +316,7 @@ export class AwesomeNodeLight {
       signature: "",
     }
     achievement.signature = signAchievement(achievement, this.wallet)
-    console.log("New achievement:", achievement)
-    console.log(verifyAchievement(achievement))
+
     this.pendingAchievements.push(achievement)
 
     this.emit("achievement.new", achievement)
@@ -513,6 +507,10 @@ export class AwesomeNodeLight {
     }
   }
 
+  get targetBlock() {
+    return this.latestBlockHeight + 1
+  }
+
   get fullNodesRoom() {
     return `${chainConfig.chainId}:fullnodes`
   }
@@ -675,14 +673,15 @@ export class AwesomeNodeLight {
 
     // TODO: compare with current latest block
     if (
-      this.chainHead &&
-      block.header.height > this.chainHead.latestBlockHeight &&
-      block.header.previousHash == this.chainHead.latestBlockHash
+      block.header.height > this.latestBlockHeight &&
+      (!this.blockHeaders.has(block.header.height - 1) ||
+        block.header.previousHash == this.blockHeaders.get(block.header.height - 1)!.hash)
     ) {
-      this.emit("block_header.new", block.header)
-      this.emit("block.new", block)
       this.blockHeaders.set(block.header.height, block.header)
       this.blocks.set(block.header.height, block)
+      this.emit("block_header.new", block.header)
+      this.emit("block.new", block)
+      this.latestBlockHeight = block.header.height
     }
   }
 
@@ -727,11 +726,7 @@ export class AwesomeNodeLight {
     }
     this.sentRequests.delete(response.requestId)
 
-    if (!this.chainHead) {
-      console.error("No chain head found to verify account proof")
-      return
-    }
-    const latestBlockHeader = this.blockHeaders.get(this.chainHead.latestBlockHeight)
+    const latestBlockHeader = this.blockHeaders.get(this.latestBlockHeight)
     if (!latestBlockHeader) {
       console.error("No latest block header found to verify account proof")
       return
@@ -755,15 +750,15 @@ export class AwesomeNodeLight {
       return
     }
 
-    if (this.chainHead == null || chainHead.latestBlockHeight > this.chainHead.latestBlockHeight) {
-      this.chainHead = chainHead
-      this.targetBlock = chainHead.latestBlockHeight + 1
+    if (this.latestBlockHeight < chainHead.latestBlockHeight) {
+      this.latestBlockHeight = chainHead.latestBlockHeight
       this.emit("target_block.updated", this.targetBlock)
       this.emit("chain_head.updated", chainHead)
 
       // quick sync
-      this.requestBlockHeaders(this.chainHead.latestBlockHeight - 20, this.chainHead.latestBlockHeight)
+      this.requestBlockHeaders(this.latestBlockHeight - 20, this.latestBlockHeight)
       this.requestPendingAchievements()
+      this.requestPendingReviews()
     }
   }
 
@@ -857,7 +852,9 @@ export class AwesomeNodeLight {
     this.sentRequests.delete(response.requestId)
 
     for (const achievement of response.achievements) {
-      this.emit("achievement.fetched", achievement)
+      if (achievement.targetBlock == this.targetBlock) {
+        this.pendingAchievements.push(achievement)
+      }
     }
     this.emit("achievements.fetched", response.achievements)
   }
@@ -879,9 +876,7 @@ export class AwesomeNodeLight {
     }
     this.sentRequests.delete(response.requestId)
 
-    for (const review of response.reviews) {
-      this.emit("review.fetched", review)
-    }
+    this.emit("reviews.fetched", response.reviews)
   }
 
   private cleanReceivedMessages() {

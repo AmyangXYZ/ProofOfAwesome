@@ -8,7 +8,7 @@ import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card"
 
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { useState, useEffect, useRef } from "react"
-import { Achievement, AwesomeComStatus } from "@/awesome/awesome"
+import { AwesomeComStatus } from "@/awesome/awesome"
 
 const suggestedAchievements: {
   title: string
@@ -40,7 +40,6 @@ const suggestedAchievements: {
 
 export default function AchievementInput() {
   const node = useAwesomeNode()
-  const [achievements, setAchievements] = useState<Achievement[]>([])
   const [awesomeComStatus, setAwesomeComStatus] = useState<AwesomeComStatus>({
     session: 0,
     phase: "Submission",
@@ -49,6 +48,7 @@ export default function AchievementInput() {
   })
   const [targetBlock, setTargetBlock] = useState<number>(0)
   const [canSubmit, setCanSubmit] = useState(true)
+  const [showSuggestions, setShowSuggestions] = useState(true)
 
   useEffect(() => {
     setCanSubmit(awesomeComStatus.phase === "Submission")
@@ -57,12 +57,7 @@ export default function AchievementInput() {
   const textareaRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    setTargetBlock(node.getTargetBlock())
-    setAchievements(node.getAchievements())
-    const handleNewAchievement = (achievement: Achievement) => {
-      setAchievements((prev) => [...prev, achievement])
-    }
-    node.on("achievement.new", handleNewAchievement)
+    setTargetBlock(node.targetBlock)
 
     setAwesomeComStatus(node.getAwesomeComStatus())
     const handleAwesomeComStatusUpdated = (status: AwesomeComStatus) => {
@@ -75,16 +70,9 @@ export default function AchievementInput() {
     }
     node.on("target_block.updated", handleNewTargetBlock)
 
-    const handleAchievementsFetched = (achievements: Achievement[]) => {
-      setAchievements(achievements)
-    }
-    node.on("achievements.fetched", handleAchievementsFetched)
-
     return () => {
-      node.off("achievement.new", handleNewAchievement)
       node.off("awesomecom.status.updated", handleAwesomeComStatusUpdated)
       node.off("target_block.updated", handleNewTargetBlock)
-      node.off("achievements.fetched", handleAchievementsFetched)
     }
   }, [node])
 
@@ -94,6 +82,7 @@ export default function AchievementInput() {
     node.createAchievement(description)
     setDescription("")
     resetHeight()
+    setShowSuggestions(false)
   }
 
   useEffect(() => {
@@ -118,7 +107,7 @@ export default function AchievementInput() {
   return (
     <>
       <div className="relative w-full flex flex-col gap-4">
-        {!achievements.length && canSubmit && (
+        {showSuggestions && canSubmit && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {suggestedAchievements.map((ach, i) => (
               <motion.div

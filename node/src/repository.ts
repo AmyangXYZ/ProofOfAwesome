@@ -4,6 +4,7 @@ export interface Repository {
   init(): Promise<void>
 
   addBlock(block: Block): Promise<void>
+  getLatestBlockHeader(): Promise<BlockHeader | null>
   getLatestBlock(): Promise<Block | null>
   getBlockHeader(height: number): Promise<BlockHeader | null>
   getBlockHeaders(fromHeight: number, toHeight: number): Promise<BlockHeader[]>
