@@ -27,11 +27,8 @@ export default function Page({ params }: { params: Promise<{ signature: string }
   }, [reviews])
 
   useEffect(() => {
-    const cachedAchievement = node.getAchievement(signature)
-    const cachedReviews = node.getReviewsByAchievementSignature(signature)
-    setAchievement(cachedAchievement)
-
-    setReviews(cachedReviews)
+    setAchievement(node.getAchievement(signature))
+    setReviews(node.getReviewsByAchievementSignature(signature))
 
     const handleNewReview = (review: Review) => {
       if (review.achievementSignature === signature) {

@@ -55,7 +55,13 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
     node.on("awesomecom.consensus.started", handleConsensusStarted)
 
     const handleReviewsFetched = (reviews: Review[]) => {
-      setReviews(reviews.filter((review) => review.achievementSignature === achievement.signature))
+      setReviews((prevReviews) => {
+        const seenSignatures = new Set(prevReviews.map((r) => r.signature))
+        const newReviews = reviews.filter(
+          (review) => review.achievementSignature === achievement.signature && !seenSignatures.has(review.signature)
+        )
+        return [...prevReviews, ...newReviews]
+      })
     }
     node.on("reviews.fetched", handleReviewsFetched)
 

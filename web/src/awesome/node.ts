@@ -612,7 +612,6 @@ export class AwesomeNodeLight {
   private updateAwesomeComStatus() {
     const status = getAwesomeComStatus()
     if (status.session !== this.awesomeComStatus.session || status.phase !== this.awesomeComStatus.phase) {
-      // console.log(`[${status.session}th AwesomeCom (Theme: ${status.theme})] Entering ${status.phase} phase`)
       switch (status.phase) {
         case "Submission":
           this.emit("awesomecom.submission.started", undefined)
@@ -748,7 +747,9 @@ export class AwesomeNodeLight {
     this.hasReceived.set(achievement.signature, Date.now())
 
     this.achievements.set(achievement.signature, achievement)
-    this.pendingAchievements.push(achievement.signature)
+    if (achievement.targetBlock == this.targetBlock) {
+      this.pendingAchievements = [...new Set([...this.pendingAchievements, achievement.signature])]
+    }
     this.emit("achievement.new", achievement)
   }
 
@@ -809,7 +810,7 @@ export class AwesomeNodeLight {
       // quick sync
       this.requestBlockHeaders(this.latestBlockHeight - 20, this.latestBlockHeight)
       this.requestPendingAchievements()
-      this.requestPendingReviews()
+      // this.requestPendingReviews()
     }
   }
 
@@ -838,7 +839,6 @@ export class AwesomeNodeLight {
 
   private async handleBlockResponse(message: Message) {
     const response = message.payload
-    console.log("Block response", response)
     if (!isBlockResponse(response) || !this.sentRequests.has(response.requestId)) {
       return
     }
@@ -882,7 +882,7 @@ export class AwesomeNodeLight {
     this.achievements.set(response.achievement.signature, response.achievement)
 
     if (response.achievement.targetBlock == this.targetBlock) {
-      this.pendingAchievements.push(response.achievement.signature)
+      this.pendingAchievements = [...new Set([...this.pendingAchievements, response.achievement.signature])]
     }
 
     this.emit("achievement.fetched", response.achievement)
@@ -898,7 +898,7 @@ export class AwesomeNodeLight {
     for (const achievement of response.achievements) {
       this.achievements.set(achievement.signature, achievement)
       if (achievement.targetBlock == this.targetBlock) {
-        this.pendingAchievements.push(achievement.signature)
+        this.pendingAchievements = [...new Set([...this.pendingAchievements, achievement.signature])]
       }
     }
     this.emit("achievements.fetched", response.achievements)
