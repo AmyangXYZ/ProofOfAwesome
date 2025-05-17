@@ -217,18 +217,18 @@ export class AwesomeNode {
     this.on("awesomecom.review.started", async () => {})
 
     this.on("awesomecom.consensus.started", async () => {
-      this.candidateBlock = null
       this.candidateBlock = await this.createBlock()
       if (this.candidateBlock) {
         this.startCandidateBlockBroadcast()
       } else {
-        console.log("failed to create block")
+        console.log("no block created")
       }
     })
 
     this.on("awesomecom.announcement.started", async () => {
-      this.stopCandidateBlockBroadcast()
       if (this.candidateBlock) {
+        this.stopCandidateBlockBroadcast()
+
         this.newBlock = this.candidateBlock
         console.log("new block header:", this.newBlock.header)
         this.candidateBlock = null
@@ -994,6 +994,11 @@ export class AwesomeNode {
       reviews: reviewsForAcceptedAchievements,
     }
     block.header.hash = hashBlockHeader(block.header)
+
+    // if the block is not the genesis block and has no achievements or transactions, skip it
+    if (block.header.height != 0 && block.achievements.length == 0 && block.transactions.length == 0) {
+      return null
+    }
     return block
   }
 

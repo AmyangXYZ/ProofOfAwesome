@@ -3,7 +3,6 @@
 import { BlockHeader } from "@/awesome/awesome"
 import BlockHeaderCard from "@/components/block-header-card"
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
 import { useEffect, useState } from "react"
@@ -13,7 +12,6 @@ export default function Blocks() {
   const node = useAwesomeNode()
   const [headers, setHeaders] = useState<BlockHeader[]>([])
   const [targetHeight, setTargetHeight] = useState<string>("")
-  const [showEmptyBlocks, setShowEmptyBlocks] = useState(true)
 
   useEffect(() => {
     setHeaders(node.getBlockHeaders())
@@ -52,24 +50,10 @@ export default function Blocks() {
             }
           }}
         />
-        <div className="flex items-center space-x-2">
-          <Checkbox
-            id="show-empty-blocks"
-            checked={showEmptyBlocks}
-            onCheckedChange={(checked) => setShowEmptyBlocks(checked as boolean)}
-          />
-          <label
-            htmlFor="show-empty-blocks"
-            className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-          >
-            Show empty blocks
-          </label>
-        </div>
       </div>
       <ScrollArea className="flex-1 h-[calc(100vh-120px)]">
         {headers
           .sort((a, b) => b.height - a.height)
-          .filter((header) => showEmptyBlocks || header.achievementsCount > 0)
           .map((header) => (
             <motion.div
               initial={{ opacity: 0, y: 10 }}

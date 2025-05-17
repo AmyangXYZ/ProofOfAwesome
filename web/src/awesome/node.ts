@@ -106,7 +106,7 @@ export class AwesomeNodeLight {
   // created or received achievement signatures in the submission phase in current session
   private pendingAchievements: string[] = []
 
-  private latestBlockHeight: number = 0
+  private latestBlockHeight: number = -1
 
   // by height
   private blockHeaders: Map<number, BlockHeader> = new Map()
@@ -802,7 +802,7 @@ export class AwesomeNodeLight {
       return
     }
 
-    if (this.latestBlockHeight == 0 || this.latestBlockHeight < chainHead.latestBlockHeight) {
+    if (this.latestBlockHeight < chainHead.latestBlockHeight) {
       this.latestBlockHeight = chainHead.latestBlockHeight
       this.emit("target_block.updated", this.targetBlock)
       this.emit("chain_head.updated", chainHead)

@@ -73,7 +73,7 @@ export default function Header() {
         </nav>
         <div className="hidden md:flex items-center space-x-2 text-muted-foreground">
           <span>
-            Address: <span className="font-mono">{account?.address}</span>
+            Address: <span className="font-mono text-xs">{account?.address}</span>
           </span>
           <span>
             Balance: <span className="font-mono">{account?.balance}</span>
