@@ -193,6 +193,12 @@ export class AwesomeNodeLight {
     this.syncPeer = null
   }
 
+  private sync() {
+    this.requestBlockHeaders(this.latestBlockHeight - 20, this.latestBlockHeight)
+    this.requestPendingAchievements()
+    this.requestAccount(this.identity.address)
+  }
+
   public isConnected(): boolean {
     return this.socket.connected
   }
@@ -266,10 +272,9 @@ export class AwesomeNodeLight {
     return []
   }
 
-  public requestAccount(address: string): void {
-    if (!this.syncPeer) {
-      console.error("No sync peer")
-      return
+  public async requestAccount(address: string): Promise<void> {
+    while (!this.syncPeer) {
+      await new Promise((resolve) => setTimeout(resolve, this.WAIT_SYNC_PEER_INTERVAL))
     }
     const requestId = crypto.randomUUID()
     const request: AccountRequest = {
@@ -778,11 +783,15 @@ export class AwesomeNodeLight {
     }
     this.sentRequests.delete(response.requestId)
 
+    while (!this.blockHeaders.get(this.latestBlockHeight)) {
+      await new Promise((resolve) => setTimeout(resolve, this.WAIT_SYNC_PEER_INTERVAL))
+    }
     const latestBlockHeader = this.blockHeaders.get(this.latestBlockHeight)
     if (!latestBlockHeader) {
       console.error("No latest block header found to verify account proof")
       return
     }
+    console.log(response)
     const verified = SparseMerkleTree.verifyProof(response.account, response.proof, latestBlockHeader.accountsRoot)
     if (verified) {
       this.account = response.account
@@ -808,9 +817,7 @@ export class AwesomeNodeLight {
       this.emit("chain_head.updated", chainHead)
 
       // quick sync
-      this.requestBlockHeaders(this.latestBlockHeight - 20, this.latestBlockHeight)
-      this.requestPendingAchievements()
-      // this.requestPendingReviews()
+      this.sync()
     }
   }
 

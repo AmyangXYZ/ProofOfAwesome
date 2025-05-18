@@ -239,3 +239,21 @@ export function isMerkleProof(proof: unknown): proof is MerkleProof {
 export function isSparseMerkleProof(proof: unknown): proof is SparseMerkleProof {
   return Array.isArray(proof) && proof.every((item) => typeof item === "string")
 }
+
+if (require.main === module) {
+  const tree = new SparseMerkleTree()
+  const address = "0x1234567890123456789012345678901234567890"
+  tree.insert({
+    address,
+    balance: 100,
+    nonce: 0,
+    acceptedAchievements: 0,
+  })
+  console.log(tree.get(address))
+  const { account, proof } = tree.get(address)
+  if (!account) {
+    console.log("No account found")
+  } else {
+    console.log(SparseMerkleTree.verifyProof(account, proof, tree.merkleRoot))
+  }
+}

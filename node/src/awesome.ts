@@ -27,7 +27,11 @@ export const chainConfig = {
     acceptThreshold: 3,
   },
   rewardRules: {
-    acceptedAchievements: 10,
+    acceptedAchievements: {
+      3: 3,
+      4: 4,
+      5: 5,
+    },
   },
 } as const
 

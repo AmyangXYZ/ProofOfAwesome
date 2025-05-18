@@ -237,16 +237,6 @@ export class AwesomeNode {
         this.latestBlockHeight = this.newBlock.header.height
         this.emit("block.added", this.newBlock)
         this.startNewBlockBroadcast()
-
-        // assign achievement rewards
-        for (const achievement of this.newBlock.achievements) {
-          const { account } = this.accounts.get(achievement.authorAddress)
-          if (account) {
-            account.balance += chainConfig.rewardRules.acceptedAchievements
-            account.acceptedAchievements += 1
-            this.accounts.insert(account)
-          }
-        }
       }
     })
 
@@ -497,7 +487,16 @@ export class AwesomeNode {
     this.hasReceived.set(transaction.signature, Date.now())
 
     const { account: sender } = this.accounts.get(transaction.senderAddress)
-    const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+    let { account: recipient } = this.accounts.get(transaction.recipientAddress)
+    if (!recipient) {
+      recipient = {
+        address: transaction.recipientAddress,
+        balance: 0,
+        acceptedAchievements: 0,
+        nonce: 0,
+      }
+      this.accounts.insert(recipient)
+    }
 
     if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
       sender.balance -= transaction.amount
@@ -553,11 +552,11 @@ export class AwesomeNode {
     if (!isAccountRequest(request)) {
       return
     }
-    console.log("Account request:", request)
     const { account, proof } = this.accounts.get(request.address)
     if (!account) {
       return
     }
+
     const response: AccountResponse = {
       requestId: request.requestId,
       account,
@@ -966,6 +965,22 @@ export class AwesomeNode {
         if (medianScore >= chainConfig.reviewRules.acceptThreshold) {
           acceptedAchievements.push(achievement)
           reviewsForAcceptedAchievements.push(...latestReviews)
+          // assign achievement rewards
+          if (chainConfig.rewardRules.acceptedAchievements[medianScore as 3 | 4 | 5]) {
+            const reward = chainConfig.rewardRules.acceptedAchievements[medianScore as 3 | 4 | 5]
+            let { account } = this.accounts.get(achievement.authorAddress)
+            if (account) {
+              account.balance += reward
+            } else {
+              account = {
+                address: achievement.authorAddress,
+                balance: reward,
+                acceptedAchievements: 1,
+                nonce: 0,
+              }
+              this.accounts.insert(account)
+            }
+          }
         }
       }
     }
