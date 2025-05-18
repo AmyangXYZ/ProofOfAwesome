@@ -1,5 +1,7 @@
 # Proof of Awesome
 
+<img src="./logo.svg">
+
 Proof of Awesome presents a novel blockchain consensus mechanism that replaces computational puzzles with real-world achievements. This system combines AI-assisted scholarly peer review with blockchain technology to create verifiable digital assets from personal accomplishments.
 
 ## Project Vision
