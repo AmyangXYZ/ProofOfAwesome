@@ -305,6 +305,7 @@ export class AwesomeNode {
           if (!latestBlock) {
             const genesisBlock = await this.createBlock()
             if (genesisBlock) {
+              console.log("created genesis block:", genesisBlock.header)
               await this.repository.addBlock(genesisBlock)
               this.emit("block.added", genesisBlock)
               this.startChainHeadBroadcast()
