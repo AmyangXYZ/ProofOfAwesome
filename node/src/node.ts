@@ -101,7 +101,7 @@ export class AwesomeNode {
   // full nodes maintain the account states
   private accounts: SparseMerkleTree = new SparseMerkleTree()
 
-  private latestBlockHeight: number = 0
+  private latestBlockHeight: number = -1
 
   // created or received in the submission phase in current session
   private pendingAchievements: Achievement[] = []
@@ -173,6 +173,8 @@ export class AwesomeNode {
   }
 
   public async start() {
+    this.startAwesomeComStatusUpdate()
+
     await waitForGenesis()
     await this.repository.init()
 
@@ -300,22 +302,23 @@ export class AwesomeNode {
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
       if (room === this.fullNodesRoom) {
         if (members.length > 0 && members[0].address == this.identity.address) {
-          console.log("I'm the first full node")
-          const latestBlock = await this.repository.getLatestBlock()
-          if (!latestBlock) {
+          const latestBlockHeader = await this.repository.getLatestBlockHeader()
+          if (latestBlockHeader) {
+            this.latestBlockHeight = latestBlockHeader.height
+            this.startChainHeadBroadcast()
+          } else {
             const genesisBlock = await this.createBlock()
             if (genesisBlock) {
               console.log("created genesis block:", genesisBlock.header)
               await this.repository.addBlock(genesisBlock)
               this.emit("block.added", genesisBlock)
+              this.latestBlockHeight = genesisBlock.header.height
               this.startChainHeadBroadcast()
             }
           }
         } else {
           // TODO: sync with peer
         }
-
-        this.startAwesomeComStatusUpdate()
       }
     })
   }

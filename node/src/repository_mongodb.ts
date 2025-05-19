@@ -143,8 +143,6 @@ export class MongoDBRepository implements Repository {
 
   async init(): Promise<void> {
     await mongoose.connect(this.address)
-    // const connection = await mongoose.connect(this.address)
-    // connection.connection.db?.dropDatabase()
   }
 
   private blockDocToBlockHeader(blockDoc: BlockDocument): BlockHeader {
