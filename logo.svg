@@ -1,19 +1,26 @@
-<svg width="80" height="80" xmlns="http://www.w3.org/2000/svg">
-    <!-- Black shield - geometric modern style -->
+<svg width="80" height="80" viewBox="0 0 80 80" xmlns="http://www.w3.org/2000/svg">
+    <!-- White square background with rounded corners -->
     <rect width="80" height="80" rx="12" fill="white" />
-    <g>
-        <path d="M40 14 L66 26 Q64 60 40 72 Q16 60 14 26 Z" fill="black" stroke="black" stroke-width="2" />
+    <!-- Black shield - scaled and centered -->
+    <g transform="translate(40, 40) scale(3.33) translate(-12, -12)">
+        <path
+            d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+            fill="black" stroke="black" stroke-width="0.3" />
     </g>
-    <!-- White inner outline shield, uniformly offset and visually centered -->
-    <g transform="translate(40, 44) scale(0.88) translate(-40, -44)">
-        <path d="M40 14 L66 26 Q64 60 40 72 Q16 60 14 26 Z" fill="none" stroke="white" stroke-width="2" />
+
+    <!-- White inner outline shield -->
+    <g transform="translate(40, 40) scale(2.8) translate(-12, -12)">
+        <path
+            d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+            fill="none" stroke="white" stroke-width="0.5" />
     </g>
+
     <!-- White thumbs up - scaled and positioned slightly up -->
-    <g transform="translate(40, 39) scale(1) translate(-12, -12)">
-        <path d="M7 10v12" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"
+    <g transform="translate(40, 38) scale(1.15) translate(-12, -12)">
+        <path d="M7 10v12" stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"
             fill="none" />
         <path
             d="M15 5.88 14 10h5.83a2 2 0 0 1 1.92 2.56l-2.33 8A2 2 0 0 1 17.5 22H4a2 2 0 0 1-2-2v-8a2 2 0 0 1 2-2h2.76a2 2 0 0 0 1.79-1.11L12 2a3.13 3.13 0 0 1 3 3.88Z"
-            stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+            stroke="white" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" fill="none" />
     </g>
 </svg>
