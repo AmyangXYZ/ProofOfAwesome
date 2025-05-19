@@ -1,3 +1,0 @@
-connect.proof-of-awesome.app {
-    reverse_proxy connect:3000
-}

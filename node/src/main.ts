@@ -8,10 +8,7 @@ const node = new AwesomeNode(
   process.env.NODE_NAME || "Full Node",
   process.env.MNEMONIC || "",
   process.env.PASSPHRASE || "",
-  new MongoDBRepository(
-    `mongodb://admin:password123@mongodb:27017/awesome_${process.env.NODE_NAME?.replaceAll(" ", "_")}?authSource=admin`
-  ),
-  // new MongoDBRepository(`mongodb://localhost:27017/awesome`),
+  new MongoDBRepository(process.env.MONGODB_URI || "mongodb://localhost:27017/awesome"),
   new AIReviewer(
     new OpenAI({
       apiKey: process.env.AI_API_KEY || "",
