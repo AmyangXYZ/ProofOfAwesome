@@ -4,7 +4,7 @@ import { AIReviewer } from "./reviewer_ai"
 import { MongoDBRepository } from "./repository_mongodb"
 
 const node = new AwesomeNode(
-  "https://connect.proof-of-awesome.app",
+  process.env.CONNECT_URL || "https://connect.proof-of-awesome.app",
   process.env.NODE_NAME || "Full Node",
   process.env.MNEMONIC || "",
   process.env.PASSPHRASE || "",
