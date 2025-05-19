@@ -301,18 +301,20 @@ export class AwesomeNode {
       if (room === this.fullNodesRoom) {
         if (members.length > 0 && members[0].address == this.identity.address) {
           console.log("I'm the first full node")
-          const genesisBlock = await this.createBlock()
-          if (genesisBlock) {
-            await this.repository.addBlock(genesisBlock)
-            this.emit("block.added", genesisBlock)
-
-            this.startAwesomeComStatusUpdate()
-
-            this.startChainHeadBroadcast()
-
-            return
+          const latestBlock = await this.repository.getLatestBlock()
+          if (!latestBlock) {
+            const genesisBlock = await this.createBlock()
+            if (genesisBlock) {
+              await this.repository.addBlock(genesisBlock)
+              this.emit("block.added", genesisBlock)
+              this.startChainHeadBroadcast()
+            }
           }
+        } else {
+          // TODO: sync with peer
         }
+
+        this.startAwesomeComStatusUpdate()
       }
     })
   }
