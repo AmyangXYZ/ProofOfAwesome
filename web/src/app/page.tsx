@@ -27,8 +27,14 @@ export default function App() {
     }
     node.on("achievements.fetched", handleAchievementsFetched)
 
+    const handleSubmissionPhaseStarted = () => {
+      setAchievements([])
+    }
+    node.on("awesomecom.submission.started", handleSubmissionPhaseStarted)
+
     return () => {
       node.off("achievement.new", handleNewAchievement)
+      node.off("awesomecom.submission.started", handleSubmissionPhaseStarted)
     }
   }, [node])
 
