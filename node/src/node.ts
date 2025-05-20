@@ -26,8 +26,8 @@ import {
   signChainHead,
   verifyChainHead,
   signReview,
-  waitForGenesis,
   Account,
+  verifyBlockHeader,
 } from "./awesome"
 import { MerkleTree, SparseMerkleTree } from "./merkle"
 import {
@@ -173,11 +173,22 @@ export class AwesomeNode {
   }
 
   public async start() {
-    this.startAwesomeComStatusUpdate()
-
-    await waitForGenesis()
     await this.repository.init()
 
+    const loaded = await this.loadBlocksFromRepository()
+    if (loaded) {
+      const latestBlockHeader = await this.repository.getLatestBlockHeader()
+      if (latestBlockHeader) {
+        this.latestBlockHeight = latestBlockHeader.height
+        this.startChainHeadBroadcast()
+      }
+    } else {
+      console.log("no valid blocks from repository, syncing from network")
+      this.repository.clear()
+      this.isSyncing = true
+    }
+
+    this.startAwesomeComStatusUpdate()
     this.socket.connect()
 
     if (this.reviewer) {
@@ -223,7 +234,7 @@ export class AwesomeNode {
       if (this.candidateBlock) {
         this.startCandidateBlockBroadcast()
       } else {
-        console.log("no block created")
+        console.log(`No activities, skipping block creation`)
       }
     })
 
@@ -301,12 +312,9 @@ export class AwesomeNode {
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
       if (room === this.fullNodesRoom) {
-        if (members.length > 0 && members[0].address == this.identity.address) {
-          const latestBlockHeader = await this.repository.getLatestBlockHeader()
-          if (latestBlockHeader) {
-            this.latestBlockHeight = latestBlockHeader.height
-            this.startChainHeadBroadcast()
-          } else {
+        if (this.isSyncing) {
+          if (members.length > 0 && members[0].address == this.identity.address) {
+            console.log("I am the genesis node, creating genesis block")
             const genesisBlock = await this.createBlock()
             if (genesisBlock) {
               console.log("created genesis block:", genesisBlock.header)
@@ -315,9 +323,9 @@ export class AwesomeNode {
               this.latestBlockHeight = genesisBlock.header.height
               this.startChainHeadBroadcast()
             }
+          } else {
+            // TODO: sync with peer
           }
-        } else {
-          // TODO: sync with peer
         }
       }
     })
@@ -331,6 +339,66 @@ export class AwesomeNode {
       return
     }
     this.syncPeer = peers[0].address
+  }
+
+  private async loadBlocksFromRepository(): Promise<boolean> {
+    const latestBlockHeader = await this.repository.getLatestBlockHeader()
+    const accounts = new SparseMerkleTree()
+
+    if (!latestBlockHeader || !verifyBlockHeader(latestBlockHeader)) {
+      // invalid local blocks, clear the repository and fetch from the network
+      return false
+    }
+
+    const blocks = await this.repository.getBlocks(0, latestBlockHeader.height)
+    for (const [index, block] of blocks.entries()) {
+      if (!verifyBlock(block)) {
+        // invalid local blocks, clear the repository and fetch from the network
+        return false
+      }
+
+      if (index > 0) {
+        const previousBlock = blocks[index - 1]
+        if (block.header.previousHash !== previousBlock.header.hash) {
+          // invalid local blocks, clear the repository and fetch from the network
+          return false
+        }
+      }
+
+      // apply rewards and verify account consistency
+      for (const achievement of block.achievements) {
+        let { account: author } = accounts.get(achievement.authorAddress)
+        if (!author) {
+          author = {
+            address: achievement.authorAddress,
+            balance: 0,
+            acceptedAchievements: 0,
+            nonce: 0,
+          }
+        }
+        author.acceptedAchievements += 1
+        author.balance += chainConfig.rewardRules.acceptedAchievement
+        accounts.insert(author)
+      }
+      for (const transaction of block.transactions) {
+        const { account: sender } = accounts.get(transaction.senderAddress)
+        const { account: recipient } = accounts.get(transaction.recipientAddress)
+        if (!sender || !recipient) {
+          return false
+        }
+        sender.balance -= transaction.amount
+        recipient.balance += transaction.amount
+        sender.nonce += 1
+        accounts.insert(sender)
+        accounts.insert(recipient)
+      }
+      if (accounts.merkleRoot !== block.header.accountsRoot) {
+        return false
+      }
+    }
+    console.log(`${blocks.length} blocks loaded and verified`)
+    this.accounts = accounts
+    return true
   }
 
   private handleMessage(message: Message) {
@@ -972,21 +1040,19 @@ export class AwesomeNode {
           acceptedAchievements.push(achievement)
           reviewsForAcceptedAchievements.push(...latestReviews)
           // assign achievement rewards
-          if (chainConfig.rewardRules.acceptedAchievements[medianScore as 3 | 4 | 5]) {
-            const reward = chainConfig.rewardRules.acceptedAchievements[medianScore as 3 | 4 | 5]
-            let { account } = this.accounts.get(achievement.authorAddress)
-            if (account) {
-              account.balance += reward
-            } else {
-              account = {
-                address: achievement.authorAddress,
-                balance: reward,
-                acceptedAchievements: 1,
-                nonce: 0,
-              }
-              this.accounts.insert(account)
+          const reward = chainConfig.rewardRules.acceptedAchievement
+          let { account } = this.accounts.get(achievement.authorAddress)
+          if (!account) {
+            account = {
+              address: achievement.authorAddress,
+              balance: 0,
+              acceptedAchievements: 0,
+              nonce: 0,
             }
           }
+          account.acceptedAchievements++
+          account.balance += reward
+          this.accounts.insert(account)
         }
       }
     }

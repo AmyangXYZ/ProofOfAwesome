@@ -101,19 +101,17 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
             </span>
           </CardDescription>
         </CardHeader>
-        <CardContent className="font-medium">
-          <span className="truncate inline-block">{achievement.description.slice(0, 80)}</span>
-          {achievement.attachments && achievement.attachments.length > 0 && (
-            <div className="mt-2">
-              <Image
-                src={achievement.attachments[0]}
-                alt="attachment"
-                width={320}
-                height={160}
-                className="max-h-40 rounded border mt-1"
-                style={{ objectFit: "cover" }}
-              />
-            </div>
+        <CardContent className="font-medium gap-0">
+          <span className="truncate whitespace-nowrap overflow-hidden block w-full">{achievement.description}</span>
+          {achievement.attachment && achievement.attachment.length > 0 && (
+            <Image
+              src={achievement.attachment}
+              alt="attachment"
+              width={320}
+              height={160}
+              className="max-h-40 rounded border w-full"
+              style={{ objectFit: "cover" }}
+            />
           )}
         </CardContent>
         <CardFooter className="gap-4">

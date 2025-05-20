@@ -1,6 +1,7 @@
 "use client"
 
 import { Block, BlockHeader } from "@/awesome/awesome"
+import AchievementCard from "@/components/achievement-card"
 import { Separator } from "@/components/ui/separator"
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { formatDistanceToNowStrict } from "date-fns"
@@ -123,15 +124,18 @@ export default function BlockPage({ params }: { params: Promise<{ height: number
           <h4 className="scroll-m-20 font-semibold tracking-tight">Achievements</h4>
           <ul className="my-2 list-disc [&>li]:mt-2">
             {block.achievements.map((achievement) => (
-              <li className="truncate text-sm" key={achievement.signature}>
-                <Link
-                  href={`/achievement/${achievement.signature}`}
-                  className="text-xs text-muted-foreground underline"
-                  title={achievement.signature}
-                >
-                  {achievement.signature.slice(0, 24)}...
-                </Link>
-              </li>
+              // <li className="truncate text-sm" key={achievement.signature}>
+              //   <Link
+              //     href={`/achievement/${achievement.signature}`}
+              //     className="text-xs text-muted-foreground underline"
+              //     title={achievement.signature}
+              //   >
+              //     {achievement.signature.slice(0, 24)}...
+              //   </Link>
+              // </li>
+              <div className="flex flex-col mb-4" key={achievement.signature}>
+                <AchievementCard achievement={achievement} />
+              </div>
             ))}
             {block.achievements.length === 0 && <p className="text-muted-foreground text-sm">No achievements</p>}
           </ul>

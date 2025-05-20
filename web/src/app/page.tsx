@@ -7,7 +7,6 @@ import { motion } from "framer-motion"
 import Greeting from "@/components/greeting"
 import AchievementInput from "@/components/achievement-input"
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { ScrollArea } from "@/components/ui/scroll-area"
 
 export default function App() {
   const node = useAwesomeNode()
@@ -46,9 +45,9 @@ export default function App() {
 
   return (
     <div className="max-w-3xl w-full h-[calc(100dvh-40px)] mx-auto min-w-0 flex-1 flex flex-col">
-      <ScrollArea className="flex flex-col px-4 min-w-0 flex-1 overflow-y-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="flex flex-col px-4 min-w-0 flex-1 overflow-y-scroll [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {!achievements.length ? (
-          <div className="flex flex-col justify-center items-center h-full -mx-4 mt-[18dvh] md:mt-[25dvh]">
+          <div className="flex flex-col justify-center items-center h-full -mx-4 ">
             <Greeting />
           </div>
         ) : (
@@ -59,7 +58,7 @@ export default function App() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 10 }}
                 key={index}
-                className="mt-4"
+                className="mt-4 flex flex-col"
               >
                 <AchievementCard achievement={achievement} />
               </motion.div>
@@ -67,7 +66,7 @@ export default function App() {
             <div ref={endOfListRef} />
           </div>
         )}
-      </ScrollArea>
+      </div>
 
       <div className="max-w-3xl mx-auto flex p-4 bg-background w-full">
         <AchievementInput />

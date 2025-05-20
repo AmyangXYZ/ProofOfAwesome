@@ -27,11 +27,7 @@ export const chainConfig = {
     acceptThreshold: 3,
   },
   rewardRules: {
-    acceptedAchievements: {
-      3: 3,
-      4: 4,
-      5: 5,
-    },
+    acceptedAchievement: 1,
   },
 } as const
 
@@ -40,19 +36,6 @@ export interface AwesomeComStatus {
   phase: "Submission" | "Review" | "Consensus" | "Announcement"
   sessionRemaining: number
   phaseRemaining: number
-}
-
-export async function waitForGenesis() {
-  while (true) {
-    const timeSinceGenesis = Date.now() - chainConfig.genesisTime
-    if (timeSinceGenesis >= 0) {
-      return
-    }
-    const remaining = -timeSinceGenesis
-    const waitTime = Math.min(60 * 1000, remaining)
-    console.log(`Waiting for genesis: ${Math.round(remaining / 1000)}s remaining`)
-    await new Promise((resolve) => setTimeout(resolve, waitTime))
-  }
 }
 
 export function getAwesomeComStatus(): AwesomeComStatus {
@@ -140,7 +123,7 @@ export interface Achievement {
   authorName: string
   authorAddress: string
   description: string
-  attachments: string[]
+  attachment: string
   timestamp: number
   authorPublicKey: string
   signature: string
@@ -283,9 +266,8 @@ export function isAchievement(payload: unknown): payload is Achievement {
     typeof payload.authorAddress === "string" &&
     "description" in payload &&
     typeof payload.description === "string" &&
-    "attachments" in payload &&
-    Array.isArray(payload.attachments) &&
-    payload.attachments.every((attachment) => typeof attachment === "string") &&
+    "attachment" in payload &&
+    typeof payload.attachment === "string" &&
     "timestamp" in payload &&
     typeof payload.timestamp === "number" &&
     "authorPublicKey" in payload &&
@@ -484,7 +466,7 @@ export function signAchievement(achievement: Achievement, wallet: Wallet): strin
       achievement.authorName,
       achievement.authorAddress,
       achievement.description,
-      achievement.attachments.join(","),
+      achievement.attachment,
       achievement.timestamp,
       achievement.authorPublicKey,
     ].join("_")
@@ -499,7 +481,7 @@ export function verifyAchievement(achievement: Achievement): boolean {
       achievement.authorName,
       achievement.authorAddress,
       achievement.description,
-      achievement.attachments.join(","),
+      achievement.attachment,
       achievement.timestamp,
       achievement.authorPublicKey,
     ].join("_")

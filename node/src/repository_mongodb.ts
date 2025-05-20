@@ -40,7 +40,7 @@ interface AchievementDocument {
   authorName: string
   authorAddress: string
   description: string
-  attachments: string[]
+  attachment: string
   timestamp: Date
   authorPublicKey: string
   signature: string
@@ -111,7 +111,7 @@ export class MongoDBRepository implements Repository {
         authorName: String,
         authorAddress: String,
         description: String,
-        attachments: [String],
+        attachment: String,
         timestamp: Date,
         authorPublicKey: String,
         signature: { type: String, index: true },
@@ -143,6 +143,13 @@ export class MongoDBRepository implements Repository {
 
   async init(): Promise<void> {
     await mongoose.connect(this.address)
+  }
+
+  async clear(): Promise<void> {
+    await this.BlockModel.deleteMany({})
+    await this.TransactionModel.deleteMany({})
+    await this.AchievementModel.deleteMany({})
+    await this.ReviewModel.deleteMany({})
   }
 
   private blockDocToBlockHeader(blockDoc: BlockDocument): BlockHeader {
@@ -189,7 +196,7 @@ export class MongoDBRepository implements Repository {
       authorName: achievementDoc.authorName,
       authorAddress: achievementDoc.authorAddress,
       description: achievementDoc.description,
-      attachments: achievementDoc.attachments,
+      attachment: achievementDoc.attachment,
       timestamp: achievementDoc.timestamp.getTime(),
       authorPublicKey: achievementDoc.authorPublicKey,
       signature: achievementDoc.signature,
@@ -231,7 +238,7 @@ export class MongoDBRepository implements Repository {
           authorName: a.authorName,
           authorAddress: a.authorAddress,
           description: a.description,
-          attachments: a.attachments,
+          attachment: a.attachment,
           timestamp: new Date(a.timestamp),
           authorPublicKey: a.authorPublicKey,
           signature: a.signature,

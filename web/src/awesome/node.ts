@@ -466,12 +466,12 @@ export class AwesomeNodeLight {
     this.sentRequests.set(requestId, true)
   }
 
-  public createAchievement(description: string): Achievement {
+  public createAchievement(description: string, attachment: string): Achievement {
     const achievement: Achievement = {
       targetBlock: this.targetBlock,
       description,
       authorAddress: this.identity.address,
-      attachments: [],
+      attachment,
       timestamp: Date.now(),
       authorName: this.identity.name,
       authorPublicKey: this.identity.publicKey,

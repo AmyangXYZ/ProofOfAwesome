@@ -221,7 +221,6 @@ export class SparseMerkleTree {
         )
       }
     }
-    console.log(hash, root)
     return hash === root
   }
 

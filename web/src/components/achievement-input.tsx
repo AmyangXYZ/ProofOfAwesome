@@ -7,8 +7,10 @@ import { motion } from "framer-motion"
 import { Card, CardDescription, CardHeader, CardTitle } from "./ui/card"
 
 import { useAwesomeNode } from "@/context/awesome-node-context"
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, ChangeEvent } from "react"
 import { AwesomeComStatus } from "@/awesome/awesome"
+import Image from "next/image"
+import { Skeleton } from "./ui/skeleton"
 
 const suggestedAchievements: {
   title: string
@@ -48,13 +50,21 @@ export default function AchievementInput() {
   })
   const [targetBlock, setTargetBlock] = useState<number>(0)
   const [canSubmit, setCanSubmit] = useState(true)
+  const textareaRef = useRef<HTMLTextAreaElement>(null)
   const [showSuggestions, setShowSuggestions] = useState(true)
+  const [fileUrl, setFileUrl] = useState("")
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setCanSubmit(awesomeComStatus.phase === "Submission")
   }, [awesomeComStatus])
 
-  const textareaRef = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => {
+    if (fileUrl.length > 0) {
+      setShowSuggestions(false)
+    }
+  }, [fileUrl])
 
   useEffect(() => {
     setTargetBlock(node.targetBlock)
@@ -78,11 +88,44 @@ export default function AchievementInput() {
 
   const [description, setDescription] = useState("")
 
-  const createAchievement = (description: string) => {
-    node.createAchievement(description)
+  const createAchievement = (description: string, fileUrl: string) => {
+    node.createAchievement(description, fileUrl)
     setDescription("")
+    setFileUrl("")
     resetHeight()
     setShowSuggestions(false)
+  }
+
+  const handleFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    setFileUrl("")
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    setUploading(true)
+
+    try {
+      // 1. Get presigned upload URL and public file URL from your API
+      const res = await fetch(`/api/upload-url?filename=${encodeURIComponent(file.name)}`)
+      const { uploadUrl, fileUrl: publicUrl, error: apiError } = await res.json()
+      if (!uploadUrl) throw new Error(apiError || "Failed to get upload URL")
+
+      // 2. Upload the file to R2 using the presigned URL
+      const uploadRes = await fetch(uploadUrl, {
+        method: "PUT",
+        body: file,
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+        },
+      })
+      if (!uploadRes.ok) throw new Error("Upload failed")
+
+      // 3. Show the public file URL
+      setFileUrl(publicUrl)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setUploading(false)
+    }
   }
 
   useEffect(() => {
@@ -124,7 +167,7 @@ export default function AchievementInput() {
                     i >= 2 ? "hidden md:block" : ""
                   }`}
                   onClick={() => {
-                    createAchievement(ach.description)
+                    createAchievement(ach.description, "")
                   }}
                 >
                   <CardHeader>
@@ -137,10 +180,22 @@ export default function AchievementInput() {
           </div>
         )}
 
-        <span className="text-sm text-muted-foreground w-full text-center -mb-1">
+        <span className="text-sm text-muted-foreground  text-center -mb-1">
           {awesomeComStatus.phase} for block #{targetBlock} is ending in{" "}
           {Math.floor(awesomeComStatus.phaseRemaining / 1000)} seconds
         </span>
+        {fileUrl.length > 0 && fileUrl.match(/\.(jpg|jpeg|png|gif)$/i) && (
+          <div className="w-full flex justify-start">
+            <div className="w-[180px] h-[120px] border-2 border-zinc-700 rounded-xl shadow-lg overflow-hidden">
+              <Image src={fileUrl} alt="Uploaded" width={160} height={100} className="object-cover w-full h-full" />
+            </div>
+          </div>
+        )}
+        {uploading && (
+          <div className="w-full flex justify-start">
+            <Skeleton className="w-[180px] h-[120px] rounded-xl" />
+          </div>
+        )}
         <Textarea
           ref={textareaRef}
           className="max-h-[calc(75dvh)] min-h-[24px] overflow-hidden resize-none rounded-2xl !text-base bg-muted pb-10 dark:border-zinc-700"
@@ -152,15 +207,16 @@ export default function AchievementInput() {
           onKeyDown={(e) => {
             if (e.key === "Enter" && description.trim().length > 0) {
               e.preventDefault()
-              createAchievement(description)
+              createAchievement(description, fileUrl)
             }
           }}
           disabled={!canSubmit}
           placeholder={canSubmit ? "I am thrilled to announce that ..." : "Submission is closed for the current block"}
         />
         <div className="absolute bottom-0 p-2 w-fit flex flex-row justify-start">
-          <Button size="icon" variant="ghost" disabled={!canSubmit}>
+          <Button size="icon" variant="ghost" disabled={!canSubmit} onClick={() => fileInputRef.current?.click()}>
             <Paperclip className="size-4.5" />
+            <input type="file" ref={fileInputRef} className="hidden" onChange={handleFileChange} disabled={uploading} />
           </Button>
         </div>
         <div className="absolute bottom-0 right-0 p-2 w-fit flex flex-row justify-end">
@@ -168,7 +224,7 @@ export default function AchievementInput() {
             size="icon"
             className="rounded-full h-fit w-fit p-1"
             disabled={description.length === 0 || !canSubmit}
-            onClick={() => createAchievement(description)}
+            onClick={() => createAchievement(description, fileUrl)}
           >
             <ArrowUp className="size-5" />
           </Button>

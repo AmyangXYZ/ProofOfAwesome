@@ -8,6 +8,7 @@ import ReviewComments from "@/components/review-comments"
 import { Button } from "@/components/ui/button"
 import { MessageCircle, ChartNoAxesColumn } from "lucide-react"
 import { ReviewSheet } from "@/components/review-sheet"
+import Image from "next/image"
 
 export default function Page({ params }: { params: Promise<{ signature: string }> }) {
   const signature = use(params).signature
@@ -65,7 +66,7 @@ export default function Page({ params }: { params: Promise<{ signature: string }
           {/* Achievement Header */}
           <div className="border-b pb-4">
             <header className="mb-2">
-              <h1 className="text-xl md:text-2xl font-bold mb-1">Achievement Details</h1>
+              <h1 className="text-xl md:text-2xl font-bold mb-1">Achievement</h1>
               <div className="flex items-center gap-2 text-muted-foreground text-sm">
                 <span className="truncate max-w-[200px] md:max-w-[300px] inline-block" title={achievement.signature}>
                   {achievement.signature.slice(0, 10)}...
@@ -88,17 +89,17 @@ export default function Page({ params }: { params: Promise<{ signature: string }
               </div>
             </div>
 
-            {/* Attachments */}
-            {achievement.attachments.length > 0 && (
-              <div className="mt-4">
-                <h4 className="text-sm font-medium mb-2">Attachments</h4>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {achievement.attachments.map((attachment, index) => (
-                    <div key={index} className="text-sm text-muted-foreground">
-                      {attachment}
-                    </div>
-                  ))}
-                </div>
+            {/* attachment */}
+            {achievement.attachment && achievement.attachment.length > 0 && (
+              <div className="mt-2">
+                <Image
+                  src={achievement.attachment}
+                  alt="attachment"
+                  width={320}
+                  height={160}
+                  className="rounded border mt-1 w-full h-auto"
+                  style={{ objectFit: "contain" }}
+                />
               </div>
             )}
 

@@ -266,7 +266,7 @@ export class AIReviewer implements Reviewer {
       throw new Error("System prompt not set")
     }
     let promptTemplate = TEXT_ONLY_PROMPT
-    if (achievement.attachments.length > 0) {
+    if (achievement.attachment.length > 0) {
       if (this.supportsImage) {
         promptTemplate = TEXT_WITH_IMAGE_PROMPT
       } else {
@@ -279,7 +279,10 @@ export class AIReviewer implements Reviewer {
     try {
       const messages: ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
-        achievement.attachments.length > 0 && this.supportsImage
+        achievement.attachment.length > 0 &&
+        /^(https?:\/\/|\/)/.test(achievement.attachment) &&
+        achievement.attachment.match(/\.(jpg|jpeg|png|gif|webp)$/i) &&
+        this.supportsImage
           ? {
               role: "user",
               content: [
@@ -287,7 +290,7 @@ export class AIReviewer implements Reviewer {
                 {
                   type: "image_url",
                   image_url: {
-                    url: achievement.attachments[0],
+                    url: achievement.attachment,
                     detail: "auto",
                   },
                 },

@@ -2,6 +2,7 @@ import { Achievement, Review, Transaction, Block, BlockHeader } from "./awesome"
 
 export interface Repository {
   init(): Promise<void>
+  clear(): Promise<void>
 
   addBlock(block: Block): Promise<void>
   getLatestBlockHeader(): Promise<BlockHeader | null>

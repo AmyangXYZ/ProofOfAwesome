@@ -3,6 +3,9 @@ import type { NextConfig } from "next"
 const nextConfig = {
   devIndicators: false,
   reactStrictMode: false,
+  images: {
+    domains: ["attachments.proof-of-awesome.app"],
+  },
 
   webpack: (config: NextConfig) => {
     config.experiments = {
