@@ -791,7 +791,6 @@ export class AwesomeNodeLight {
       console.error("No latest block header found to verify account proof")
       return
     }
-    console.log(response)
     const verified = SparseMerkleTree.verifyProof(response.account, response.proof, latestBlockHeader.accountsRoot)
     if (verified) {
       this.account = response.account

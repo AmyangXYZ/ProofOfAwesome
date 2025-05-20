@@ -3,8 +3,6 @@ import { AwesomeNode } from "./node"
 import { AIReviewer } from "./reviewer_ai"
 import { MongoDBRepository } from "./repository_mongodb"
 
-console.log("process.env.AI_MODEL", process.env.AI_MODEL)
-
 let aiReviewer: AIReviewer | undefined
 if (process.env.AI_MODEL && process.env.AI_API_KEY && process.env.AI_API_BASE_URL) {
   aiReviewer = new AIReviewer(

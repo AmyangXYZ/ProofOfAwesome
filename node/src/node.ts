@@ -26,8 +26,8 @@ import {
   signChainHead,
   verifyChainHead,
   signReview,
-  Account,
   verifyBlockHeader,
+  Account,
 } from "./awesome"
 import { MerkleTree, SparseMerkleTree } from "./merkle"
 import {
@@ -38,7 +38,6 @@ import {
   isReviewRequest,
   isAchievementsRequest,
   isBlockRequest,
-  isBlockResponse,
   isBlocksRequest,
   isBlocksResponse,
   isTransactionRequest,
@@ -46,10 +45,8 @@ import {
   isAchievementRequest,
   isAccountRequest,
   AccountResponse,
-  isBlockHeaderResponse,
   isBlockHeaderRequest,
   isBlockHeadersRequest,
-  isBlockHeadersResponse,
   BlockHeaderResponse,
   BlockHeadersResponse,
   BlockResponse,
@@ -61,22 +58,47 @@ import {
   AchievementsResponse,
   ReviewsResponse,
   ReviewResponse,
+  BlocksRequest,
+  ChainHeadRequest,
 } from "./message"
 import { Reviewer, ReviewResult } from "./reviewer"
+
+function log(message: string, ...args: unknown[]) {
+  const date = new Date()
+  const timestamp = date
+    .toLocaleString("en-US", {
+      timeZone: "America/New_York",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: false,
+    })
+    .replace(",", "")
+  console.log(`[${timestamp}] ${message}`, ...args)
+}
 
 interface EventMap {
   "node.connected": void
   "node.disconnected": void
+  "sync.peers_discovered": Identity[]
+  "sync.chain_head_fetched": ChainHead
+  "sync.blocks_fetched": Block[]
+  "sync.completed": void
   "awesomecom.status.updated": AwesomeComStatus
   "awesomecom.submission.started": void
   "awesomecom.review.started": void
   "awesomecom.consensus.started": void
   "awesomecom.announcement.started": void
-  "account.updated": Account
-  "block.added": Block
-  "achievement.added": Achievement
-  "review.added": Review
-  "transaction.added": Transaction
+}
+
+enum SyncState {
+  SYNCED,
+  SELECTING_PEER,
+  REQUESTING_CHAIN_HEAD,
+  REQUESTING_BLOCKS,
 }
 
 // full node
@@ -96,7 +118,7 @@ export class AwesomeNode {
 
   // address of the full node that this node is syncing with
   private syncPeer: string | null = null
-  private isSyncing: boolean = false
+  private syncState: SyncState = SyncState.SYNCED
 
   // full nodes maintain the account states
   private accounts: SparseMerkleTree = new SparseMerkleTree()
@@ -158,8 +180,7 @@ export class AwesomeNode {
         ].join("_")
       )
     )
-    console.log("Node identity:", this.identity)
-
+    log("Created identity:", this.identity)
     this.accounts = new SparseMerkleTree()
 
     this.repository = repository
@@ -175,21 +196,131 @@ export class AwesomeNode {
   public async start() {
     await this.repository.init()
 
-    const loaded = await this.loadBlocksFromRepository()
-    if (loaded) {
-      const latestBlockHeader = await this.repository.getLatestBlockHeader()
-      if (latestBlockHeader) {
-        this.latestBlockHeight = latestBlockHeader.height
-        this.startChainHeadBroadcast()
-      }
-    } else {
-      console.log("no valid blocks from repository, syncing from network")
-      this.repository.clear()
-      this.isSyncing = true
-    }
-
-    this.startAwesomeComStatusUpdate()
     this.socket.connect()
+
+    this.on("sync.completed", async () => {
+      this.startAwesomeComStatusUpdate()
+      this.startChainHeadBroadcast()
+    })
+
+    this.on("node.connected", async () => {
+      log("connected to AwesomeConnect")
+
+      const loaded = await this.loadBlocksFromRepository()
+      if (loaded) {
+        const latestBlockHeader = await this.repository.getLatestBlockHeader()
+        if (latestBlockHeader) {
+          this.latestBlockHeight = latestBlockHeader.height
+          this.emit("sync.completed", undefined)
+        }
+      } else {
+        log("no valid blocks from repository, syncing from network")
+        this.repository.clear()
+        this.accounts = new SparseMerkleTree()
+        this.syncState = SyncState.SELECTING_PEER
+        this.socket.emit("room.get_members", this.fullNodesRoom)
+      }
+    })
+
+    this.on("sync.peers_discovered", async (peers: Identity[]) => {
+      if (this.syncState == SyncState.SELECTING_PEER) {
+        if (peers.length > 0 && peers[0].address == this.identity.address) {
+          log("I am the genesis node, creating genesis block")
+          const genesisBlock = await this.createBlock()
+          if (genesisBlock) {
+            log("created genesis block:", genesisBlock.header)
+            await this.repository.addBlock(genesisBlock)
+            this.latestBlockHeight = genesisBlock.header.height
+            this.startChainHeadBroadcast()
+          }
+        } else if (peers.length > 1) {
+          for (const peer of peers) {
+            if (peer.address != this.identity.address) {
+              this.syncPeer = peer.address
+              log("syncing with peer:", this.syncPeer)
+              this.syncState = SyncState.REQUESTING_CHAIN_HEAD
+              this.requestChainHead()
+              break
+            }
+          }
+        }
+      }
+    })
+
+    this.on("sync.chain_head_fetched", async (chainHead: ChainHead) => {
+      if (this.syncState == SyncState.REQUESTING_CHAIN_HEAD) {
+        this.syncState = SyncState.REQUESTING_BLOCKS
+        // TODO: split into multiple requests if the chain is too long
+        this.requestBlocks(0, chainHead.latestBlockHeight)
+      }
+    })
+
+    this.on("sync.blocks_fetched", async (blocks: Block[]) => {
+      if (this.syncState == SyncState.REQUESTING_BLOCKS) {
+        log("Fetched %d blocks from %s", blocks.length, this.syncPeer)
+        blocks.sort((a, b) => a.header.height - b.header.height)
+        this.accounts = new SparseMerkleTree()
+        let invalid = false
+        for (const [index, block] of blocks.entries()) {
+          if (verifyBlock(block)) {
+            if (index > 0) {
+              if (block.header.previousHash != blocks[index - 1].header.hash) {
+                invalid = true
+                break
+              }
+            }
+          } else {
+            invalid = true
+            break
+          }
+          for (const achievement of block.achievements) {
+            let { account: author } = this.accounts.get(achievement.authorAddress)
+            if (!author) {
+              author = {
+                address: achievement.authorAddress,
+                balance: 0,
+                acceptedAchievements: 0,
+                nonce: 0,
+              } as Account
+            }
+            author.acceptedAchievements += 1
+            author.balance += chainConfig.rewardRules.acceptedAchievement
+            this.accounts.insert(author)
+          }
+          for (const transaction of block.transactions) {
+            const { account: sender } = this.accounts.get(transaction.senderAddress)
+            const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+            if (!sender || !recipient) {
+              invalid = true
+              break
+            }
+            sender.balance -= transaction.amount
+            recipient.balance += transaction.amount
+            sender.nonce += 1
+            this.accounts.insert(sender)
+            this.accounts.insert(recipient)
+          }
+
+          if (this.accounts.merkleRoot != block.header.accountsRoot) {
+            invalid = true
+            break
+          }
+        }
+        if (invalid) {
+          log("Invalid block chain, selecting another sync peer")
+          this.syncState = SyncState.SELECTING_PEER
+          // TODO: select another sync peer and restart the sync process
+          return
+        }
+        for (const block of blocks) {
+          await this.repository.addBlock(block)
+        }
+        this.syncState = SyncState.SYNCED
+        log("Blockchain is valid, synchronization completed")
+        this.latestBlockHeight = blocks[blocks.length - 1].header.height
+        this.emit("sync.completed", undefined)
+      }
+    })
 
     if (this.reviewer) {
       this.reviewer.onReviewSubmitted((result: ReviewResult) => {
@@ -234,7 +365,7 @@ export class AwesomeNode {
       if (this.candidateBlock) {
         this.startCandidateBlockBroadcast()
       } else {
-        console.log(`No activities, skipping block creation`)
+        log(`No activities, skipping block creation`)
       }
     })
 
@@ -243,17 +374,14 @@ export class AwesomeNode {
         this.stopCandidateBlockBroadcast()
 
         this.newBlock = this.candidateBlock
-        console.log("new block header:", this.newBlock.header)
+        log("new block header:", this.newBlock.header)
         this.candidateBlock = null
 
         await this.repository.addBlock(this.newBlock)
         this.latestBlockHeight = this.newBlock.header.height
-        this.emit("block.added", this.newBlock)
         this.startNewBlockBroadcast()
       }
     })
-
-    this.on("block.added", async () => {})
 
     this.startCleanReceivedMessages()
   }
@@ -299,8 +427,7 @@ export class AwesomeNode {
     })
 
     this.socket.on("node.connected", () => {
-      console.log("Connected to AwesomeConnect")
-      this.socket.emit("room.get_members", this.fullNodesRoom)
+      this.emit("node.connected", undefined)
     })
 
     this.socket.on("message.received", (message: Message) => {
@@ -311,34 +438,10 @@ export class AwesomeNode {
     })
 
     this.socket.on("room.members", async (room: string, members: Identity[]) => {
-      if (room === this.fullNodesRoom) {
-        if (this.isSyncing) {
-          if (members.length > 0 && members[0].address == this.identity.address) {
-            console.log("I am the genesis node, creating genesis block")
-            const genesisBlock = await this.createBlock()
-            if (genesisBlock) {
-              console.log("created genesis block:", genesisBlock.header)
-              await this.repository.addBlock(genesisBlock)
-              this.emit("block.added", genesisBlock)
-              this.latestBlockHeight = genesisBlock.header.height
-              this.startChainHeadBroadcast()
-            }
-          } else {
-            // TODO: sync with peer
-          }
-        }
+      if (this.syncState == SyncState.SELECTING_PEER && room === this.fullNodesRoom) {
+        this.emit("sync.peers_discovered", members)
       }
     })
-  }
-
-  private selectSyncPeer(peers: Identity[]) {
-    if (peers.length == 0) {
-      return
-    }
-    if (peers.length == 1 && peers[0].address == this.identity.address) {
-      return
-    }
-    this.syncPeer = peers[0].address
   }
 
   private async loadBlocksFromRepository(): Promise<boolean> {
@@ -351,6 +454,10 @@ export class AwesomeNode {
     }
 
     const blocks = await this.repository.getBlocks(0, latestBlockHeader.height)
+    if (blocks.length == 0) {
+      return false
+    }
+
     for (const [index, block] of blocks.entries()) {
       if (!verifyBlock(block)) {
         // invalid local blocks, clear the repository and fetch from the network
@@ -374,7 +481,7 @@ export class AwesomeNode {
             balance: 0,
             acceptedAchievements: 0,
             nonce: 0,
-          }
+          } as Account
         }
         author.acceptedAchievements += 1
         author.balance += chainConfig.rewardRules.acceptedAchievement
@@ -396,9 +503,47 @@ export class AwesomeNode {
         return false
       }
     }
-    console.log(`${blocks.length} blocks loaded and verified`)
+    log(`${blocks.length} blocks loaded and verified`)
     this.accounts = accounts
     return true
+  }
+
+  public async requestChainHead(): Promise<void> {
+    if (!this.syncPeer) {
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: ChainHeadRequest = {
+      requestId,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.CHAIN_HEAD_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  private async requestBlocks(fromHeight: number, toHeight: number) {
+    if (!this.syncPeer) {
+      return
+    }
+    const requestId = crypto.randomUUID()
+    const request: BlocksRequest = {
+      requestId,
+      fromHeight,
+      toHeight,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.BLOCKS_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
   }
 
   private handleMessage(message: Message) {
@@ -433,20 +578,11 @@ export class AwesomeNode {
       case MESSAGE_TYPE.BLOCK_HEADER_REQUEST:
         this.handleBlockHeaderRequest(message)
         break
-      case MESSAGE_TYPE.BLOCK_HEADER_RESPONSE:
-        this.handleBlockHeaderResponse(message)
-        break
       case MESSAGE_TYPE.BLOCK_HEADERS_REQUEST:
         this.handleBlockHeadersRequest(message)
         break
-      case MESSAGE_TYPE.BLOCK_HEADERS_RESPONSE:
-        this.handleBlockHeadersResponse(message)
-        break
       case MESSAGE_TYPE.BLOCK_REQUEST:
         this.handleBlockRequest(message)
-        break
-      case MESSAGE_TYPE.BLOCK_RESPONSE:
-        this.handleBlockResponse(message)
         break
       case MESSAGE_TYPE.BLOCKS_REQUEST:
         this.handleBlocksRequest(message)
@@ -473,7 +609,7 @@ export class AwesomeNode {
         this.handleReviewsRequest(message)
         break
       default:
-        console.log("Unknown message type:", message.from, message.type, message.timestamp)
+        log("Unknown message type:", message.from, message.type, message.timestamp)
         break
     }
   }
@@ -486,7 +622,7 @@ export class AwesomeNode {
 
     this.hasReceived.set(chainHead.signature, Date.now())
     // TODO: handle actively broadcasted chain heads
-    // console.log("Chain head:", chainHead)
+    // log("Chain head:", chainHead)
   }
 
   private async handleCandidateBlock(message: Message) {
@@ -549,7 +685,6 @@ export class AwesomeNode {
     if (this.newBlock == null || block.header.height > this.newBlock.header.height) {
       this.newBlock = block
       await this.repository.addBlock(block)
-      this.emit("block.added", block)
     }
   }
 
@@ -679,9 +814,8 @@ export class AwesomeNode {
       return
     }
 
-    // TODO: sync with the peer
-    if (chainHead.latestBlockHeight > this.latestBlockHeight) {
-      this.latestBlockHeight = chainHead.latestBlockHeight
+    if (this.syncState == SyncState.REQUESTING_CHAIN_HEAD) {
+      this.emit("sync.chain_head_fetched", chainHead)
     }
   }
 
@@ -708,16 +842,6 @@ export class AwesomeNode {
     this.socket.emit("message.send", msg)
   }
 
-  private async handleBlockHeaderResponse(message: Message) {
-    const response = message.payload
-    if (!isBlockHeaderResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New block header:", response.blockHeader)
-  }
-
   private async handleBlockHeadersRequest(message: Message) {
     const request = message.payload
     if (!isBlockHeadersRequest(request)) {
@@ -736,16 +860,6 @@ export class AwesomeNode {
       timestamp: Date.now(),
     }
     this.socket.emit("message.send", msg)
-  }
-
-  private async handleBlockHeadersResponse(message: Message) {
-    const response = message.payload
-    if (!isBlockHeadersResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New block headers:", response.blockHeaders)
   }
 
   private async handleBlockRequest(message: Message) {
@@ -769,16 +883,6 @@ export class AwesomeNode {
       timestamp: Date.now(),
     }
     this.socket.emit("message.send", msg)
-  }
-
-  private async handleBlockResponse(message: Message) {
-    const response = message.payload
-    if (!isBlockResponse(response) || !this.sentRequests.has(response.requestId)) {
-      return
-    }
-    this.sentRequests.delete(response.requestId)
-
-    console.log("New block:", response.block)
   }
 
   private async handleBlocksRequest(message: Message) {
@@ -808,7 +912,9 @@ export class AwesomeNode {
     }
     this.sentRequests.delete(response.requestId)
 
-    console.log("New blocks:", response.blocks)
+    if (this.syncState == SyncState.REQUESTING_BLOCKS) {
+      this.emit("sync.blocks_fetched", response.blocks)
+    }
   }
 
   private async handleTransactionRequest(message: Message) {
@@ -1121,7 +1227,7 @@ export class AwesomeNode {
           this.emit("awesomecom.announcement.started", undefined)
           break
       }
-      console.log(`${status.phase} for block #${this.targetBlock} starts`)
+      log(`${status.phase} for block #${this.targetBlock} starts`)
     }
     this.awesomeComStatus = status
     this.emit("awesomecom.status.updated", status)
@@ -1129,7 +1235,7 @@ export class AwesomeNode {
 
   private async broadcastChainHead() {
     const chainHead = await this.createChainHead()
-    console.log("Broadcasting chain head:", chainHead)
+    log("Broadcasting chain head:", chainHead)
     this.socket.emit("message.send", {
       from: this.identity.address,
       to: "*",
