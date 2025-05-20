@@ -3,6 +3,7 @@ import { sha256 } from "js-sha256"
 import { Repository } from "./repository"
 import { ClientEvents, ServerEvents, Identity, Message } from "./connect"
 import { Wallet } from "./wallet"
+import { randomUUID } from "crypto"
 import {
   verifyBlock,
   verifyTransaction,
@@ -512,7 +513,7 @@ export class AwesomeNode {
     if (!this.syncPeer) {
       return
     }
-    const requestId = crypto.randomUUID()
+    const requestId = randomUUID()
     const request: ChainHeadRequest = {
       requestId,
     }
@@ -530,7 +531,7 @@ export class AwesomeNode {
     if (!this.syncPeer) {
       return
     }
-    const requestId = crypto.randomUUID()
+    const requestId = randomUUID()
     const request: BlocksRequest = {
       requestId,
       fromHeight,
