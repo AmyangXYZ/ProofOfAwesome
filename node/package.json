@@ -30,6 +30,8 @@
     "typescript-eslint": "^8.26.1"
   },
   "dependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "better-sqlite3": "^11.10.0",
     "bip32": "^5.0.0-rc.0",
     "bip39": "^3.1.0",
     "cors": "^2.8.5",

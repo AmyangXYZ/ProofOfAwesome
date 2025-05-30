@@ -1,6 +1,5 @@
 import { io, Socket } from "socket.io-client"
 import { sha256 } from "js-sha256"
-import { Repository } from "./repository"
 import { ClientEvents, ServerEvents, Identity, Message } from "./connect"
 import { Wallet } from "./wallet"
 import { randomUUID } from "crypto"
@@ -63,6 +62,7 @@ import {
   ChainHeadRequest,
 } from "./message"
 import { Reviewer, ReviewResult } from "./reviewer"
+import { SQLiteDB } from "./db"
 
 function log(message: string, ...args: unknown[]) {
   const date = new Date()
@@ -113,7 +113,7 @@ export class AwesomeNode {
   private socket: Socket<ClientEvents, ServerEvents>
   private wallet: Wallet
   private identity: Identity
-  private repository: Repository
+  private db: SQLiteDB
   private reviewer: Reviewer | null = null
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
@@ -152,14 +152,7 @@ export class AwesomeNode {
   private newBlockBroadcastInterval: NodeJS.Timeout | null = null
   private cleanReceivedMessagesInterval: NodeJS.Timeout | null = null
 
-  constructor(
-    connectAddress: string,
-    name: string,
-    mnemonic: string,
-    passphrase: string,
-    repository: Repository,
-    reviewer?: Reviewer
-  ) {
+  constructor(connectAddress: string, name: string, mnemonic: string, passphrase: string, reviewer?: Reviewer) {
     this.wallet = new Wallet(mnemonic, passphrase)
 
     this.identity = {
@@ -184,7 +177,7 @@ export class AwesomeNode {
     log("Created identity:", this.identity)
     this.accounts = new SparseMerkleTree()
 
-    this.repository = repository
+    this.db = new SQLiteDB()
 
     if (reviewer) {
       this.reviewer = reviewer
@@ -195,8 +188,6 @@ export class AwesomeNode {
   }
 
   public async start() {
-    await this.repository.init()
-
     this.socket.connect()
 
     this.on("sync.completed", async () => {
@@ -209,14 +200,14 @@ export class AwesomeNode {
 
       const loaded = await this.loadBlocksFromRepository()
       if (loaded) {
-        const latestBlockHeader = await this.repository.getLatestBlockHeader()
+        const latestBlockHeader = this.db.getLatestBlockHeader()
         if (latestBlockHeader) {
           this.latestBlockHeight = latestBlockHeader.height
           this.emit("sync.completed", undefined)
         }
       } else {
         log("no valid blocks from repository, syncing from network")
-        this.repository.clear()
+        this.db.clear()
         this.accounts = new SparseMerkleTree()
         this.syncState = SyncState.SELECTING_PEER
         this.socket.emit("room.get_members", this.fullNodesRoom)
@@ -230,7 +221,7 @@ export class AwesomeNode {
           const genesisBlock = await this.createBlock()
           if (genesisBlock) {
             log("created genesis block:", genesisBlock.header)
-            await this.repository.addBlock(genesisBlock)
+            this.db.addBlock(genesisBlock)
             this.latestBlockHeight = genesisBlock.header.height
             this.startChainHeadBroadcast()
           }
@@ -314,7 +305,7 @@ export class AwesomeNode {
           return
         }
         for (const block of blocks) {
-          await this.repository.addBlock(block)
+          this.db.addBlock(block)
         }
         this.syncState = SyncState.SYNCED
         log("Blockchain is valid, synchronization completed")
@@ -378,7 +369,7 @@ export class AwesomeNode {
         log("new block header:", this.newBlock.header)
         this.candidateBlock = null
 
-        await this.repository.addBlock(this.newBlock)
+        this.db.addBlock(this.newBlock)
         this.latestBlockHeight = this.newBlock.header.height
         this.startNewBlockBroadcast()
       }
@@ -446,7 +437,7 @@ export class AwesomeNode {
   }
 
   private async loadBlocksFromRepository(): Promise<boolean> {
-    const latestBlockHeader = await this.repository.getLatestBlockHeader()
+    const latestBlockHeader = this.db.getLatestBlockHeader()
     const accounts = new SparseMerkleTree()
 
     if (!latestBlockHeader || !verifyBlockHeader(latestBlockHeader)) {
@@ -454,7 +445,7 @@ export class AwesomeNode {
       return false
     }
 
-    const blocks = await this.repository.getBlocks(0, latestBlockHeader.height)
+    const blocks = this.db.getBlocks(0, latestBlockHeader.height)
     if (blocks.length == 0) {
       return false
     }
@@ -685,7 +676,7 @@ export class AwesomeNode {
 
     if (this.newBlock == null || block.header.height > this.newBlock.header.height) {
       this.newBlock = block
-      await this.repository.addBlock(block)
+      this.db.addBlock(block)
     }
   }
 
@@ -714,7 +705,7 @@ export class AwesomeNode {
       sender.nonce += 1
       this.accounts.insert(sender)
       this.accounts.insert(recipient)
-      this.repository.addTransaction(transaction, false)
+      this.db.addTransaction(transaction)
     }
   }
 
@@ -825,7 +816,7 @@ export class AwesomeNode {
     if (!isBlockHeaderRequest(request)) {
       return
     }
-    const header = await this.repository.getBlockHeader(request.height)
+    const header = this.db.getBlockHeader(request.height)
     if (!header) {
       return
     }
@@ -848,7 +839,7 @@ export class AwesomeNode {
     if (!isBlockHeadersRequest(request)) {
       return
     }
-    const headers = await this.repository.getBlockHeaders(request.fromHeight, request.toHeight)
+    const headers = this.db.getBlockHeaders(request.fromHeight, request.toHeight)
     const response: BlockHeadersResponse = {
       requestId: request.requestId,
       blockHeaders: headers,
@@ -868,7 +859,7 @@ export class AwesomeNode {
     if (!isBlockRequest(request)) {
       return
     }
-    const block = await this.repository.getBlock(request.height)
+    const block = this.db.getBlock(request.height)
     if (!block) {
       return
     }
@@ -891,7 +882,7 @@ export class AwesomeNode {
     if (!isBlocksRequest(request)) {
       return
     }
-    const blocks = await this.repository.getBlocks(request.fromHeight, request.toHeight)
+    const blocks = this.db.getBlocks(request.fromHeight, request.toHeight)
     const response: BlocksResponse = {
       requestId: request.requestId,
       blocks,
@@ -923,7 +914,7 @@ export class AwesomeNode {
     if (!isTransactionRequest(request)) {
       return
     }
-    const transaction = await this.repository.getTransactionBySignature(request.signature)
+    const transaction = this.db.getTransactionBySignature(request.signature)
     if (!transaction) {
       return
     }
@@ -948,9 +939,9 @@ export class AwesomeNode {
     }
     let transactions: Transaction[] = []
     if (request.senderAddress) {
-      transactions = await this.repository.getTransactionsBySender(request.senderAddress)
+      transactions = this.db.getTransactionsBySender(request.senderAddress)
     } else if (request.recipientAddress) {
-      transactions = await this.repository.getTransactionsByRecipient(request.recipientAddress)
+      transactions = this.db.getTransactionsByRecipient(request.recipientAddress)
     }
 
     const response: TransactionsResponse = {
@@ -979,7 +970,7 @@ export class AwesomeNode {
 
     // if not, check if the achievement is in the repository
     if (!achievement) {
-      achievement = await this.repository.getAchievementBySignature(request.signature)
+      achievement = this.db.getAchievementBySignature(request.signature)
     }
 
     // if still not found, return
@@ -1020,7 +1011,7 @@ export class AwesomeNode {
       }
       this.socket.emit("message.send", msg)
     } else if (request.authorAddress != undefined) {
-      const achievements = await this.repository.getAchievementsByAuthor(request.authorAddress)
+      const achievements = this.db.getAchievementsByAuthor(request.authorAddress)
       const response: AchievementsResponse = {
         requestId: request.requestId,
         achievements,
@@ -1041,7 +1032,7 @@ export class AwesomeNode {
     if (!isReviewRequest(request)) {
       return
     }
-    const review = await this.repository.getReviewBySignature(request.signature)
+    const review = this.db.getReviewBySignature(request.signature)
     if (!review) {
       return
     }
@@ -1077,7 +1068,7 @@ export class AwesomeNode {
       }
       // if achievement is not pending, fetch reviews from the repository
       if (reviews.length == 0) {
-        reviews = await this.repository.getReviewsByAchievement(request.achievementSignature)
+        reviews = this.db.getReviewsByAchievement(request.achievementSignature)
       }
     }
     const response: ReviewsResponse = {
@@ -1095,7 +1086,7 @@ export class AwesomeNode {
   }
 
   private async createChainHead(): Promise<ChainHead> {
-    const latestBlock = await this.repository.getLatestBlockHeader()
+    const latestBlock = this.db.getLatestBlockHeader()
 
     const chainHead: ChainHead = {
       chainId: chainConfig.chainId,
@@ -1112,14 +1103,14 @@ export class AwesomeNode {
   private async createBlock(): Promise<Block | null> {
     let previousHash = ""
     let previousHeight = -1
-    const transactions = await this.repository.getTransactionsByBlockHeight(-1)
+    const transactions = this.db.getTransactionsByBlockHeight(-1)
     const achievements = this.pendingAchievements
     const reviews = this.pendingReviews
-    const previousBlock = await this.repository.getLatestBlock()
+    const previousBlockHeader = this.db.getLatestBlockHeader()
 
-    if (previousBlock) {
-      previousHash = previousBlock.header.hash
-      previousHeight = previousBlock.header.height
+    if (previousBlockHeader) {
+      previousHash = previousBlockHeader.hash
+      previousHeight = previousBlockHeader.height
     }
 
     const reviewsByAchievement = new Map<string, Review[]>()

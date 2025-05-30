@@ -136,8 +136,8 @@ export interface Review {
   reviewerAddress: string
   scores: ReviewScores
   comment: string
-  reviewerPublicKey: string
   timestamp: number
+  reviewerPublicKey: string
   signature: string
 }
 
