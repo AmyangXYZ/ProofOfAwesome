@@ -198,7 +198,7 @@ export class AwesomeNodeLight {
   }
 
   private sync() {
-    this.requestBlockHeaders(this.latestBlockHeight, this.latestBlockHeight)
+    this.requestBlockHeaders(0, this.latestBlockHeight)
     this.requestPendingAchievements()
     this.requestAccount(this.identity.address)
     this.requestAccounts()
