@@ -87,7 +87,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
           <CardTitle className="flex items-center gap-2 truncate">
             Achievement
             <span className="truncate max-w-[100px] inline-block align-bottom" title={achievement.signature}>
-              {achievement.signature.slice(0, 10)}...
+              {achievement.signature.slice(0, 7)}
             </span>
             ·{" "}
             <span className="text-zinc-500 text-xs font-normal">
@@ -97,7 +97,7 @@ export default function AchievementCard({ achievement }: { achievement: Achievem
           <CardDescription className="text-zinc-500 text-xs">
             {achievement.authorName} ·{" "}
             <span className="truncate max-w-[120px] inline-block align-bottom" title={achievement.authorAddress}>
-              {achievement.authorAddress.slice(0, 10)}...
+              {achievement.authorAddress.slice(0, 9)}
             </span>
           </CardDescription>
         </CardHeader>

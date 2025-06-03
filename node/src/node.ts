@@ -60,6 +60,8 @@ import {
   ReviewResponse,
   BlocksRequest,
   ChainHeadRequest,
+  isAccountsRequest,
+  AccountsResponse,
 } from "./message"
 import { Reviewer, ReviewResult } from "./reviewer"
 import { SQLiteDB } from "./db"
@@ -561,6 +563,9 @@ export class AwesomeNode {
       case MESSAGE_TYPE.ACCOUNT_REQUEST:
         this.handleAccountRequest(message)
         break
+      case MESSAGE_TYPE.ACCOUNTS_REQUEST:
+        this.handleAccountsRequest(message)
+        break
       case MESSAGE_TYPE.CHAIN_HEAD_REQUEST:
         this.handleChainHeadRequest(message)
         break
@@ -767,6 +772,25 @@ export class AwesomeNode {
       from: this.identity.address,
       to: message.from,
       type: MESSAGE_TYPE.ACCOUNT_RESPONSE,
+      payload: response,
+      timestamp: Date.now(),
+    }
+    this.socket.emit("message.send", msg)
+  }
+
+  private async handleAccountsRequest(message: Message) {
+    const request = message.payload
+    if (!isAccountsRequest(request)) {
+      return
+    }
+    const response: AccountsResponse = {
+      requestId: request.requestId,
+      accounts: this.accounts.getAllAccounts(),
+    }
+    const msg: Message = {
+      from: this.identity.address,
+      to: message.from,
+      type: MESSAGE_TYPE.ACCOUNTS_RESPONSE,
       payload: response,
       timestamp: Date.now(),
     }

@@ -42,6 +42,7 @@ import {
   isBlockHeaderResponse,
   isBlockHeadersResponse,
   AccountRequest,
+  AccountsRequest,
   BlocksRequest,
   BlockHeadersRequest,
   ChainHeadRequest,
@@ -50,6 +51,7 @@ import {
   AchievementsRequest,
   ReviewsRequest,
   AchievementRequest,
+  isAccountsResponse,
 } from "./message"
 import { io, Socket } from "socket.io-client"
 
@@ -64,6 +66,7 @@ interface EventMap {
   "awesomecom.announcement.started": void
   "target_block.updated": number
   "account.updated": Account
+  "accounts.fetched": Account[]
   "block.new": Block
   "block.fetched": Block
   "block_header.new": BlockHeader
@@ -93,6 +96,7 @@ export class AwesomeNodeLight {
   private wallet: Wallet
   private identity: Identity
   private account: Account
+  private accounts: Account[] = []
   private eventListeners: Map<keyof EventMap, Set<unknown>> = new Map()
 
   // address of the full node that this node is syncing with
@@ -194,9 +198,10 @@ export class AwesomeNodeLight {
   }
 
   private sync() {
-    this.requestBlockHeaders(this.latestBlockHeight - 20, this.latestBlockHeight)
+    this.requestBlockHeaders(this.latestBlockHeight, this.latestBlockHeight)
     this.requestPendingAchievements()
     this.requestAccount(this.identity.address)
+    this.requestAccounts()
   }
 
   public isConnected(): boolean {
@@ -220,6 +225,10 @@ export class AwesomeNodeLight {
   }
   public getLatestBlockHeight(): number {
     return this.latestBlockHeight
+  }
+
+  public getAccounts(): Account[] {
+    return this.accounts.slice()
   }
 
   public getBlockHeader(height: number): BlockHeader | undefined {
@@ -285,6 +294,24 @@ export class AwesomeNodeLight {
       from: this.identity.address,
       to: this.syncPeer,
       type: MESSAGE_TYPE.ACCOUNT_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
+  public async requestAccounts() {
+    while (!this.syncPeer) {
+      await new Promise((resolve) => setTimeout(resolve, this.WAIT_SYNC_PEER_INTERVAL))
+    }
+    const requestId = crypto.randomUUID()
+    const request: AccountsRequest = {
+      requestId,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.ACCOUNTS_REQUEST,
       payload: request,
       timestamp: Date.now(),
     })
@@ -591,6 +618,7 @@ export class AwesomeNodeLight {
         if (members.length > 0) {
           // TODO: request chain heads from multiple full nodes and select the best one or use trusted full node
           this.setSyncPeer(members[0].address)
+          // this.setSyncPeer("0xE31a8d1AAf3C4D3f97B5668E6df1C946FFDd0A56")
           this.requestChainHead()
         }
       }
@@ -655,6 +683,9 @@ export class AwesomeNodeLight {
         break
       case MESSAGE_TYPE.ACCOUNT_RESPONSE:
         this.handleAccountResponse(message)
+        break
+      case MESSAGE_TYPE.ACCOUNTS_RESPONSE:
+        this.handleAccountsResponse(message)
         break
       case MESSAGE_TYPE.CHAIN_HEAD_RESPONSE:
         this.handleChainHeadResponse(message)
@@ -796,6 +827,16 @@ export class AwesomeNodeLight {
       this.account = response.account
       this.emit("account.updated", this.account)
     }
+  }
+
+  private async handleAccountsResponse(message: Message) {
+    const response = message.payload
+    if (!isAccountsResponse(response) || !this.sentRequests.has(response.requestId)) {
+      return
+    }
+    this.sentRequests.delete(response.requestId)
+    this.accounts = response.accounts
+    this.emit("accounts.fetched", this.accounts)
   }
 
   private async handleChainHeadResponse(message: Message) {

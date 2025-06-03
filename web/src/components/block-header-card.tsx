@@ -11,7 +11,7 @@ export default function BlockHeaderCard({ header }: { header: BlockHeader }) {
   const router = useRouter()
   const node = useAwesomeNode()
 
-  useEffect(() => {}, [node, header])
+  useEffect(() => { }, [node, header])
 
   const jumpToBlockDetails = () => {
     router.push(`/block/${header.height}`)
@@ -31,7 +31,7 @@ export default function BlockHeaderCard({ header }: { header: BlockHeader }) {
             </span>
           </CardTitle>
           <CardDescription className="text-zinc-500 text-xs" title={header.hash}>
-            {header.hash.slice(0, 24)}...
+            {header.hash.slice(0, 7)}
           </CardDescription>
         </CardHeader>
         <CardContent className="font-medium gap-4 flex items-center">

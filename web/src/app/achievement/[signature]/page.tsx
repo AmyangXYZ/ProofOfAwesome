@@ -132,7 +132,7 @@ export default function Page({ params }: { params: Promise<{ signature: string }
           {/* Reviews Section */}
           <div className="mt-4">
             {reviews.map((review) => (
-              <div key={review.signature} className="mb-4">
+              <div key={review.signature} className="mb-4 border-b pb-4">
                 <ReviewComments review={review} />
               </div>
             ))}

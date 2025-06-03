@@ -43,6 +43,8 @@ export enum MESSAGE_TYPE {
   // data queries from light nodes only
   ACCOUNT_REQUEST = "ACCOUNT_REQUEST",
   ACCOUNT_RESPONSE = "ACCOUNT_RESPONSE",
+  ACCOUNTS_REQUEST = "ACCOUNTS_REQUEST",
+  ACCOUNTS_RESPONSE = "ACCOUNTS_RESPONSE",
   TRANSACTION_REQUEST = "TRANSACTION_REQUEST",
   TRANSACTION_RESPONSE = "TRANSACTION_RESPONSE",
   TRANSACTIONS_REQUEST = "TRANSACTIONS_REQUEST",
@@ -66,6 +68,15 @@ export interface AccountResponse {
   requestId: string
   account: Account
   proof: SparseMerkleProof
+}
+
+export interface AccountsRequest {
+  requestId: string
+}
+
+export interface AccountsResponse {
+  requestId: string
+  accounts: Account[]
 }
 
 export interface ChainHeadRequest {
@@ -207,6 +218,24 @@ export function isAccountResponse(payload: unknown): payload is AccountResponse 
     isAccount(payload.account) &&
     "proof" in payload &&
     isSparseMerkleProof(payload.proof)
+  )
+}
+
+export function isAccountsRequest(payload: unknown): payload is AccountsRequest {
+  return (
+    typeof payload === "object" && payload !== null && "requestId" in payload && typeof payload.requestId === "string"
+  )
+}
+
+export function isAccountsResponse(payload: unknown): payload is AccountsResponse {
+  return (
+    typeof payload === "object" &&
+    payload !== null &&
+    "requestId" in payload &&
+    typeof payload.requestId === "string" &&
+    "accounts" in payload &&
+    Array.isArray(payload.accounts) &&
+    payload.accounts.every((account) => isAccount(account))
   )
 }
 

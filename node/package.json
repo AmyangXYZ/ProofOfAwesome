@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node dist/main.js",
+    "start": "node -r dotenv/config dist/main.js dotenv_config_path=./.env",
     "dev": "tsc && node -r dotenv/config dist/main.js dotenv_config_path=./.env",
     "build": "tsc"
   },
