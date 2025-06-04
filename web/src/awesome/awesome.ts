@@ -27,7 +27,8 @@ export const chainConfig = {
     acceptThreshold: 3,
   },
   rewardRules: {
-    acceptedAchievement: 1,
+    acceptedAchievement: 5,
+    review: 1,
   },
 } as const
 
@@ -36,19 +37,6 @@ export interface AwesomeComStatus {
   phase: "Submission" | "Review" | "Consensus" | "Announcement"
   sessionRemaining: number
   phaseRemaining: number
-}
-
-export async function waitForGenesis() {
-  while (true) {
-    const timeSinceGenesis = Date.now() - chainConfig.genesisTime
-    if (timeSinceGenesis >= 0) {
-      return
-    }
-    const remaining = -timeSinceGenesis
-    const waitTime = Math.min(60 * 1000, remaining)
-    console.log(`Waiting for genesis: ${Math.round(remaining / 1000)}s remaining`)
-    await new Promise((resolve) => setTimeout(resolve, waitTime))
-  }
 }
 
 export function getAwesomeComStatus(): AwesomeComStatus {
@@ -84,6 +72,7 @@ export function getAwesomeComStatus(): AwesomeComStatus {
 }
 
 export interface Account {
+  name: string
   address: string
   balance: number
   nonce: number
@@ -149,8 +138,8 @@ export interface Review {
   reviewerAddress: string
   scores: ReviewScores
   comment: string
-  reviewerPublicKey: string
   timestamp: number
+  reviewerPublicKey: string
   signature: string
 }
 
@@ -166,6 +155,8 @@ export function isAccount(payload: unknown): payload is Account {
   return (
     typeof payload === "object" &&
     payload !== null &&
+    "name" in payload &&
+    typeof payload.name === "string" &&
     "address" in payload &&
     typeof payload.address === "string" &&
     "balance" in payload &&
@@ -447,6 +438,7 @@ export function signTransaction(transaction: Transaction, wallet: Wallet): strin
       transaction.senderAddress,
       transaction.recipientAddress,
       transaction.amount,
+      transaction.nonce,
       transaction.timestamp,
       transaction.senderPublicKey,
     ].join("_")
@@ -460,6 +452,7 @@ export function verifyTransaction(transaction: Transaction): boolean {
       transaction.senderAddress,
       transaction.recipientAddress,
       transaction.amount,
+      transaction.nonce,
       transaction.timestamp,
       transaction.senderPublicKey,
     ].join("_")

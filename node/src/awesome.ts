@@ -27,7 +27,8 @@ export const chainConfig = {
     acceptThreshold: 3,
   },
   rewardRules: {
-    acceptedAchievement: 1,
+    acceptedAchievement: 5,
+    review: 1,
   },
 } as const
 
@@ -71,6 +72,7 @@ export function getAwesomeComStatus(): AwesomeComStatus {
 }
 
 export interface Account {
+  name: string
   address: string
   balance: number
   nonce: number
@@ -153,6 +155,8 @@ export function isAccount(payload: unknown): payload is Account {
   return (
     typeof payload === "object" &&
     payload !== null &&
+    "name" in payload &&
+    typeof payload.name === "string" &&
     "address" in payload &&
     typeof payload.address === "string" &&
     "balance" in payload &&
@@ -434,6 +438,7 @@ export function signTransaction(transaction: Transaction, wallet: Wallet): strin
       transaction.senderAddress,
       transaction.recipientAddress,
       transaction.amount,
+      transaction.nonce,
       transaction.timestamp,
       transaction.senderPublicKey,
     ].join("_")
@@ -447,6 +452,7 @@ export function verifyTransaction(transaction: Transaction): boolean {
       transaction.senderAddress,
       transaction.recipientAddress,
       transaction.amount,
+      transaction.nonce,
       transaction.timestamp,
       transaction.senderPublicKey,
     ].join("_")

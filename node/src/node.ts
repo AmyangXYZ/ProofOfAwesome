@@ -250,70 +250,57 @@ export class AwesomeNode {
     })
 
     this.on("sync.blocks_fetched", async (blocks: Block[]) => {
-      if (this.syncState == SyncState.REQUESTING_BLOCKS) {
-        log("Fetched %d blocks from %s", blocks.length, this.syncPeer)
-        blocks.sort((a, b) => a.header.height - b.header.height)
-        this.accounts = new SparseMerkleTree()
-        let invalid = false
-        for (const [index, block] of blocks.entries()) {
-          if (verifyBlock(block)) {
-            if (index > 0) {
-              if (block.header.previousHash != blocks[index - 1].header.hash) {
-                invalid = true
-                break
-              }
-            }
-          } else {
-            invalid = true
-            break
-          }
-          for (const achievement of block.achievements) {
-            let { account: author } = this.accounts.get(achievement.authorAddress)
-            if (!author) {
-              author = {
-                address: achievement.authorAddress,
-                balance: 0,
-                acceptedAchievements: 0,
-                nonce: 0,
-              } as Account
-            }
-            author.acceptedAchievements += 1
-            author.balance += chainConfig.rewardRules.acceptedAchievement
-            this.accounts.insert(author)
-          }
-          for (const transaction of block.transactions) {
-            const { account: sender } = this.accounts.get(transaction.senderAddress)
-            const { account: recipient } = this.accounts.get(transaction.recipientAddress)
-            if (!sender || !recipient) {
-              invalid = true
-              break
-            }
-            sender.balance -= transaction.amount
-            recipient.balance += transaction.amount
-            sender.nonce += 1
-            this.accounts.insert(sender)
-            this.accounts.insert(recipient)
-          }
-
-          if (this.accounts.merkleRoot != block.header.accountsRoot) {
-            invalid = true
-            break
-          }
-        }
-        if (invalid) {
-          log("Invalid block chain, selecting another sync peer")
-          this.syncState = SyncState.SELECTING_PEER
-          // TODO: select another sync peer and restart the sync process
-          return
-        }
-        for (const block of blocks) {
-          this.db.addBlock(block)
-        }
-        this.syncState = SyncState.SYNCED
-        log("Blockchain is valid, synchronization completed")
-        this.latestBlockHeight = blocks[blocks.length - 1].header.height
-        this.emit("sync.completed", undefined)
-      }
+      this.rebuildChain(blocks)
+      // if (this.syncState == SyncState.REQUESTING_BLOCKS) {
+      //   log("Fetched %d blocks from %s", blocks.length, this.syncPeer)
+      //   blocks.sort((a, b) => a.header.height - b.header.height)
+      //   this.accounts = new SparseMerkleTree()
+      //   let invalid = false
+      //   for (const [index, block] of blocks.entries()) {
+      //     if (verifyBlock(block)) {
+      //       if (index > 0) {
+      //         if (block.header.previousHash != blocks[index - 1].header.hash) {
+      //           invalid = true
+      //           break
+      //         }
+      //       }
+      //     } else {
+      //       invalid = true
+      //       break
+      //     }
+      //     this.assignRewards(block)
+      //     for (const transaction of block.transactions) {
+      //       const { account: sender } = this.accounts.get(transaction.senderAddress)
+      //       const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+      //       if (!sender || !recipient) {
+      //         invalid = true
+      //         break
+      //       }
+      //       sender.balance -= transaction.amount
+      //       recipient.balance += transaction.amount
+      //       sender.nonce += 1
+      //       this.accounts.insert(sender)
+      //       this.accounts.insert(recipient)
+      //     }
+      //     if (this.accounts.merkleRoot != block.header.accountsRoot) {
+      //       invalid = true
+      //       break
+      //     }
+      //   }
+      //   if (invalid) {
+      //     log("Invalid blockchain, selecting another sync peer")
+      //     this.syncState = SyncState.SELECTING_PEER
+      //     // TODO: select another sync peer and restart the sync process
+      //     return
+      //   }
+      //   for (const block of blocks) {
+      //     this.db.addBlock(block)
+      //   }
+      //   this.syncState = SyncState.SYNCED
+      //   log("Blockchain is valid, synchronization completed")
+      //   this.latestBlockHeight = blocks[blocks.length - 1].header.height
+      //   this.emit("sync.completed", undefined)
+      // }
     })
 
     if (this.reviewer) {
@@ -369,6 +356,7 @@ export class AwesomeNode {
 
         this.newBlock = this.candidateBlock
         log("new block header:", this.newBlock.header)
+        this.assignRewards(this.newBlock)
         this.candidateBlock = null
 
         this.db.addBlock(this.newBlock)
@@ -440,7 +428,7 @@ export class AwesomeNode {
 
   private async loadBlocksFromRepository(): Promise<boolean> {
     const latestBlockHeader = this.db.getLatestBlockHeader()
-    const accounts = new SparseMerkleTree()
+    this.accounts = new SparseMerkleTree()
 
     if (!latestBlockHeader || !verifyBlockHeader(latestBlockHeader)) {
       // invalid local blocks, clear the repository and fetch from the network
@@ -467,38 +455,25 @@ export class AwesomeNode {
       }
 
       // apply rewards and verify account consistency
-      for (const achievement of block.achievements) {
-        let { account: author } = accounts.get(achievement.authorAddress)
-        if (!author) {
-          author = {
-            address: achievement.authorAddress,
-            balance: 0,
-            acceptedAchievements: 0,
-            nonce: 0,
-          } as Account
-        }
-        author.acceptedAchievements += 1
-        author.balance += chainConfig.rewardRules.acceptedAchievement
-        accounts.insert(author)
-      }
+      this.assignRewards(block)
+
       for (const transaction of block.transactions) {
-        const { account: sender } = accounts.get(transaction.senderAddress)
-        const { account: recipient } = accounts.get(transaction.recipientAddress)
+        const { account: sender } = this.accounts.get(transaction.senderAddress)
+        const { account: recipient } = this.accounts.get(transaction.recipientAddress)
         if (!sender || !recipient) {
           return false
         }
         sender.balance -= transaction.amount
         recipient.balance += transaction.amount
         sender.nonce += 1
-        accounts.insert(sender)
-        accounts.insert(recipient)
+        this.accounts.insert(sender)
+        this.accounts.insert(recipient)
       }
-      if (accounts.merkleRoot !== block.header.accountsRoot) {
+      if (this.accounts.merkleRoot !== block.header.accountsRoot) {
         return false
       }
     }
     log(`${blocks.length} blocks loaded and verified`)
-    this.accounts = accounts
     return true
   }
 
@@ -611,6 +586,60 @@ export class AwesomeNode {
     }
   }
 
+  private rebuildChain(blocks: Block[]) {
+    this.accounts = new SparseMerkleTree()
+    blocks.sort((a, b) => a.header.height - b.header.height)
+
+    for (let i = 0; i < blocks.length; i++) {
+      const block = blocks[i]
+      if (i > 0) {
+        block.header.previousHash = blocks[i - 1].header.hash
+      }
+      const oldHash = block.header.hash
+      this.assignRewards(block)
+      block.header.accountsRoot = this.accounts.merkleRoot
+      block.header.hash = hashBlockHeader(block.header)
+      console.log("rebuilding chain:", block.header.height, "oldHash:", oldHash, "newHash:", block.header.hash)
+      this.db.addBlock(block)
+    }
+    console.log("rebuild chain completed")
+  }
+
+  private assignRewards(block: Block) {
+    // assign achievement rewards
+    for (const achievement of block.achievements) {
+      let { account } = this.accounts.get(achievement.authorAddress)
+      if (!account) {
+        account = {
+          name: achievement.authorName,
+          address: achievement.authorAddress,
+          balance: 0,
+          acceptedAchievements: 0,
+          nonce: 0,
+        } as Account
+      }
+      account.acceptedAchievements++
+      account.balance += chainConfig.rewardRules.acceptedAchievement
+      this.accounts.insert(account)
+    }
+
+    // assign review rewards
+    for (const review of block.reviews) {
+      let { account } = this.accounts.get(review.reviewerAddress)
+      if (!account) {
+        account = {
+          name: review.reviewerName,
+          address: review.reviewerAddress,
+          balance: 0,
+          acceptedAchievements: 0,
+          nonce: 0,
+        } as Account
+      }
+      account.balance += chainConfig.rewardRules.review
+      this.accounts.insert(account)
+    }
+  }
+
   private async handleChainHead(message: Message) {
     const chainHead = message.payload
     if (!isChainHead(chainHead) || this.hasReceived.has(chainHead.signature) || !verifyChainHead(chainHead)) {
@@ -693,15 +722,9 @@ export class AwesomeNode {
     this.hasReceived.set(transaction.signature, Date.now())
 
     const { account: sender } = this.accounts.get(transaction.senderAddress)
-    let { account: recipient } = this.accounts.get(transaction.recipientAddress)
-    if (!recipient) {
-      recipient = {
-        address: transaction.recipientAddress,
-        balance: 0,
-        acceptedAchievements: 0,
-        nonce: 0,
-      }
-      this.accounts.insert(recipient)
+    const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+    if (!sender || !recipient) {
+      return
     }
 
     if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
@@ -1161,20 +1184,6 @@ export class AwesomeNode {
         if (medianScore >= chainConfig.reviewRules.acceptThreshold) {
           acceptedAchievements.push(achievement)
           reviewsForAcceptedAchievements.push(...latestReviews)
-          // assign achievement rewards
-          const reward = chainConfig.rewardRules.acceptedAchievement
-          let { account } = this.accounts.get(achievement.authorAddress)
-          if (!account) {
-            account = {
-              address: achievement.authorAddress,
-              balance: 0,
-              acceptedAchievements: 0,
-              nonce: 0,
-            }
-          }
-          account.acceptedAchievements++
-          account.balance += reward
-          this.accounts.insert(account)
         }
       }
     }

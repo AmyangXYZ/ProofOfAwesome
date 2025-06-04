@@ -143,6 +143,7 @@ export class SparseMerkleTree {
     node.account = account
     node.hash = sha256(
       [
+        node.account.name,
         node.account.address,
         node.account.balance.toString(),
         node.account.nonce.toString(),
@@ -204,6 +205,7 @@ export class SparseMerkleTree {
 
     let hash = sha256(
       [
+        account.name,
         account.address,
         account.balance.toString(),
         account.nonce.toString(),
@@ -244,6 +246,7 @@ if (require.main === module) {
   const tree = new SparseMerkleTree()
   const address = "0x1234567890123456789012345678901234567890"
   tree.insert({
+    name: "test",
     address,
     balance: 100,
     nonce: 0,

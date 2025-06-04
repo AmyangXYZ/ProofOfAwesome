@@ -43,7 +43,7 @@ export default function Peers() {
       if (!peerMap.has(account.address)) {
         merged.push({
           address: account.address,
-          name: '-',
+          name: account.name,
           nodeType: "offline",
           balance: account.balance,
           isOnline: false

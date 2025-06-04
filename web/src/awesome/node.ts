@@ -20,7 +20,6 @@ import {
   chainConfig,
   BlockHeader,
   verifyChainHead,
-  waitForGenesis,
   Account,
   signAchievement,
   ChainHead,
@@ -153,6 +152,7 @@ export class AwesomeNodeLight {
     )
 
     this.account = {
+      name: this.identity.name,
       address: this.identity.address,
       balance: 0,
       nonce: 0,
@@ -164,7 +164,6 @@ export class AwesomeNodeLight {
   }
 
   public async start() {
-    await waitForGenesis()
     this.startAwesomeComStatusUpdate()
     this.startCleanReceivedMessages()
     this.socket.connect()

@@ -7,7 +7,7 @@ import { useState } from "react"
 const scoreLabels = ["Reject", "Weak Reject", "Weak Accept", "Accept", "Strong Accept"]
 
 export default function ReviewComments({ review }: { review: Review }) {
-  const [isOpen, setIsOpen] = useState(true)
+  const [isOpen, setIsOpen] = useState(false)
 
   return (
     <Collapsible open={isOpen} onOpenChange={setIsOpen}>

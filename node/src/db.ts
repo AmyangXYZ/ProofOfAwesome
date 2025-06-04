@@ -237,9 +237,9 @@ export class SQLiteDB {
   }
 
   clear(): void {
+    this.db.prepare("DELETE FROM reviews").run()
     this.db.prepare("DELETE FROM achievements").run()
     this.db.prepare("DELETE FROM transactions").run()
-    this.db.prepare("DELETE FROM reviews").run()
     this.db.prepare("DELETE FROM blocks").run()
   }
 
