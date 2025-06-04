@@ -250,57 +250,57 @@ export class AwesomeNode {
     })
 
     this.on("sync.blocks_fetched", async (blocks: Block[]) => {
-      this.rebuildChain(blocks)
-      // if (this.syncState == SyncState.REQUESTING_BLOCKS) {
-      //   log("Fetched %d blocks from %s", blocks.length, this.syncPeer)
-      //   blocks.sort((a, b) => a.header.height - b.header.height)
-      //   this.accounts = new SparseMerkleTree()
-      //   let invalid = false
-      //   for (const [index, block] of blocks.entries()) {
-      //     if (verifyBlock(block)) {
-      //       if (index > 0) {
-      //         if (block.header.previousHash != blocks[index - 1].header.hash) {
-      //           invalid = true
-      //           break
-      //         }
-      //       }
-      //     } else {
-      //       invalid = true
-      //       break
-      //     }
-      //     this.assignRewards(block)
-      //     for (const transaction of block.transactions) {
-      //       const { account: sender } = this.accounts.get(transaction.senderAddress)
-      //       const { account: recipient } = this.accounts.get(transaction.recipientAddress)
-      //       if (!sender || !recipient) {
-      //         invalid = true
-      //         break
-      //       }
-      //       sender.balance -= transaction.amount
-      //       recipient.balance += transaction.amount
-      //       sender.nonce += 1
-      //       this.accounts.insert(sender)
-      //       this.accounts.insert(recipient)
-      //     }
-      //     if (this.accounts.merkleRoot != block.header.accountsRoot) {
-      //       invalid = true
-      //       break
-      //     }
-      //   }
-      //   if (invalid) {
-      //     log("Invalid blockchain, selecting another sync peer")
-      //     this.syncState = SyncState.SELECTING_PEER
-      //     // TODO: select another sync peer and restart the sync process
-      //     return
-      //   }
-      //   for (const block of blocks) {
-      //     this.db.addBlock(block)
-      //   }
-      //   this.syncState = SyncState.SYNCED
-      //   log("Blockchain is valid, synchronization completed")
-      //   this.latestBlockHeight = blocks[blocks.length - 1].header.height
-      //   this.emit("sync.completed", undefined)
-      // }
+      // this.rebuildChain(blocks)
+      if (this.syncState == SyncState.REQUESTING_BLOCKS) {
+        log("Fetched %d blocks from %s", blocks.length, this.syncPeer)
+        blocks.sort((a, b) => a.header.height - b.header.height)
+        this.accounts = new SparseMerkleTree()
+        let invalid = false
+        for (const [index, block] of blocks.entries()) {
+          if (verifyBlock(block)) {
+            if (index > 0) {
+              if (block.header.previousHash != blocks[index - 1].header.hash) {
+                invalid = true
+                break
+              }
+            }
+          } else {
+            invalid = true
+            break
+          }
+          this.assignRewards(block)
+          for (const transaction of block.transactions) {
+            const { account: sender } = this.accounts.get(transaction.senderAddress)
+            const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+            if (!sender || !recipient) {
+              invalid = true
+              break
+            }
+            sender.balance -= transaction.amount
+            recipient.balance += transaction.amount
+            sender.nonce += 1
+            this.accounts.insert(sender)
+            this.accounts.insert(recipient)
+          }
+          if (this.accounts.merkleRoot != block.header.accountsRoot) {
+            invalid = true
+            break
+          }
+        }
+        if (invalid) {
+          log("Invalid blockchain, selecting another sync peer")
+          this.syncState = SyncState.SELECTING_PEER
+          // TODO: select another sync peer and restart the sync process
+          return
+        }
+        for (const block of blocks) {
+          this.db.addBlock(block)
+        }
+        this.syncState = SyncState.SYNCED
+        log("Blockchain is valid, synchronization completed")
+        this.latestBlockHeight = blocks[blocks.length - 1].header.height
+        this.emit("sync.completed", undefined)
+      }
     })
 
     if (this.reviewer) {
