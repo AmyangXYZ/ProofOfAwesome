@@ -10,7 +10,6 @@ import { useState } from "react"
 interface PeerAccount {
   address: string
   name: string
-  nodeType: string
   balance: number
   isOnline: boolean
 }
@@ -32,7 +31,6 @@ export default function Peers() {
       merged.push({
         address: peer.address,
         name: peer.name,
-        nodeType: peer.nodeType,
         balance: account?.balance || 0,
         isOnline: true
       })
@@ -44,7 +42,6 @@ export default function Peers() {
         merged.push({
           address: account.address,
           name: account.name,
-          nodeType: "offline",
           balance: account.balance,
           isOnline: false
         })
@@ -89,7 +86,6 @@ export default function Peers() {
             <TableRow className="text-sm">
               <TableHead>Address</TableHead>
               <TableHead>Name</TableHead>
-              <TableHead className="hidden md:table-cell">Status</TableHead>
               <TableHead>Balance</TableHead>
             </TableRow>
           </TableHeader>
@@ -106,7 +102,6 @@ export default function Peers() {
                   </div>
                 </TableCell>
                 <TableCell>{peerAccount.name}</TableCell>
-                <TableCell className="hidden md:table-cell">{peerAccount.nodeType}</TableCell>
                 <TableCell>{peerAccount.balance}</TableCell>
               </TableRow>
             ))}

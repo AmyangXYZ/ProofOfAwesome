@@ -356,7 +356,6 @@ export class AwesomeNode {
 
         this.newBlock = this.candidateBlock
         log("new block header:", this.newBlock.header)
-        this.assignRewards(this.newBlock)
         this.candidateBlock = null
 
         this.db.addBlock(this.newBlock)
@@ -1211,6 +1210,11 @@ export class AwesomeNode {
       achievements: acceptedAchievements,
       reviews: reviewsForAcceptedAchievements,
     }
+
+    this.assignRewards(block)
+
+    block.header.accountsRoot = this.accounts.merkleRoot
+
     block.header.hash = hashBlockHeader(block.header)
 
     // if the block is not the genesis block and has no achievements or transactions, skip it

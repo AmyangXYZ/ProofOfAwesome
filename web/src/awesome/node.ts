@@ -617,7 +617,6 @@ export class AwesomeNodeLight {
         if (members.length > 0) {
           // TODO: request chain heads from multiple full nodes and select the best one or use trusted full node
           this.setSyncPeer(members[0].address)
-          // this.setSyncPeer("0xE31a8d1AAf3C4D3f97B5668E6df1C946FFDd0A56")
           this.requestChainHead()
         }
       }
@@ -821,6 +820,7 @@ export class AwesomeNodeLight {
       console.error("No latest block header found to verify account proof")
       return
     }
+
     const verified = SparseMerkleTree.verifyProof(response.account, response.proof, latestBlockHeader.accountsRoot)
     if (verified) {
       this.account = response.account
