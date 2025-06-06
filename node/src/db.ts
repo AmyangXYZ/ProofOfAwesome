@@ -125,9 +125,11 @@ export class SQLiteDB {
 
   private addTransactionStmt: Database.Statement
   private getTransactionBySignatureStmt: Database.Statement
+  private getAllTransactionsStmt: Database.Statement
   private getTransactionsBySenderStmt: Database.Statement
   private getTransactionsByRecipientStmt: Database.Statement
   private getTransactionsByBlockHeightStmt: Database.Statement
+  private updateTransactionBlockHeightStmt: Database.Statement
 
   private addAchievementStmt: Database.Statement
   private getAchievementBySignatureStmt: Database.Statement
@@ -157,9 +159,13 @@ export class SQLiteDB {
       "INSERT INTO transactions (sender_address, recipient_address, amount, nonce, timestamp, sender_public_key, signature, block_height) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
     )
     this.getTransactionBySignatureStmt = this.db.prepare("SELECT * FROM transactions WHERE signature = ?")
+    this.getAllTransactionsStmt = this.db.prepare("SELECT * FROM transactions")
     this.getTransactionsBySenderStmt = this.db.prepare("SELECT * FROM transactions WHERE sender_address = ?")
     this.getTransactionsByRecipientStmt = this.db.prepare("SELECT * FROM transactions WHERE recipient_address = ?")
     this.getTransactionsByBlockHeightStmt = this.db.prepare("SELECT * FROM transactions WHERE block_height = ?")
+    this.updateTransactionBlockHeightStmt = this.db.prepare(
+      "UPDATE transactions SET block_height = ? WHERE signature = ?"
+    )
 
     this.addAchievementStmt = this.db.prepare(
       "INSERT INTO achievements (target_block, author_name, author_address, description, attachment, timestamp, author_public_key, signature) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
@@ -201,8 +207,7 @@ export class SQLiteDB {
         timestamp INTEGER NOT NULL,
         sender_public_key TEXT NOT NULL,
         signature TEXT NOT NULL UNIQUE PRIMARY KEY,
-        block_height INTEGER NOT NULL,
-        FOREIGN KEY (block_height) REFERENCES blocks(height)
+        block_height INTEGER
       );
 
       CREATE TABLE IF NOT EXISTS achievements (
@@ -307,16 +312,23 @@ export class SQLiteDB {
   }
 
   addTransaction(transaction: Transaction): void {
-    this.addTransactionStmt.run(
-      transaction.senderAddress,
-      transaction.recipientAddress,
-      transaction.amount,
-      transaction.nonce,
-      transaction.timestamp,
-      transaction.senderPublicKey,
-      transaction.signature,
-      transaction.blockHeight
-    )
+    const existingTx = this.getTransactionBySignature(transaction.signature)
+    if (existingTx) {
+      // Update block height if transaction exists
+      this.updateTransactionBlockHeightStmt.run(transaction.blockHeight, transaction.signature)
+    } else {
+      // Insert new transaction
+      this.addTransactionStmt.run(
+        transaction.senderAddress,
+        transaction.recipientAddress,
+        transaction.amount,
+        transaction.nonce,
+        transaction.timestamp,
+        transaction.senderPublicKey,
+        transaction.signature,
+        transaction.blockHeight
+      )
+    }
   }
 
   getTransactionBySignature(signature: string): Transaction | null {
@@ -337,6 +349,11 @@ export class SQLiteDB {
 
   getTransactionsByBlockHeight(height: number): Transaction[] {
     const rows = this.getTransactionsByBlockHeightStmt.all(height) as TransactionRow[]
+    return rows.map((row) => rowToTransaction(row))
+  }
+
+  getAllTransactions(): Transaction[] {
+    const rows = this.getAllTransactionsStmt.all() as TransactionRow[]
     return rows.map((row) => rowToTransaction(row))
   }
 
@@ -414,6 +431,20 @@ if (require.main === module) {
 
   db.clear()
 
+  const tx: Transaction = {
+    senderAddress: "0x08",
+    recipientAddress: "0x09",
+    amount: 100,
+    nonce: 0,
+    timestamp: +new Date(),
+    senderPublicKey: "0x0a",
+    signature: "0x0b",
+    blockHeight: -1,
+  }
+
+  db.addTransaction(tx)
+
+  tx.blockHeight = 1
   const block: Block = {
     header: {
       height: 1,
@@ -428,18 +459,7 @@ if (require.main === module) {
       timestamp: +new Date(),
       hash: "0x06",
     },
-    transactions: [
-      {
-        senderAddress: "0x08",
-        recipientAddress: "0x09",
-        amount: 100,
-        nonce: 0,
-        timestamp: +new Date(),
-        senderPublicKey: "0x0a",
-        signature: "0x0b",
-        blockHeight: 1,
-      },
-    ],
+    transactions: [tx],
     achievements: [],
     reviews: [],
   }
@@ -447,5 +467,5 @@ if (require.main === module) {
 
   const blockR = db.getBlock(1)
   console.log(blockR)
-  console.log(db.getLatestBlockHeader())
+  console.log(db.getAllTransactions())
 }

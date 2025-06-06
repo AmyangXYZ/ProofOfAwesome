@@ -225,7 +225,7 @@ export class AwesomeNode {
             log("created genesis block:", genesisBlock.header)
             this.db.addBlock(genesisBlock)
             this.latestBlockHeight = genesisBlock.header.height
-            this.startChainHeadBroadcast()
+            this.emit("sync.completed", undefined)
           }
         } else if (peers.length > 1) {
           for (const peer of peers) {
@@ -984,10 +984,16 @@ export class AwesomeNode {
       return
     }
     let transactions: Transaction[] = []
-    if (request.senderAddress) {
+
+    if (request.senderAddress && request.recipientAddress) {
+      const senderTransactions = this.db.getTransactionsBySender(request.senderAddress)
+      transactions = senderTransactions.filter((t) => t.recipientAddress === request.recipientAddress)
+    } else if (request.senderAddress) {
       transactions = this.db.getTransactionsBySender(request.senderAddress)
     } else if (request.recipientAddress) {
       transactions = this.db.getTransactionsByRecipient(request.recipientAddress)
+    } else {
+      transactions = this.db.getAllTransactions()
     }
 
     const response: TransactionsResponse = {
@@ -1159,6 +1165,8 @@ export class AwesomeNode {
       previousHeight = previousBlockHeader.height
     }
 
+    const height = previousHeight + 1
+
     const reviewsByAchievement = new Map<string, Review[]>()
     for (const review of reviews) {
       const reviewList = reviewsByAchievement.get(review.achievementSignature) || []
@@ -1187,12 +1195,20 @@ export class AwesomeNode {
       }
     }
 
+    // if the block is not the genesis block and has no achievements or transactions, skip it
+    if (height != 0 && acceptedAchievements.length == 0 && transactions.length == 0) {
+      return null
+    }
+
     transactions.sort((a, b) => b.timestamp - a.timestamp)
+    transactions.forEach((t) => {
+      t.blockHeight = height
+    })
     acceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
     reviewsForAcceptedAchievements.sort((a, b) => b.timestamp - a.timestamp)
 
     const blockHeader: BlockHeader = {
-      height: previousHeight + 1,
+      height,
       previousHash,
       accountsRoot: this.accounts.merkleRoot,
       transactionsRoot: MerkleTree.calculateRoot(transactions.map((t) => t.signature)),
@@ -1217,10 +1233,6 @@ export class AwesomeNode {
 
     block.header.hash = hashBlockHeader(block.header)
 
-    // if the block is not the genesis block and has no achievements or transactions, skip it
-    if (block.header.height != 0 && block.achievements.length == 0 && block.transactions.length == 0) {
-      return null
-    }
     return block
   }
 
