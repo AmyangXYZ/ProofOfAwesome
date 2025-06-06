@@ -72,7 +72,6 @@ export interface AccountResponse {
 
 export interface AccountsRequest {
   requestId: string
-  limit?: number
 }
 
 export interface AccountsResponse {
@@ -375,11 +374,7 @@ export function isTransactionResponse(payload: unknown): payload is TransactionR
 
 export function isTransactionsRequest(payload: unknown): payload is TransactionsRequest {
   return (
-    typeof payload === "object" &&
-    payload !== null &&
-    "requestId" in payload &&
-    typeof payload.requestId === "string" &&
-    ("senderAddress" in payload || "recipientAddress" in payload || "limit" in payload)
+    typeof payload === "object" && payload !== null && "requestId" in payload && typeof payload.requestId === "string"
   )
 }
 

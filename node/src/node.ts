@@ -1000,6 +1000,7 @@ export class AwesomeNode {
       requestId: request.requestId,
       transactions,
     }
+
     const msg: Message = {
       from: this.identity.address,
       to: message.from,
