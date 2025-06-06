@@ -417,7 +417,11 @@ export function verifyBlock(block: Block): boolean {
     const reviews = achievementReviews.get(achievement.signature) || []
     const latestReviews = reviews
       .sort((a, b) => b.timestamp - a.timestamp)
-      .filter((review, index, self) => index === self.findIndex((r) => r.reviewerAddress === review.reviewerAddress))
+      .filter(
+        (review, index, self) =>
+          index === self.findIndex((r) => r.reviewerAddress === review.reviewerAddress) &&
+          review.reviewerAddress !== achievement.authorAddress
+      )
     if (latestReviews.length < chainConfig.reviewRules.minReviewPerAchievement) {
       return false
     }
