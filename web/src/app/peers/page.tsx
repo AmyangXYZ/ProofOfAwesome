@@ -78,7 +78,7 @@ export default function Peers() {
   return (
     <div className="max-w-3xl w-full mx-auto p-4">
       <div className="text-sm text-zinc-500 mb-2 text-center">
-        {peers.length} online • {accounts.length} total
+        {peers.length} online • {peerAccounts.length} total
       </div>
       <div className="overflow-x-auto">
         <Table>
