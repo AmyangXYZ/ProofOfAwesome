@@ -276,8 +276,8 @@ export class AwesomeNode {
               invalid = true
               break
             }
-            sender.balance -= transaction.amount
-            recipient.balance += transaction.amount
+            sender.balance = this.formatDecimal(sender.balance - transaction.amount)
+            recipient.balance = this.formatDecimal(recipient.balance + transaction.amount)
             sender.nonce += 1
             this.accounts.insert(sender)
             this.accounts.insert(recipient)
@@ -438,6 +438,7 @@ export class AwesomeNode {
     if (blocks.length == 0) {
       return false
     }
+    console.log(blocks.length, "blocks loaded from repository")
 
     for (const [index, block] of blocks.entries()) {
       if (!verifyBlock(block)) {
@@ -462,8 +463,8 @@ export class AwesomeNode {
         if (!sender || !recipient) {
           return false
         }
-        sender.balance -= transaction.amount
-        recipient.balance += transaction.amount
+        sender.balance = this.formatDecimal(sender.balance - transaction.amount)
+        recipient.balance = this.formatDecimal(recipient.balance + transaction.amount)
         sender.nonce += 1
         this.accounts.insert(sender)
         this.accounts.insert(recipient)
@@ -596,6 +597,28 @@ export class AwesomeNode {
       }
       const oldHash = block.header.hash
       this.assignRewards(block)
+
+      block.transactions.sort((a, b) => {
+        const timeDiff = b.timestamp - a.timestamp
+        if (timeDiff !== 0) return timeDiff
+        return a.signature.localeCompare(b.signature)
+      })
+      block.header.transactionsRoot = MerkleTree.calculateRoot(
+        block.transactions.map((transaction) => transaction.signature)
+      )
+      for (const transaction of block.transactions) {
+        const { account: sender } = this.accounts.get(transaction.senderAddress)
+        const { account: recipient } = this.accounts.get(transaction.recipientAddress)
+        if (!sender || !recipient) {
+          return false
+        }
+        sender.balance = this.formatDecimal(sender.balance - transaction.amount)
+        recipient.balance = this.formatDecimal(recipient.balance + transaction.amount)
+        sender.nonce += 1
+        this.accounts.insert(sender)
+        this.accounts.insert(recipient)
+      }
+
       block.header.accountsRoot = this.accounts.merkleRoot
       block.header.hash = hashBlockHeader(block.header)
       console.log("rebuilding chain:", block.header.height, "oldHash:", oldHash, "newHash:", block.header.hash)
@@ -613,8 +636,9 @@ export class AwesomeNode {
           name: achievement.authorName,
           address: achievement.authorAddress,
           balance: 0,
-          acceptedAchievements: 0,
           nonce: 0,
+          acceptedAchievements: 0,
+          includedReviews: 0,
         } as Account
       }
       account.acceptedAchievements++
@@ -630,11 +654,13 @@ export class AwesomeNode {
           name: review.reviewerName,
           address: review.reviewerAddress,
           balance: 0,
-          acceptedAchievements: 0,
           nonce: 0,
+          acceptedAchievements: 0,
+          includedReviews: 0,
         } as Account
       }
       account.balance += chainConfig.rewardRules.review
+      account.includedReviews += 1
       this.accounts.insert(account)
     }
   }
@@ -727,8 +753,8 @@ export class AwesomeNode {
     }
 
     if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
-      sender.balance -= transaction.amount
-      recipient.balance += transaction.amount
+      sender.balance = this.formatDecimal(sender.balance - transaction.amount)
+      recipient.balance = this.formatDecimal(recipient.balance + transaction.amount)
       sender.nonce += 1
       this.accounts.insert(sender)
       this.accounts.insert(recipient)
@@ -1182,7 +1208,7 @@ export class AwesomeNode {
       const achievementReviews = reviewsByAchievement.get(achievement.signature) || []
 
       const latestReviews = achievementReviews
-        .sort((a, b) => b.timestamp - a.timestamp)
+        .sort((a, b) => a.timestamp - b.timestamp)
         .filter(
           (review, index, self) =>
             index === self.findIndex((r) => r.reviewerAddress === review.reviewerAddress) &&
@@ -1205,7 +1231,12 @@ export class AwesomeNode {
       return null
     }
 
-    transactions.sort((a, b) => b.timestamp - a.timestamp)
+    transactions.sort((a, b) => {
+      const timeDiff = b.timestamp - a.timestamp
+      if (timeDiff !== 0) return timeDiff
+      return a.signature.localeCompare(b.signature)
+    })
+
     transactions.forEach((t) => {
       t.blockHeight = height
     })
@@ -1391,5 +1422,9 @@ export class AwesomeNode {
     this.hasReceived.clear()
     this.pendingAchievements = []
     this.pendingReviews = []
+  }
+
+  private formatDecimal(num: number): number {
+    return parseFloat(num.toFixed(4))
   }
 }

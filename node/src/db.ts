@@ -126,6 +126,7 @@ export class SQLiteDB {
   private addTransactionStmt: Database.Statement
   private getTransactionBySignatureStmt: Database.Statement
   private getAllTransactionsStmt: Database.Statement
+  private removePendingTransactionsStmt: Database.Statement
   private getTransactionsBySenderStmt: Database.Statement
   private getTransactionsByRecipientStmt: Database.Statement
   private getTransactionsByBlockHeightStmt: Database.Statement
@@ -160,6 +161,7 @@ export class SQLiteDB {
     )
     this.getTransactionBySignatureStmt = this.db.prepare("SELECT * FROM transactions WHERE signature = ?")
     this.getAllTransactionsStmt = this.db.prepare("SELECT * FROM transactions")
+    this.removePendingTransactionsStmt = this.db.prepare("DELETE FROM transactions WHERE block_height = -1")
     this.getTransactionsBySenderStmt = this.db.prepare("SELECT * FROM transactions WHERE sender_address = ?")
     this.getTransactionsByRecipientStmt = this.db.prepare("SELECT * FROM transactions WHERE recipient_address = ?")
     this.getTransactionsByBlockHeightStmt = this.db.prepare("SELECT * FROM transactions WHERE block_height = ?")
@@ -265,6 +267,7 @@ export class SQLiteDB {
     block.transactions.forEach((transaction) => {
       this.addTransaction(transaction)
     })
+    this.removePendingTransactionsStmt.run()
     block.achievements.forEach((achievement) => {
       this.addAchievement(achievement)
     })

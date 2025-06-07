@@ -77,6 +77,7 @@ export interface Account {
   balance: number
   nonce: number
   acceptedAchievements: number
+  includedReviews: number
 }
 
 export interface ChainHead {
@@ -164,7 +165,9 @@ export function isAccount(payload: unknown): payload is Account {
     "nonce" in payload &&
     typeof payload.nonce === "number" &&
     "acceptedAchievements" in payload &&
-    typeof payload.acceptedAchievements === "number"
+    typeof payload.acceptedAchievements === "number" &&
+    "includedReviews" in payload &&
+    typeof payload.includedReviews === "number"
   )
 }
 
@@ -375,7 +378,13 @@ export function verifyBlock(block: Block): boolean {
   }
   if (
     MerkleTree.calculateRoot(
-      block.transactions.sort((a, b) => b.timestamp - a.timestamp).map((transaction) => transaction.signature)
+      block.transactions
+        .sort((a, b) => {
+          const timeDiff = b.timestamp - a.timestamp
+          if (timeDiff !== 0) return timeDiff
+          return a.signature.localeCompare(b.signature)
+        })
+        .map((transaction) => transaction.signature)
     ) !== block.header.transactionsRoot
   ) {
     return false
@@ -452,6 +461,12 @@ export function signTransaction(transaction: Transaction, wallet: Wallet): strin
 }
 
 export function verifyTransaction(transaction: Transaction): boolean {
+  // Verify amount is positive and has max 4 decimal places
+  if (transaction.amount <= 0) return false
+  const decimalStr = transaction.amount.toString()
+  const decimalPlaces = decimalStr.includes(".") ? decimalStr.split(".")[1].length : 0
+  if (decimalPlaces > 4) return false
+
   const hash = sha256(
     [
       transaction.senderAddress,
