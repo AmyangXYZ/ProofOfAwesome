@@ -374,8 +374,9 @@ export function verifyBlock(block: Block): boolean {
     return false
   }
   if (
-    MerkleTree.calculateRoot(block.transactions.map((transaction) => transaction.signature)) !==
-    block.header.transactionsRoot
+    MerkleTree.calculateRoot(
+      block.transactions.sort((a, b) => b.timestamp - a.timestamp).map((transaction) => transaction.signature)
+    ) !== block.header.transactionsRoot
   ) {
     return false
   }
