@@ -157,6 +157,7 @@ export class AwesomeNodeLight {
       balance: 0,
       nonce: 0,
       acceptedAchievements: 0,
+      includedReviews: 0,
     }
 
     this.socket = io(connectAddress, { autoConnect: false })
