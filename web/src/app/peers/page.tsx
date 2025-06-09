@@ -2,17 +2,12 @@
 
 import { Account } from "@/awesome/awesome"
 import { Identity } from "@/awesome/connect"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
+import PeersRow, { PeerAccount } from "@/components/peers-row"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { useAwesomeNode } from "@/context/awesome-node-context"
+import { motion } from "framer-motion"
 import { useEffect, useMemo } from "react"
 import { useState } from "react"
-
-interface PeerAccount {
-  address: string
-  name: string
-  balance: number
-  isOnline: boolean
-}
 
 export default function Peers() {
   const node = useAwesomeNode()
@@ -20,15 +15,13 @@ export default function Peers() {
   const [accounts, setAccounts] = useState<Account[]>([])
 
   const peerAccounts = useMemo(() => {
-    const peerMap = new Map(peers.map(peer => [peer.address, peer]))
     const accountMap = new Map(accounts.map(account => [account.address, account]))
-
-    const merged: PeerAccount[] = []
+    const uniquePeers = new Map<string, PeerAccount>()
 
     // Add online peers first
     peers.forEach(peer => {
       const account = accountMap.get(peer.address)
-      merged.push({
+      uniquePeers.set(peer.address, {
         address: peer.address,
         name: peer.name,
         balance: account?.balance || 0,
@@ -36,10 +29,10 @@ export default function Peers() {
       })
     })
 
-    // Add offline accounts
+    // Add offline accounts only if not already in uniquePeers
     accounts.forEach(account => {
-      if (!peerMap.has(account.address)) {
-        merged.push({
+      if (!uniquePeers.has(account.address)) {
+        uniquePeers.set(account.address, {
           address: account.address,
           name: account.name,
           balance: account.balance,
@@ -48,8 +41,8 @@ export default function Peers() {
       }
     })
 
-    // Sort: online first, then by balance descending
-    return merged.sort((a, b) => {
+    // Convert Map to array and sort
+    return Array.from(uniquePeers.values()).sort((a, b) => {
       if (a.isOnline !== b.isOnline) return b.isOnline ? 1 : -1
       return b.balance - a.balance
     })
@@ -78,36 +71,23 @@ export default function Peers() {
   return (
     <div className="max-w-3xl w-full mx-auto p-4">
       <div className="text-sm text-zinc-500 mb-2 text-center">
-        {peers.length} online • {peerAccounts.length} total
+        {peerAccounts.filter(peer => peer.isOnline).length} online • {peerAccounts.length} total
       </div>
-      <div className="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow className="text-sm">
-              <TableHead>Address</TableHead>
-              <TableHead>Name</TableHead>
-              <TableHead>Balance</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {peerAccounts.map((peerAccount) => (
-              <TableRow key={peerAccount.address} className="text-sm">
-                <TableCell className="font-medium font-mono">
-                  <div className="flex items-center gap-2">
-                    <span className={`w-2 h-2 rounded-full ${peerAccount.isOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
-                    <div className="truncate" title={peerAccount.address}>
-                      <span className="md:hidden">{peerAccount.address.slice(0, 9)}</span>
-                      <span className="hidden md:inline">{peerAccount.address}</span>
-                    </div>
-                  </div>
-                </TableCell>
-                <TableCell>{peerAccount.name}</TableCell>
-                <TableCell>{peerAccount.balance}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
+      <ScrollArea className="flex-1 h-[calc(100vh-120px)]">
+        {peerAccounts
+          .map((peer) => (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 10 }}
+              key={peer.address}
+              id={`peer-${peer.address}`}
+              className="w-full py-2"
+            >
+              <PeersRow peer={peer} />
+            </motion.div>
+          ))}
+      </ScrollArea>
     </div>
   )
 }

@@ -1,7 +1,7 @@
 "use client"
 
 import { BlockHeader } from "@/awesome/awesome"
-import BlockHeaderCard from "@/components/block-header-card"
+import BlockHeaderRow from "@/components/block-header-row"
 import { useAwesomeNode } from "@/context/awesome-node-context"
 import { Input } from "@/components/ui/input"
 import { motion } from "framer-motion"
@@ -63,7 +63,7 @@ export default function Blocks() {
               id={`block-${header.height}`}
               className="w-full py-2"
             >
-              <BlockHeaderCard header={header} />
+              <BlockHeaderRow header={header} />
             </motion.div>
           ))}
       </ScrollArea>

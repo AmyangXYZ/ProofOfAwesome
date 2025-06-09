@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import AchievementCard from "@/components/achievement-card"
+import AchievementRow from "@/components/achievement-row"
 import { Achievement } from "@/awesome/awesome"
 import { motion } from "framer-motion"
 import Greeting from "@/components/greeting"
@@ -60,7 +60,7 @@ export default function App() {
                 key={index}
                 className="mt-4 flex flex-col"
               >
-                <AchievementCard achievement={achievement} />
+                <AchievementRow achievement={achievement} />
               </motion.div>
             ))}
             <div ref={endOfListRef} />

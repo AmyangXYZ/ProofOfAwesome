@@ -14,8 +14,9 @@ export default function CallForAchievement() {
           <CardContent>
             <p>
               Proof of Awesome presents a novel blockchain consensus mechanism that replaces computational puzzles with
-              real-world achievements. This system combines AI-assisted scholarly peer review with blockchain technology
-              to create verifiable digital assets from personal accomplishments.
+              real-world achievements through AI-assisted scholarly peer review. As a truly distributed blockchain, it&apos;s
+              completely free to participate - anyone can host a full node, submit achievements, or contribute as a reviewer
+              without any barriers.
             </p>
           </CardContent>
         </Card>
@@ -90,8 +91,8 @@ export default function CallForAchievement() {
               synchronized to a hard-coded genesis time of March 14, 2025, when this project was first envisioned. Every
               node in the network calculates its current phase based on the time elapsed since genesis, ensuring
               deterministic phase transitions across the entire network. When an achievement is accepted, it becomes a
-              permanent part of the blockchain, earning the creator AwesomeCoin rewards and eternal recognition in the
-              network&apos;s history.
+              permanent part of the blockchain with eternal recognition in the
+              network&apos;s history. The system rewards participants with AwesomeCoins: <span className="text-orange-400 font-semibold">authors earn 5 AwesomeCoins</span> for each accepted achievement, while <span className="text-orange-400 font-semibold">reviewers get 1 AwesomeCoin</span> for each review that helps an achievement get accepted.
             </p>
             <blockquote className="mt-6 border-l-4 pl-4">
               <h4 className="font-semibold text-blue-400 mb-2">The Four Phases in AwesomeCom</h4>

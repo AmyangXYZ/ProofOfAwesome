@@ -15,8 +15,8 @@ export default function ReviewComments({ review }: { review: Review }) {
         <div className="flex items-center justify-between mb-2 text-sm">
           <div className="flex flex-col gap-0 justify-start">
             <div className="font-medium">{review.reviewerName}</div>
-            <div className="text-muted-foreground" title={review.reviewerAddress}>
-              {review.reviewerAddress.slice(0, 10)}...
+            <div className="text-muted-foreground font-mono" title={review.reviewerAddress}>
+              {review.reviewerAddress.slice(0, 9)}
             </div>
           </div>
           <Button variant="ghost" size="sm">

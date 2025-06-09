@@ -54,6 +54,15 @@ export default function Header() {
             Peers
           </Link>
           <Link
+            href="/transactions"
+            className={cn(
+              "transition-colors hover:text-foreground/80 hidden md:block",
+              pathname === "/transactions" ? "text-foreground" : "text-foreground/60"
+            )}
+          >
+            Transactions
+          </Link>
+          <Link
             href="/blocks"
             className={cn(
               "transition-colors hover:text-foreground/80 hidden md:block",
@@ -133,6 +142,16 @@ export default function Header() {
             onClick={() => setIsMenuOpen(false)}
           >
             Peers
+          </Link>
+          <Link
+            href="/transactions"
+            className={cn(
+              "text-md transition-colors hover:text-foreground/80",
+              pathname === "/transactions" ? "text-foreground" : "text-foreground/60"
+            )}
+            onClick={() => setIsMenuOpen(false)}
+          >
+            Transactions
           </Link>
           <Link
             href="/blocks"

@@ -2,13 +2,19 @@
 
 <img src="./logo.svg">
 
-_[Proof of Awesome](https://proof-of-awesome.app)_ introduces a revolutionary blockchain consensus that transforms personal achievements into verifiable digital assets. By combining AI-powered validation with scholarly peer review, we create a system where real-world accomplishments become the foundation of blockchain security, making the technology more meaningful and accessible to everyone.
+_[Proof of Awesome](https://proof-of-awesome.app)_ introduces a revolutionary blockchain consensus that transforms personal achievements into verifiable digital assets through AI-assisted scholarly peer review. As a truly distributed blockchain, it&apos;s completely free to participate - anyone can host a full node, submit achievements, or contribute as a reviewer without any barriers.
+
+## Important Disclaimers
+
+Proof of Awesome is a social platform using blockchain for data integrity, not a cryptocurrency application. AwesomeCoins are internal achievement points with no monetary value - they cannot be purchased, sold, or exchanged for real money.
 
 ## Project Vision
 
 Proof of Awesome reimagines blockchain technology by aligning it with human values and achievement:
 
 - **Achievement Blockchain** - Transform personal milestones into verifiable digital assets
+- **Truly Distributed** - Anyone can host a full node and participate in consensus
+- **Free to Participate** - No barriers to entry for achievement creators or reviewers
 - **AI-powered Validation** - Automated achievement review with multi-criteria scoring
 - **Peer Review Consensus** - Community-driven validation through scholarly review process
 - **Mining through Meaning** - Replace computational puzzles with real-world accomplishments
@@ -22,8 +28,8 @@ Traditional blockchain mining systems, while technically impressive, remain abst
 ### Example Achievements
 
 - **Fitness King**: "First marathon done! Every mile counts, every step validated."
-- **Pro Player**: "GGEZ, team too heavy. Go check the chain to see who's the real carry."
-- **Home Hero**: "Now she can't say I'm only gaming and left all the cleaning to her."
+- **Pro Player**: "GGEZ, team too heavy. Go check the chain to see who&apos;s the real carry."
+- **Home Hero**: "Now she can&apos;t say I&apos;m only gaming and left all the cleaning to her."
 
 ## Consensus Mechanism
 
@@ -44,6 +50,15 @@ Proof of Awesome implements a hybrid consensus approach combining peer review wi
   - Minimum of three independent reviews
   - Median score exceeding [Weak-Accept]
   - All reviews from valid participants
+
+### AwesomeCoin Rewards
+
+The system incentivizes participation through AwesomeCoin rewards:
+
+- **Achievement Creators**: Receive 5 AwesomeCoins for each accepted achievement
+- **Reviewers**: Earn 1 AwesomeCoin for each review they submit that contributes to an accepted achievement
+
+These rewards encourage active participation in both achievement creation and the peer review process, fostering a vibrant community of contributors.
 
 ## AwesomeCom Session Process
 
@@ -109,34 +124,30 @@ Peer-to-peer communication is achieved through a Socket.IO-based relay system, A
 
 ## Technical Implementation
 
-Proof of Awesome's architecture combines blockchain technology with modern web infrastructure:
+Proof of Awesome&apos;s architecture combines blockchain technology with modern web infrastructure:
 
-- **Blockchain Core**:
+- **Blockchain Core**
 
   - BIP32/BIP39 for signature and verification
   - SHA-256 and SHA-3 for cryptographic hashing
   - Merkle Tree transaction, achievement and review verification
   - Sparse Merkle Tree for efficient account state management
 
-- **AwesomeConnect**:
+- **AwesomeConnect**
 
   - Real-time P2P messaging with Socket.IO
   - RESTful API endpoints
   - Node discovery and synchronization
 
-- **Full Node**:
+- **Full Node**
 
   - Complete blockchain state management
   - Consensus participation and block creation
   - [AI Reviewer](./node/src/reviewer_ai.ts) for instant achievement validation
 
-- **Light Node**:
+- **Light Node**
   - Client-side cryptographic operations
   - Achievement submission and review interface
   - State synchronization with full nodes
 
 The implementation focuses on accessibility while maintaining blockchain integrity, allowing users without technical blockchain knowledge to participate fully.
-
-## Scope
-
-Proof of Awesome is a self-contained blockchain system that operates independently. It does not involve any cryptocurrency, and is not connected to or integrated with other blockchain networks. The system is designed specifically for tracking and verifying real-world achievements through its own unique consensus mechanism.

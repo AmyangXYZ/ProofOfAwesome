@@ -51,6 +51,7 @@ import {
   ReviewsRequest,
   AchievementRequest,
   isAccountsResponse,
+  TransactionsRequest,
 } from "./message"
 import { io, Socket } from "socket.io-client"
 
@@ -202,6 +203,7 @@ export class AwesomeNodeLight {
     this.requestPendingAchievements()
     this.requestAccount(this.identity.address)
     this.requestAccounts()
+    this.requestTransactions()
   }
 
   public isConnected(): boolean {
@@ -249,6 +251,10 @@ export class AwesomeNodeLight {
 
   public getBlocks(): Block[] {
     return Array.from(this.blocks.values()).sort((a, b) => b.header.height - a.header.height)
+  }
+
+  public getTransactions(): Transaction[] {
+    return Array.from(this.transactions.values()).sort((a, b) => b.timestamp - a.timestamp)
   }
 
   public getActivePeers(): Identity[] {
@@ -415,6 +421,24 @@ export class AwesomeNodeLight {
     this.sentRequests.set(requestId, true)
   }
 
+  public async requestTransactions() {
+    while (!this.syncPeer) {
+      await new Promise((resolve) => setTimeout(resolve, this.WAIT_SYNC_PEER_INTERVAL))
+    }
+    const requestId = crypto.randomUUID()
+    const request: TransactionsRequest = {
+      requestId,
+    }
+    this.socket.emit("message.send", {
+      from: this.identity.address,
+      to: this.syncPeer,
+      type: MESSAGE_TYPE.TRANSACTIONS_REQUEST,
+      payload: request,
+      timestamp: Date.now(),
+    })
+    this.sentRequests.set(requestId, true)
+  }
+
   public async requestAchievement(signature: string) {
     while (!this.syncPeer) {
       await new Promise((resolve) => setTimeout(resolve, this.WAIT_SYNC_PEER_INTERVAL))
@@ -548,9 +572,12 @@ export class AwesomeNodeLight {
     this.socket.emit("message.send", message)
 
     if (!this.reviews.has(review.achievementSignature)) {
-      this.reviews.set(review.achievementSignature, [review])
-    } else {
-      this.reviews.get(review.achievementSignature)!.push(review)
+      this.reviews.set(review.achievementSignature, [])
+    }
+    // Check if review with same signature already exists
+    const existingReviews = this.reviews.get(review.achievementSignature)!
+    if (!existingReviews.some((r) => r.signature === review.signature)) {
+      existingReviews.push(review)
     }
 
     this.emit("review.new", review)
@@ -801,7 +828,11 @@ export class AwesomeNodeLight {
     if (!this.reviews.has(review.achievementSignature)) {
       this.reviews.set(review.achievementSignature, [])
     }
-    this.reviews.get(review.achievementSignature)!.push(review)
+    // Check if review with same signature already exists
+    const existingReviews = this.reviews.get(review.achievementSignature)!
+    if (!existingReviews.some((r) => r.signature === review.signature)) {
+      existingReviews.push(review)
+    }
 
     this.emit("review.new", review)
   }
@@ -961,7 +992,11 @@ export class AwesomeNodeLight {
     if (!this.reviews.has(response.review.achievementSignature)) {
       this.reviews.set(response.review.achievementSignature, [])
     }
-    this.reviews.get(response.review.achievementSignature)!.push(response.review)
+    // Check if review with same signature already exists
+    const existingReviews = this.reviews.get(response.review.achievementSignature)!
+    if (!existingReviews.some((r) => r.signature === response.review.signature)) {
+      existingReviews.push(response.review)
+    }
 
     this.emit("review.fetched", response.review)
   }
@@ -977,7 +1012,11 @@ export class AwesomeNodeLight {
       if (!this.reviews.has(review.achievementSignature)) {
         this.reviews.set(review.achievementSignature, [])
       }
-      this.reviews.get(review.achievementSignature)!.push(review)
+      // Check if review with same signature already exists
+      const existingReviews = this.reviews.get(review.achievementSignature)!
+      if (!existingReviews.some((r) => r.signature === review.signature)) {
+        existingReviews.push(review)
+      }
     }
     this.emit("reviews.fetched", response.reviews)
   }
