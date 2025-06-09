@@ -2,7 +2,7 @@
 
 <img src="./logo.svg">
 
-_[Proof of Awesome](https://proof-of-awesome.app)_ introduces a revolutionary blockchain consensus that transforms personal achievements into verifiable digital assets through AI-assisted scholarly peer review. As a truly distributed blockchain, it&apos;s completely free to participate - anyone can host a full node, submit achievements, or contribute as a reviewer without any barriers.
+_[Proof of Awesome](https://proof-of-awesome.app)_ replaces computational mining with real-world achievements. Not another cryptocurrency - this blockchain verifies personal accomplishments through AI and peer review, creating permanent digital records. Free to join, free to participate, free to host.
 
 ## Important Disclaimers
 
