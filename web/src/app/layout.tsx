@@ -20,32 +20,32 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Proof of Awesome",
   description:
-    "Transform real-world achievements into blockchain-verified assets through AwesomeCom events. Join our innovative consensus mechanism that replaces computational mining with meaningful accomplishments.",
+    "Not another crypto - a blockchain for human achievement. Mine blocks with real accomplishments through AI verification and peer review. Free to join, no tokens or fees.",
   keywords: [
     "blockchain achievement",
     "AI verification",
-    "AwesomeCom",
     "achievement mining",
     "proof of work alternative",
-    "blockchain social platform",
-    "computational fitness",
-    "achievement validation",
     "peer review blockchain",
     "digital accomplishment tracking",
+    "non-crypto blockchain",
+    "achievement validation",
+    "human achievement verification",
+    "decentralized peer review",
   ],
   openGraph: {
-    title: "Proof of Awesome | Transform Achievements into Blockchain Assets",
+    title: "Proof of Awesome | Not Another Crypto - A Blockchain for Human Achievement",
     description:
-      "Join AwesomeCom events to transform your real-world accomplishments into blockchain-verified assets. Our innovative consensus mechanism combines AI verification with peer review for meaningful achievement mining.",
+      "Mine blocks with real achievements, not math puzzles. Transform your accomplishments into permanent blockchain records through AI and peer verification. No crypto, no fees.",
     type: "website",
     locale: "en_US",
     siteName: "Proof of Awesome",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Proof of Awesome | Transform Achievements into Blockchain Assets",
+    title: "Proof of Awesome | Not Another Crypto - A Blockchain for Human Achievement",
     description:
-      "Join AwesomeCom events to mine achievements instead of computational puzzles. Your real-world accomplishments, verified by AI and peer review, become permanent blockchain assets.",
+      "Mine blocks with achievements, not math puzzles. Submit accomplishments, get AI+peer verified, earn blockchain recognition. No crypto, no fees.",
   },
   robots: {
     index: true,
