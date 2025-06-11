@@ -1090,6 +1090,7 @@ export class AwesomeNode {
       }
       this.socket.emit("message.send", msg)
     } else if (request.authorAddress != undefined) {
+      console.log("handleAchievementsRequest", request)
       const achievements = this.db.getAchievementsByAuthor(request.authorAddress)
       const response: AchievementsResponse = {
         requestId: request.requestId,
@@ -1103,6 +1104,7 @@ export class AwesomeNode {
         timestamp: Date.now(),
       }
       this.socket.emit("message.send", msg)
+      console.log("sent achievements response", response)
     }
   }
 
@@ -1148,6 +1150,11 @@ export class AwesomeNode {
       // if achievement is not pending, fetch reviews from the repository
       if (reviews.length == 0) {
         reviews = this.db.getReviewsByAchievement(request.achievementSignature)
+      }
+    } else if (request.reviewerAddress != undefined) {
+      reviews = this.db.getReviewsByReviewer(request.reviewerAddress)
+      if (request.limit != undefined) {
+        reviews = reviews.sort((a, b) => b.timestamp - a.timestamp).slice(0, request.limit)
       }
     }
     const response: ReviewsResponse = {
