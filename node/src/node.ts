@@ -269,6 +269,7 @@ export class AwesomeNode {
             break
           }
           this.assignRewards(block)
+
           for (const transaction of block.transactions) {
             const { account: sender } = this.accounts.get(transaction.senderAddress)
             const { account: recipient } = this.accounts.get(transaction.recipientAddress)
@@ -642,7 +643,7 @@ export class AwesomeNode {
         } as Account
       }
       account.acceptedAchievements++
-      account.balance += chainConfig.rewardRules.acceptedAchievement
+      account.balance = this.formatDecimal(account.balance + chainConfig.rewardRules.acceptedAchievement)
       this.accounts.insert(account)
     }
 
@@ -659,7 +660,7 @@ export class AwesomeNode {
           includedReviews: 0,
         } as Account
       }
-      account.balance += chainConfig.rewardRules.review
+      account.balance = this.formatDecimal(account.balance + chainConfig.rewardRules.review)
       account.includedReviews += 1
       this.accounts.insert(account)
     }
@@ -1090,7 +1091,6 @@ export class AwesomeNode {
       }
       this.socket.emit("message.send", msg)
     } else if (request.authorAddress != undefined) {
-      console.log("handleAchievementsRequest", request)
       const achievements = this.db.getAchievementsByAuthor(request.authorAddress)
       const response: AchievementsResponse = {
         requestId: request.requestId,
@@ -1104,7 +1104,6 @@ export class AwesomeNode {
         timestamp: Date.now(),
       }
       this.socket.emit("message.send", msg)
-      console.log("sent achievements response", response)
     }
   }
 
