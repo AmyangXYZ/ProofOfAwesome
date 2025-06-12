@@ -642,6 +642,7 @@ export class AwesomeNode {
           includedReviews: 0,
         } as Account
       }
+      account.name = achievement.authorName
       account.acceptedAchievements++
       account.balance = this.formatDecimal(account.balance + chainConfig.rewardRules.acceptedAchievement)
       this.accounts.insert(account)
@@ -660,6 +661,7 @@ export class AwesomeNode {
           includedReviews: 0,
         } as Account
       }
+      account.name = review.reviewerName
       account.balance = this.formatDecimal(account.balance + chainConfig.rewardRules.review)
       account.includedReviews += 1
       this.accounts.insert(account)
