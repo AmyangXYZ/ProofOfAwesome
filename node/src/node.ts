@@ -439,7 +439,7 @@ export class AwesomeNode {
     if (blocks.length == 0) {
       return false
     }
-    console.log(blocks.length, "blocks loaded from repository")
+    log(`${blocks.length} blocks loaded from repository`)
 
     for (const [index, block] of blocks.entries()) {
       if (!verifyBlock(block)) {
@@ -475,6 +475,7 @@ export class AwesomeNode {
       }
     }
     log(`${blocks.length} blocks loaded and verified`)
+    console.log(this.accounts.merkleRoot)
     return true
   }
 
@@ -744,16 +745,27 @@ export class AwesomeNode {
 
   private async handleNewTransaction(message: Message) {
     const transaction = message.payload
+    console.log(transaction)
     if (!isTransaction(transaction) || this.hasReceived.has(transaction.signature) || !verifyTransaction(transaction)) {
       return
     }
     this.hasReceived.set(transaction.signature, Date.now())
-
+    if (transaction.blockHeight !== -1) {
+      return
+    }
     const { account: sender } = this.accounts.get(transaction.senderAddress)
     const { account: recipient } = this.accounts.get(transaction.recipientAddress)
     if (!sender || !recipient) {
       return
     }
+    log(
+      "new transaction:",
+      transaction.signature.slice(0, 7),
+      transaction.senderAddress.slice(0, 9),
+      "->",
+      transaction.recipientAddress.slice(0, 9),
+      transaction.amount
+    )
 
     if (sender && recipient && sender.balance >= transaction.amount && sender.nonce == transaction.nonce) {
       sender.balance = this.formatDecimal(sender.balance - transaction.amount)
@@ -1320,7 +1332,7 @@ export class AwesomeNode {
 
   private async broadcastChainHead() {
     const chainHead = await this.createChainHead()
-    log("Broadcasting chain head:", chainHead)
+    // log("Broadcasting chain head:", chainHead)
     this.socket.emit("message.send", {
       from: this.identity.address,
       to: "*",
@@ -1418,18 +1430,6 @@ export class AwesomeNode {
     if (this.cleanReceivedMessagesInterval) {
       clearInterval(this.cleanReceivedMessagesInterval)
     }
-  }
-
-  private cleanup() {
-    this.stopAwesomeComStatusUpdate()
-    this.stopChainHeadBroadcast()
-    this.stopCandidateBlockBroadcast()
-    this.stopNewBlockBroadcast()
-    this.stopCleanReceivedMessages()
-    this.candidateBlock = null
-    this.hasReceived.clear()
-    this.pendingAchievements = []
-    this.pendingReviews = []
   }
 
   private formatDecimal(num: number): number {

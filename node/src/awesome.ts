@@ -451,7 +451,7 @@ export function signTransaction(transaction: Transaction, wallet: Wallet): strin
     [
       transaction.senderAddress,
       transaction.recipientAddress,
-      transaction.amount,
+      transaction.amount.toString(),
       transaction.nonce,
       transaction.timestamp,
       transaction.senderPublicKey,
@@ -461,17 +461,13 @@ export function signTransaction(transaction: Transaction, wallet: Wallet): strin
 }
 
 export function verifyTransaction(transaction: Transaction): boolean {
-  // Verify amount is positive and has max 4 decimal places
   if (transaction.amount <= 0) return false
-  const decimalStr = transaction.amount.toString()
-  const decimalPlaces = decimalStr.includes(".") ? decimalStr.split(".")[1].length : 0
-  if (decimalPlaces > 4) return false
 
   const hash = sha256(
     [
       transaction.senderAddress,
       transaction.recipientAddress,
-      transaction.amount,
+      transaction.amount.toString(),
       transaction.nonce,
       transaction.timestamp,
       transaction.senderPublicKey,
