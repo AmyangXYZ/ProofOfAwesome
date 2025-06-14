@@ -150,7 +150,7 @@ export default function AchievementInput() {
   return (
     <>
       <div className="relative w-full flex flex-col gap-4">
-        {showSuggestions && canSubmit && (
+        {showSuggestions && canSubmit && !uploading && !fileUrl.length && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {suggestedAchievements.map((ach, i) => (
               <motion.div

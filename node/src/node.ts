@@ -128,6 +128,17 @@ export class AwesomeNode {
 
   private latestBlockHeight: number = -1
 
+  // Size limits and batch sizes
+  private readonly MAX_MESSAGE_SIZE: number = 900 * 1024 // 900KB to stay under Socket.IO's 1MB limit
+  private readonly BLOCK_BATCH_SIZE: number = 100 // Maximum blocks per request
+  private readonly HEADER_BATCH_SIZE: number = 500 // Maximum headers per request
+  private readonly TRANSACTION_BATCH_SIZE: number = 1000 // Maximum transactions per request
+  private readonly ACCOUNT_BATCH_SIZE: number = 2000 // Maximum accounts per request
+  private readonly ACHIEVEMENT_BATCH_SIZE: number = 1000 // Maximum achievements per request
+
+  private blocksBuffer: Map<number, Block> = new Map()
+  private blocksReceived: number = 0
+
   // created or received in the submission phase in current session
   private pendingAchievements: Achievement[] = []
   // created or received in the review phase in current session
@@ -244,8 +255,14 @@ export class AwesomeNode {
     this.on("sync.chain_head_fetched", async (chainHead: ChainHead) => {
       if (this.syncState == SyncState.REQUESTING_CHAIN_HEAD) {
         this.syncState = SyncState.REQUESTING_BLOCKS
-        // TODO: split into multiple requests if the chain is too long
-        this.requestBlocks(0, chainHead.latestBlockHeight)
+        this.latestBlockHeight = chainHead.latestBlockHeight
+        this.blocksBuffer = new Map()
+        this.blocksReceived = 0
+        // Request first batch of blocks
+        const firstBatchEnd = Math.min(this.BLOCK_BATCH_SIZE - 1, this.latestBlockHeight)
+        log("Starting block sync: need to fetch %d blocks", this.latestBlockHeight + 1)
+        log("Starting block sync: requesting blocks 0 to", firstBatchEnd)
+        this.requestBlocks(0, firstBatchEnd)
       }
     })
 
@@ -412,6 +429,14 @@ export class AwesomeNode {
       this.emit("node.connected", undefined)
     })
 
+    this.socket.on("connect_error", (error: Error) => {
+      log("Socket connect error:", error.message)
+    })
+
+    this.socket.on("disconnect", (reason: string) => {
+      log("Socket disconnected. Reason:", reason)
+    })
+
     this.socket.on("message.received", (message: Message) => {
       if (message.from == this.identity.address) {
         return
@@ -475,7 +500,6 @@ export class AwesomeNode {
       }
     }
     log(`${blocks.length} blocks loaded and verified`)
-    console.log(this.accounts.merkleRoot)
     return true
   }
 
@@ -894,6 +918,10 @@ export class AwesomeNode {
     }
 
     if (this.syncState == SyncState.REQUESTING_CHAIN_HEAD) {
+      this.latestBlockHeight = chainHead.latestBlockHeight
+      // Initialize empty blocks buffer map
+      this.blocksBuffer = new Map()
+      this.blocksReceived = 0
       this.emit("sync.chain_head_fetched", chainHead)
     }
   }
@@ -926,6 +954,18 @@ export class AwesomeNode {
     if (!isBlockHeadersRequest(request)) {
       return
     }
+
+    // Validate request size
+    const requestedHeaderCount = request.toHeight - request.fromHeight + 1
+    if (requestedHeaderCount > this.HEADER_BATCH_SIZE) {
+      log(
+        "Block headers request too large: %d headers requested, maximum is %d",
+        requestedHeaderCount,
+        this.HEADER_BATCH_SIZE
+      )
+      return
+    }
+
     const headers = this.db.getBlockHeaders(request.fromHeight, request.toHeight)
     const response: BlockHeadersResponse = {
       requestId: request.requestId,
@@ -937,6 +977,11 @@ export class AwesomeNode {
       type: MESSAGE_TYPE.BLOCK_HEADERS_RESPONSE,
       payload: response,
       timestamp: Date.now(),
+    }
+    const msgSize = Buffer.from(JSON.stringify(msg)).length
+    if (msgSize > this.MAX_MESSAGE_SIZE) {
+      log("Block headers response too large: %d bytes, maximum is %d bytes", msgSize, this.MAX_MESSAGE_SIZE)
+      return
     }
     this.socket.emit("message.send", msg)
   }
@@ -969,6 +1014,15 @@ export class AwesomeNode {
     if (!isBlocksRequest(request)) {
       return
     }
+    console.log("handleBlocksRequest", request.fromHeight, request.toHeight)
+
+    // Validate request size
+    const requestedBlockCount = request.toHeight - request.fromHeight + 1
+    if (requestedBlockCount > this.BLOCK_BATCH_SIZE) {
+      log("Blocks request too large: %d blocks requested, maximum is %d", requestedBlockCount, this.BLOCK_BATCH_SIZE)
+      return
+    }
+
     const blocks = this.db.getBlocks(request.fromHeight, request.toHeight)
     const response: BlocksResponse = {
       requestId: request.requestId,
@@ -981,6 +1035,12 @@ export class AwesomeNode {
       payload: response,
       timestamp: Date.now(),
     }
+    const msgSize = Buffer.from(JSON.stringify(msg)).length
+    if (msgSize > this.MAX_MESSAGE_SIZE) {
+      log("Blocks response too large: %d bytes, maximum is %d bytes", msgSize, this.MAX_MESSAGE_SIZE)
+      return
+    }
+    log("Sending blocks response: %d blocks, message size: %d bytes", blocks.length, msgSize)
     this.socket.emit("message.send", msg)
   }
 
@@ -992,7 +1052,40 @@ export class AwesomeNode {
     this.sentRequests.delete(response.requestId)
 
     if (this.syncState == SyncState.REQUESTING_BLOCKS) {
-      this.emit("sync.blocks_fetched", response.blocks)
+      // Add blocks to the buffer map
+      for (const block of response.blocks) {
+        if (!this.blocksBuffer.has(block.header.height)) {
+          this.blocksBuffer.set(block.header.height, block)
+          this.blocksReceived++
+        }
+      }
+
+      // Check if we have all blocks from 0 to latestBlockHeight
+      let isComplete = true
+      for (let height = 0; height <= this.latestBlockHeight; height++) {
+        if (!this.blocksBuffer.has(height)) {
+          isComplete = false
+          break
+        }
+      }
+
+      // If we have all blocks, process them
+      if (isComplete) {
+        // Convert map to array of blocks, sorted by height
+        const blocks = Array.from(this.blocksBuffer.values()).sort((a, b) => a.header.height - b.header.height)
+        log("blocks fetched completed:", blocks.length)
+        this.emit("sync.blocks_fetched", blocks)
+        this.blocksBuffer.clear()
+        this.blocksReceived = 0
+      } else {
+        // Request next batch if we haven't received all blocks
+        log("Sync progress: %d/%d blocks received", this.blocksReceived, this.latestBlockHeight + 1)
+        const nextBatchStart = response.blocks[response.blocks.length - 1].header.height + 1
+        const nextBatchEnd = Math.min(nextBatchStart + this.BLOCK_BATCH_SIZE - 1, this.latestBlockHeight)
+        if (nextBatchStart <= this.latestBlockHeight) {
+          this.requestBlocks(nextBatchStart, nextBatchEnd)
+        }
+      }
     }
   }
 
