@@ -1040,7 +1040,7 @@ export class AwesomeNode {
       log("Blocks response too large: %d bytes, maximum is %d bytes", msgSize, this.MAX_MESSAGE_SIZE)
       return
     }
-    log("Sending blocks response: %d blocks, message size: %d bytes", blocks.length, msgSize)
+    log("Sending blocks response: %d blocks to %d, message size: %d bytes", blocks.length, msg.to, msgSize)
     this.socket.emit("message.send", msg)
   }
 
