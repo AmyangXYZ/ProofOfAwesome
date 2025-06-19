@@ -29,7 +29,7 @@ import {
   verifyBlockHeader,
   Account,
 } from "./awesome"
-import { MerkleTree, SparseMerkleTree } from "./merkle"
+import { MerkleProof, MerkleTree, SparseMerkleTree } from "./merkle"
 import {
   ChainHeadResponse,
   isChainHeadRequest,
@@ -1154,10 +1154,21 @@ export class AwesomeNode {
 
     // first check if the achievement is in the pending list
     achievement = this.pendingAchievements.find((a) => a.signature == request.signature)
-
+    let proof: MerkleProof | null = null
     // if not, check if the achievement is in the repository
     if (!achievement) {
       achievement = this.db.getAchievementBySignature(request.signature)
+      // add proof
+      if (achievement) {
+        const block = this.db.getBlock(achievement.targetBlock)
+        if (block) {
+          proof = MerkleTree.generateProof(
+            achievement.signature,
+            block.achievements.map((a) => a.signature),
+            block.header.achievementsRoot
+          )
+        }
+      }
     }
 
     // if still not found, return
@@ -1168,6 +1179,7 @@ export class AwesomeNode {
     const response: AchievementResponse = {
       requestId: request.requestId,
       achievement,
+      proof: proof ?? undefined,
     }
     const msg: Message = {
       from: this.identity.address,

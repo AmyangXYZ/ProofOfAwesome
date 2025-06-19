@@ -199,7 +199,7 @@ export class AwesomeNodeLight {
   }
 
   private sync() {
-    this.requestBlockHeaders(0, this.latestBlockHeight)
+    this.requestBlockHeaders(this.latestBlockHeight - 100, this.latestBlockHeight)
     this.requestPendingAchievements()
     this.requestAccount(this.identity.address)
     this.requestAccounts()
@@ -645,6 +645,7 @@ export class AwesomeNodeLight {
         if (members.length > 0) {
           // TODO: request chain heads from multiple full nodes and select the best one or use trusted full node
           this.setSyncPeer(members[0].address)
+          // this.setSyncPeer("0x2Ff140327846CBe4eBb650C45C6103828f4bE54a")
           this.requestChainHead()
         }
       }
@@ -962,6 +963,11 @@ export class AwesomeNodeLight {
     if (response.achievement.targetBlock == this.targetBlock) {
       this.pendingAchievements = [...new Set([...this.pendingAchievements, response.achievement.signature])]
     }
+
+    // if (response.proof) {
+    //   const verified = MerkleTree.verifyProof(response.proof)
+    //   console.log("achievement proof verified", verified)
+    // }
 
     this.emit("achievement.fetched", response.achievement)
   }

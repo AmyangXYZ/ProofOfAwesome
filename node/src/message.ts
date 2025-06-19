@@ -14,7 +14,7 @@ import {
   BlockHeader,
   isBlockHeader,
 } from "./awesome"
-import { isSparseMerkleProof, SparseMerkleProof } from "./merkle"
+import { isSparseMerkleProof, MerkleProof, SparseMerkleProof } from "./merkle"
 
 export enum MESSAGE_TYPE {
   // periodically broadcasted by full nodes
@@ -160,6 +160,7 @@ export interface AchievementRequest {
 export interface AchievementResponse {
   requestId: string
   achievement: Achievement
+  proof?: MerkleProof
 }
 
 export interface AchievementsRequest {

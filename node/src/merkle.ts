@@ -2,8 +2,10 @@ import { sha256 } from "js-sha256"
 import { Account } from "./awesome"
 
 export interface MerkleProof {
-  index: number
+  item: string
   hashes: string[]
+  target: string
+  index: number
 }
 
 export class MerkleTree {
@@ -36,13 +38,15 @@ export class MerkleTree {
     return hashes[0]
   }
 
-  public static generateProof(items: string[], target: string): MerkleProof | null {
+  public static generateProof(item: string, items: string[], target: string): MerkleProof | null {
     if (items.length === 0) {
       return null
     }
     const proof: MerkleProof = {
-      index: items.indexOf(target),
+      item,
       hashes: [],
+      target,
+      index: items.indexOf(item),
     }
     if (proof.index === -1) {
       return null
@@ -71,17 +75,16 @@ export class MerkleTree {
       hashes = nextLevel
       index = Math.floor(index / 2)
     }
-
     return proof
   }
 
-  public static verifyProof(root: string, item: string, proof: MerkleProof): boolean {
+  public static verifyProof(proof: MerkleProof): boolean {
     if (!proof || proof.hashes.length === 0) {
-      return sha256(item) === root
+      return sha256(proof.item) === proof.target
     }
 
     let index = proof.index
-    let hash = sha256(item)
+    let hash = sha256(proof.item)
 
     for (const sibling of proof.hashes) {
       if (index % 2 === 0) {
@@ -92,7 +95,7 @@ export class MerkleTree {
       index = Math.floor(index / 2)
     }
 
-    return hash === root
+    return hash === proof.target
   }
 }
 
